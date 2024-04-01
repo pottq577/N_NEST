@@ -22,7 +22,7 @@ def object_id_to_str(obj):
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 # 'Name' 컬렉션 내의 모든 문서를 가져오는 API 엔드포인트
-@app.get("/names", response_model=List[Dict])
+@app.get("/name", response_model=List[Dict])
 async def get_names():
     names_cursor = db.Name.find({})
     names_list = await names_cursor.to_list(length=100)  # 예시로 100개 문서 제한
@@ -30,7 +30,7 @@ async def get_names():
     return jsonable_encoder(names_list, custom_encoder={ObjectId: object_id_to_str})
 
 # 특정 ID를 가진 문서를 가져오는 API 엔드포인트
-@app.get("/names/{id}", response_model=Dict)
+@app.get("/name/{id}", response_model=Dict)
 async def get_name(id: str):
     document = await db.Name.find_one({"_id": ObjectId(id)})
     if document:

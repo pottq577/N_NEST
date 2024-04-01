@@ -33,7 +33,10 @@
   "npm.packageManager": "yarn",
   // Extension: cSpell
   "cSpell.words": [
-    "Customizer"
+    "bson",
+    "Customizer",
+    "fastapi",
+    "jsonable"
   ],
   "search-node-modules.path": "typescript-version/full-version/node_modules",
   "markdown.extension.toc.updateOnSave": false
