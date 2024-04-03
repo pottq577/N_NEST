@@ -7,7 +7,7 @@ from typing import List, Dict
 app = FastAPI()
 
 # MongoDB URI 설정
-MONGODB_URL = "mongodb+srv://CBJ:admin13579@cluster1.vtagppt.mongodb.net/"  # 실제 연결 URI로 대체해야 합니다.
+MONGODB_URL = "mongodb+srv://CBJ:admin13579@cluster1.vtagppt.mongodb.net/"  # 실제 연결 URI
 
 # MongoDB 클라이언트 생성
 client = AsyncIOMotorClient(MONGODB_URL)
