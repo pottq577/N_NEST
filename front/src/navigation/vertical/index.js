@@ -23,6 +23,11 @@ const navigation = () => {
       path: '/account-settings'
     },
     {
+      title: '프로젝트 등록',
+      icon: AccountCogOutline,
+      path: '/projects'
+    },
+    {
       sectionTitle: 'Pages'
     },
     {
