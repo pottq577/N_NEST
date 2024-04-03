@@ -18,6 +18,11 @@ const navigation = () => {
       path: '/'
     },
     {
+      title: 'summary',
+      icon: HomeOutline,
+      path: '/summary'
+    },
+    {
       title: 'Account Settings',
       icon: AccountCogOutline,
       path: '/account-settings'
