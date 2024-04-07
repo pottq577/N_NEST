@@ -80,6 +80,32 @@ const RegisterPage = () => {
     event.preventDefault()
   }
 
+  const handleRegister = async e => {
+    e.preventDefault()
+    try {
+      const response = await fetch('http://localhost:8000/register/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: values.email,
+          githubCode: values.githubCode
+        })
+      })
+
+      if (response.ok) {
+        // Handle success
+      } else {
+        // Handle error
+        const errorData = await response.json()
+        console.error(errorData.detail)
+      }
+    } catch (error) {
+      console.error('Error submitting form', error)
+    }
+  }
+
   return (
     <Box className='content-center'>
       <Card sx={{ zIndex: 1 }}>
@@ -157,86 +183,65 @@ const RegisterPage = () => {
               {themeConfig.templateName}
             </Typography>
           </Box>
+
           <Box sx={{ mb: 6 }}>
             <Typography variant='h5' sx={{ fontWeight: 600, marginBottom: 1.5 }}>
               Adventure starts here 🚀
             </Typography>
             <Typography variant='body2'>Make your app management easy and fun!</Typography>
           </Box>
-          <form noValidate autoComplete='off' onSubmit={e => e.preventDefault()}>
-            <TextField autoFocus fullWidth id='username' label='Username' sx={{ marginBottom: 4 }} />
-            <TextField fullWidth type='email' label='Email' sx={{ marginBottom: 4 }} />
-            <FormControl fullWidth>
+
+          <form noValidate autoComplete='off' onSubmit={handleRegister}>
+            <TextField
+              autoFocus
+              fullWidth
+              id='username'
+              label='Username'
+              value={values.username}
+              onChange={handleChange('username')}
+              sx={{ marginBottom: 4 }}
+            />
+            <TextField
+              fullWidth
+              type='email'
+              label='Email'
+              value={values.email}
+              onChange={handleChange('email')}
+              sx={{ marginBottom: 4 }}
+            />
+            <FormControl fullWidth sx={{ marginBottom: 4 }}>
               <InputLabel htmlFor='auth-register-password'>Password</InputLabel>
               <OutlinedInput
-                label='Password'
-                value={values.password}
                 id='auth-register-password'
-                onChange={handleChange('password')}
                 type={values.showPassword ? 'text' : 'password'}
+                value={values.password}
+                onChange={handleChange('password')}
                 endAdornment={
                   <InputAdornment position='end'>
                     <IconButton
-                      edge='end'
+                      aria-label='toggle password visibility'
                       onClick={handleClickShowPassword}
                       onMouseDown={handleMouseDownPassword}
-                      aria-label='toggle password visibility'
+                      edge='end'
                     >
-                      {values.showPassword ? <EyeOutline fontSize='small' /> : <EyeOffOutline fontSize='small' />}
+                      {values.showPassword ? <EyeOutline /> : <EyeOffOutline />}
                     </IconButton>
                   </InputAdornment>
                 }
+                label='Password'
               />
             </FormControl>
-            <FormControlLabel
-              control={<Checkbox />}
-              label={
-                <Fragment>
-                  <span>I agree to </span>
-                  <Link href='/' passHref>
-                    <LinkStyled onClick={e => e.preventDefault()}>privacy policy & terms</LinkStyled>
-                  </Link>
-                </Fragment>
-              }
+            <TextField
+              fullWidth
+              label='GitHub 인증 코드'
+              value={values.githubCode}
+              onChange={handleChange('githubCode')}
+              sx={{ marginBottom: 4 }}
             />
+            {/* Additional fields like agreements checkboxes or social login buttons */}
             <Button fullWidth size='large' type='submit' variant='contained' sx={{ marginBottom: 7 }}>
               Sign up
             </Button>
-            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <Typography variant='body2' sx={{ marginRight: 2 }}>
-                Already have an account?
-              </Typography>
-              <Typography variant='body2'>
-                <Link passHref href='/pages/login'>
-                  <LinkStyled>Sign in instead</LinkStyled>
-                </Link>
-              </Typography>
-            </Box>
-            <Divider sx={{ my: 5 }}>or</Divider>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Link href='/' passHref>
-                <IconButton component='a' onClick={e => e.preventDefault()}>
-                  <Facebook sx={{ color: '#497ce2' }} />
-                </IconButton>
-              </Link>
-              <Link href='/' passHref>
-                <IconButton component='a' onClick={e => e.preventDefault()}>
-                  <Twitter sx={{ color: '#1da1f2' }} />
-                </IconButton>
-              </Link>
-              <Link href='/' passHref>
-                <IconButton component='a' onClick={e => e.preventDefault()}>
-                  <Github
-                    sx={{ color: theme => (theme.palette.mode === 'light' ? '#272727' : theme.palette.grey[300]) }}
-                  />
-                </IconButton>
-              </Link>
-              <Link href='/' passHref>
-                <IconButton component='a' onClick={e => e.preventDefault()}>
-                  <Google sx={{ color: '#db4437' }} />
-                </IconButton>
-              </Link>
-            </Box>
           </form>
         </CardContent>
       </Card>
