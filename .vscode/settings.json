@@ -36,7 +36,9 @@
     "bson",
     "Customizer",
     "fastapi",
-    "jsonable"
+    "jsonable",
+    "popperjs",
+    "pydantic"
   ],
   "search-node-modules.path": "typescript-version/full-version/node_modules",
   "markdown.extension.toc.updateOnSave": false
