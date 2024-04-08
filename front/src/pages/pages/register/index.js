@@ -59,11 +59,16 @@ const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
 }))
 
 const RegisterPage = () => {
-  // ** States
   const [values, setValues] = useState({
+    username: '',
     password: '',
-    showPassword: false
+    email: '',
+    emailVerificationCode: '' // 메일 인증 코드 상태 추가
   })
+
+  // 이메일 인증 상태 추가
+  const [emailVerified, setEmailVerified] = useState(false)
+  const [emailVerificationRequested, setEmailVerificationRequested] = useState(false) // 이메일 인증 요청 상태 추가
 
   // ** Hook
   const theme = useTheme()
@@ -104,6 +109,44 @@ const RegisterPage = () => {
     } catch (error) {
       console.error('Error submitting form', error)
     }
+  }
+
+  // 메일 인증 요청 처리 함수
+  const handleEmailVerification = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/verify-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: values.email,
+          verificationCode: values.emailVerificationCode
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setEmailVerified(data.verified)
+        if (data.verified) {
+          // 인증 성공 로직
+          alert('이메일이 성공적으로 인증되었습니다.')
+        } else {
+          // 인증 실패 로직
+          alert('인증번호가 올바르지 않습니다.')
+        }
+      } else {
+        // 서버 에러 처리
+        alert('서버 오류로 인증에 실패했습니다. 다시 시도해주세요.')
+      }
+    } catch (error) {
+      console.error('Error verifying email:', error)
+    }
+  }
+
+  const handleEmailVerificationRequest = async () => {
+    // 이메일 인증요청 처리 로직 구현
+    setEmailVerificationRequested(true) // 인증 요청 상태를 true로 변경
   }
 
   return (
@@ -195,57 +238,61 @@ const RegisterPage = () => {
             <TextField
               autoFocus
               fullWidth
-              id='username'
-              label='Username'
+              label='이름'
               value={values.username}
               onChange={handleChange('username')}
-              sx={{ marginBottom: 4 }}
+              sx={{ mb: 2 }}
             />
             <TextField
               fullWidth
-              type='email'
-              label='Email'
-              value={values.email}
-              onChange={handleChange('email')}
-              sx={{ marginBottom: 4 }}
+              label='비밀번호'
+              type='password'
+              value={values.password}
+              onChange={handleChange('password')}
+              sx={{ mb: 2 }}
             />
-            <FormControl fullWidth sx={{ marginBottom: 4 }}>
-              <InputLabel htmlFor='auth-register-password'>Password</InputLabel>
-              <OutlinedInput
-                id='auth-register-password'
-                type={values.showPassword ? 'text' : 'password'}
-                value={values.password}
-                onChange={handleChange('password')}
-                endAdornment={
-                  <InputAdornment position='end'>
-                    <IconButton
-                      aria-label='toggle password visibility'
-                      onClick={handleClickShowPassword}
-                      onMouseDown={handleMouseDownPassword}
-                      edge='end'
-                    >
-                      {values.showPassword ? <EyeOutline /> : <EyeOffOutline />}
-                    </IconButton>
-                  </InputAdornment>
-                }
-                label='Password'
+            <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 2 }}>
+              <TextField
+                fullWidth
+                label='이메일'
+                type='email'
+                value={values.email}
+                onChange={handleChange('email')}
+                sx={{ mr: 1 }}
               />
-            </FormControl>
-            <TextField
+              <Button variant='contained' onClick={handleEmailVerificationRequest} sx={{ height: '56px' }}>
+                인증요청
+              </Button>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 2 }}>
+              <TextField
+                fullWidth
+                label='이메일 인증번호'
+                value={values.emailVerificationCode}
+                onChange={handleChange('emailVerificationCode')}
+                sx={{ mr: 1 }}
+              />
+              <Button
+                variant='contained'
+                onClick={handleEmailVerification}
+                disabled={!emailVerificationRequested} // 인증요청이 되지 않았다면 인증하기 버튼 비활성화
+                sx={{ height: '56px' }}
+              >
+                인증하기
+              </Button>
+            </Box>
+            <Button
               fullWidth
-              label='GitHub 인증 코드'
-              value={values.githubCode}
-              onChange={handleChange('githubCode')}
-              sx={{ marginBottom: 4 }}
-            />
-            {/* Additional fields like agreements checkboxes or social login buttons */}
-            <Button fullWidth size='large' type='submit' variant='contained' sx={{ marginBottom: 7 }}>
-              Sign up
+              size='large'
+              variant='contained'
+              type='submit'
+              disabled={!emailVerified} // 이메일 인증이 되지 않았다면 회원가입 버튼 비활성화
+            >
+              회원가입
             </Button>
           </form>
         </CardContent>
       </Card>
-      <FooterIllustrationsV1 />
     </Box>
   )
 }

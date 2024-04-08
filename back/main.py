@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Body
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.encoders import jsonable_encoder
 from bson import ObjectId
 from typing import List, Dict
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -36,3 +37,21 @@ async def get_name(id: str):
     if document:
         return jsonable_encoder(document, custom_encoder={ObjectId: object_id_to_str})
     return {"error": "Document not found"}
+
+class EmailVerification(BaseModel):
+    email: str
+    verificationCode: str
+
+@app.post("/verify-email")
+async def verify_email(verification: EmailVerification):
+    # 여기에 구글 이메일 인증 API를 호출하는 코드를 구현합니다.
+    # 이 예제에서는 단순화를 위해 직접 구현된 코드는 제공하지 않습니다.
+    # 예를 들어, verification.verificationCode가 구글 API를 통해 확인된 올바른 코드인지 확인합니다.
+
+    # 가정: 인증 코드가 올바른 경우
+    is_verified = True # 실제 구현에서는 구글 API 응답에 따라 결정됩니다.
+
+    if is_verified:
+        return {"verified": True}
+    else:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
