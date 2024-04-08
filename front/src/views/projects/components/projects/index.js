@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
+import router, { useRouter } from 'next/router'
 
-const Space = () => {
-  return <div style={{ padding: 5 }} />
+const Space = padding => {
+  return <div style={{ padding: padding }} />
 }
 
 const projects = [
@@ -19,6 +20,7 @@ const projects = [
 const Overview = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredProjects, setFilteredProjects] = useState(projects)
+  const router = useRouter()
 
   useEffect(() => {
     const filtered = projects.filter(project => project.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -52,6 +54,23 @@ const Overview = () => {
           onChange={e => setSearchTerm(e.target.value)}
         />
         <button style={{ flexBasis: '100px', padding: '8px 16px ' }}>정렬</button>
+        <Space />
+        <button
+          style={{
+            flexBasis: '100px',
+            padding: '8px 16px ',
+            backgroundColor: '#9155FD',
+            borderRadius: 5,
+            borderWidth: 0,
+            color: 'white',
+            fontWeight: '600',
+            marginLeft: 10,
+            fontSize: '0.875rem'
+          }}
+          onClick={() => router.push('/new/')}
+        >
+          새 프로젝트
+        </button>
       </div>
       <div
         style={{

@@ -28,7 +28,7 @@ const navigation = () => {
       path: '/account-settings'
     },
     {
-      title: '프로젝트 등록',
+      title: '마이페이지',
       icon: AccountCogOutline,
       path: '/projects'
     },
