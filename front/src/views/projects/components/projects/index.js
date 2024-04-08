@@ -12,7 +12,7 @@ const projects = [
     language: 'JavaScript',
     license: 'MIT License',
     updated: 'last week',
-    desc: 'AutoGPT'
+    desc: 'AutoGPT list test'
   }
 ]
 
