@@ -1,10 +1,15 @@
-from fastapi import FastAPI, HTTPException, Query, RedirectResponse
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.encoders import jsonable_encoder
 from bson import ObjectId
 from typing import List, Dict
 from pydantic import BaseModel
 import httpx
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -16,8 +21,9 @@ client = AsyncIOMotorClient(MONGODB_URL)
 db = client['Test']
 
 # GitHub OAuth 설정
-CLIENT_ID = "your_github_client_id"
-CLIENT_SECRET = "your_github_client_secret"
+CLIENT_ID = "Iv1.636c6226a979a74a"
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+print(CLIENT_SECRET)
 REDIRECT_URI = "http://localhost:8000/auth/callback"
 
 # ObjectId를 문자열로 변환하는 함수
@@ -36,33 +42,50 @@ async def login_with_github():
 
 @app.get("/auth/callback")
 async def github_auth_callback(code: str = Query(...)):
-    # GitHub로부터 받은 `code`를 사용하여 액세스 토큰을 요청합니다.
-    token_response = await httpx.post(
-        "https://github.com/login/oauth/access_token",
-        data={
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data={
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": REDIRECT_URI,
+            },
+            headers={"Accept": "application/json"},
+        )
+    if response.status_code != 200:
+        error_detail = {
+            "error": "GitHub OAuth failed",
+            "status_code": response.status_code,
             "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
             "code": code,
             "redirect_uri": REDIRECT_URI,
-        },
-        headers={"Accept": "application/json"},
-    )
-    token_response_json = token_response.json()
+            "response_body": response.text
+        }
+        raise HTTPException(status_code=400, detail=error_detail)
+
+    token_response_json = response.json()
     access_token = token_response_json.get("access_token")
 
     if not access_token:
-        raise HTTPException(status_code=400, detail="GitHub OAuth failed")
+        raise HTTPException(status_code=400, detail={
+            "error": "No access token returned",
+            "response": token_response_json
+        })
 
-    # 액세스 토큰을 사용하여 사용자 정보를 가져옵니다.
-    user_response = await httpx.get(
-        "https://api.github.com/user",
-        headers={"Authorization": f"Bearer {access_token}"}
-    )
+    async with httpx.AsyncClient() as client:
+        user_response = await client.get(
+            "https://api.github.com/user",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
     user_info = user_response.json()
 
-    # GitHub 사용자 정보를 바탕으로 필요한 처리를 수행합니다.
-    # 예: 사용자 정보 저장, 사용자 세션 생성 등
     return {"user_info": user_info}
+
+
+
+
+
 
 # 'Name' 컬렉션 내의 모든 문서를 가져오는 API 엔드포인트
 @app.get("/name", response_model=List[Dict])

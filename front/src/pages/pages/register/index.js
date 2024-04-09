@@ -66,88 +66,15 @@ const RegisterPage = () => {
     emailVerificationCode: '' // 메일 인증 코드 상태 추가
   })
 
-  // 이메일 인증 상태 추가
-  const [emailVerified, setEmailVerified] = useState(false)
-  const [emailVerificationRequested, setEmailVerificationRequested] = useState(false) // 이메일 인증 요청 상태 추가
+  const handleGitHubLogin = () => {
+    // GitHub OAuth 페이지로 리다이렉트
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=Iv1.636c6226a979a74a&redirect_uri=http://localhost:8000/auth/callback`
+  }
+
+  //https://github.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=user
 
   // ** Hook
   const theme = useTheme()
-
-  const handleChange = prop => event => {
-    setValues({ ...values, [prop]: event.target.value })
-  }
-
-  const handleClickShowPassword = () => {
-    setValues({ ...values, showPassword: !values.showPassword })
-  }
-
-  const handleMouseDownPassword = event => {
-    event.preventDefault()
-  }
-
-  const handleRegister = async e => {
-    e.preventDefault()
-    try {
-      const response = await fetch('http://localhost:8000/register/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: values.email,
-          githubCode: values.githubCode
-        })
-      })
-
-      if (response.ok) {
-        // Handle success
-      } else {
-        // Handle error
-        const errorData = await response.json()
-        console.error(errorData.detail)
-      }
-    } catch (error) {
-      console.error('Error submitting form', error)
-    }
-  }
-
-  // 메일 인증 요청 처리 함수
-  const handleEmailVerification = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/verify-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: values.email,
-          verificationCode: values.emailVerificationCode
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setEmailVerified(data.verified)
-        if (data.verified) {
-          // 인증 성공 로직
-          alert('이메일이 성공적으로 인증되었습니다.')
-        } else {
-          // 인증 실패 로직
-          alert('인증번호가 올바르지 않습니다.')
-        }
-      } else {
-        // 서버 에러 처리
-        alert('서버 오류로 인증에 실패했습니다. 다시 시도해주세요.')
-      }
-    } catch (error) {
-      console.error('Error verifying email:', error)
-    }
-  }
-
-  const handleEmailVerificationRequest = async () => {
-    // 이메일 인증요청 처리 로직 구현
-    setEmailVerificationRequested(true) // 인증 요청 상태를 true로 변경
-  }
 
   return (
     <Box className='content-center'>
@@ -234,65 +161,19 @@ const RegisterPage = () => {
             <Typography variant='body2'>Make your app management easy and fun!</Typography>
           </Box>
 
-          <form noValidate autoComplete='off' onSubmit={handleRegister}>
-            <TextField
-              autoFocus
-              fullWidth
-              label='이름'
-              value={values.username}
-              onChange={handleChange('username')}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              fullWidth
-              label='비밀번호'
-              type='password'
-              value={values.password}
-              onChange={handleChange('password')}
-              sx={{ mb: 2 }}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 2 }}>
-              <TextField
-                fullWidth
-                label='이메일'
-                type='email'
-                value={values.email}
-                onChange={handleChange('email')}
-                sx={{ mr: 1 }}
-              />
-              <Button variant='contained' onClick={handleEmailVerificationRequest} sx={{ height: '56px' }}>
-                인증요청
-              </Button>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 2 }}>
-              <TextField
-                fullWidth
-                label='이메일 인증번호'
-                value={values.emailVerificationCode}
-                onChange={handleChange('emailVerificationCode')}
-                sx={{ mr: 1 }}
-              />
-              <Button
-                variant='contained'
-                onClick={handleEmailVerification}
-                disabled={!emailVerificationRequested} // 인증요청이 되지 않았다면 인증하기 버튼 비활성화
-                sx={{ height: '56px' }}
-              >
-                인증하기
-              </Button>
-            </Box>
-            <Button
-              fullWidth
-              size='large'
-              variant='contained'
-              type='submit'
-              disabled={!emailVerified} // 이메일 인증이 되지 않았다면 회원가입 버튼 비활성화
-            >
-              회원가입
-            </Button>
-          </form>
+          <Button
+            startIcon={<Github />}
+            fullWidth
+            size='large'
+            variant='contained'
+            onClick={handleGitHubLogin}
+            sx={{ mb: 2 }}
+          >
+            GitHub로 가입하기
+          </Button>
         </CardContent>
       </Card>
+      <FooterIllustrationsV1 />
     </Box>
   )
 }

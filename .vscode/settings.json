@@ -35,6 +35,7 @@
   "cSpell.words": [
     "bson",
     "Customizer",
+    "dotenv",
     "fastapi",
     "httpx",
     "jsonable",
