@@ -36,6 +36,7 @@
     "bson",
     "Customizer",
     "fastapi",
+    "httpx",
     "jsonable",
     "popperjs",
     "pydantic"
