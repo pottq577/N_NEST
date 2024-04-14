@@ -7,9 +7,9 @@ import google.generativeai as genai
 
 
 # Google API
-GOOGLE_API_KEY = 
+GOOGLE_API_KEY = ""
 # OpenAI API
-client = OpenAI(api_key=)
+client = OpenAI(api_key='')
 
 app = FastAPI()
 

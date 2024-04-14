@@ -28,6 +28,11 @@ const navigation = () => {
       path: '/summary2'
     },
     {
+      title: 'summary3',
+      icon: HomeOutline,
+      path: '/summary3'
+    },
+    {
       title: 'Account Settings',
       icon: AccountCogOutline,
       path: '/account-settings'

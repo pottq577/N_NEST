@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "allowJs": true, // JavaScript 파일 포함 허용
+    "checkJs": false, // JavaScript 파일의 타입 체크를 비활성화
+    "jsx": "preserve", // JSX를 그대로 두고, Babel이 처리하도록 설정
+    "esModuleInterop": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true // TypeScript가 자바스크립트 파일로 컴파일하지 않도록 설정
+    ,
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "skipLibCheck": true,
+    "incremental": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "src"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
