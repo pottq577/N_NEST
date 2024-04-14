@@ -15,7 +15,7 @@ export default function Component() {
       const summaryBody = await fetchSummary(body, 'Body');
       const summaryConclusion = await fetchSummary(conclusion, 'Conclusion');
       const combinedSummary = `${summaryIntro} ${summaryBody} ${summaryConclusion}`;
-      const finalSummary = await fetchSummary(combinedSummary, 'Gen'); // Generate final summary
+      const finalSummary = await fetchSummary(combinedSummary, 'finalsum'); // Generate final summary
 
       setFinalSummary(finalSummary);
       handleImageGeneration(finalSummary); // 최종 요약을 이미지 생성에 사용

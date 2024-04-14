@@ -72,10 +72,17 @@ async def generate_content(text: str = Query(..., description="Text to summarize
 
 
 @app.get("/summarize/Gen")
+async def generate_content(text: str = Query(..., description="Text to summarize")):
+    model = genai.GenerativeModel('gemini-pro')
+    response = model.generate_content("이거에 관련된 프로젝트 계획서를 작성해줘: " + text)
+    return {"text": response.text}
+
+@app.get("/summarize/finalsum")
 async def generate_final_summary(text: str = Query(..., description="Text to generate final summary")):
     model = genai.GenerativeModel('gemini-pro')
     response = model.generate_content("이제 이앱이 어떤 앱인지 1줄에서 최대 3줄로 요약해줘: " + text)
     return {"text": response.text}  # Ensure response is returned
+
 
 class ImageRequest(BaseModel):
     prompt: str
