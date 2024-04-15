@@ -7,9 +7,9 @@ import google.generativeai as genai
 
 
 # Google API
-GOOGLE_API_KEY = 
+GOOGLE_API_KEY = ""
 # OpenAI API
-client = OpenAI(api_key=)
+client = OpenAI(api_key='')
 
 app = FastAPI()
 
@@ -82,6 +82,14 @@ async def generate_final_summary(text: str = Query(..., description="Text to gen
     model = genai.GenerativeModel('gemini-pro')
     response = model.generate_content("이제 이앱이 어떤 앱인지 1줄에서 최대 3줄로 요약해줘: " + text)
     return {"text": response.text}  # Ensure response is returned
+
+
+@app.get("/summarize/{category}")
+async def generate_content(category: str, text: str = Query(...)):
+    model = genai.GenerativeModel('gemini-pro')
+    prompt = f"{category}을(를) 중점적으로 요약해줘: {text}"  # 각 카테고리에 맞게 프롬프트를 수정
+    response = model.generate_content(prompt)
+    return {"text": response.text}
 
 
 class ImageRequest(BaseModel):

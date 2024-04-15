@@ -23,9 +23,14 @@ const navigation = () => {
       path: '/summary'
     },
     {
-      title: 'summary2',
+      title: 'Product',
       icon: HomeOutline,
       path: '/summary2'
+    },
+    {
+      title: 'Professor',
+      icon: HomeOutline,
+      path: '/summaryprofessor'
     },
     {
       title: 'Account Settings',
