@@ -28,6 +28,11 @@ const navigation = () => {
       path: '/summary2'
     },
     {
+      title: 'evaluation',
+      icon: HomeOutline,
+      path: '/evaluation-settings'
+    },
+    {
       title: 'summary3',
       icon: HomeOutline,
       path: '/summary3'
@@ -36,6 +41,11 @@ const navigation = () => {
       title: 'Account Settings',
       icon: AccountCogOutline,
       path: '/account-settings'
+    },
+    {
+      title: 'Q&A',
+      icon: AccountCogOutline,
+      path: '/qa'
     },
     {
       sectionTitle: 'Pages'
