@@ -38,6 +38,11 @@ const navigation = () => {
       path: '/project'
     },
     {
+      title: 'Q&A',
+      icon: AccountCogOutline,
+      path: '/qa'
+    },
+    {
       title: 'Account Settings',
       icon: AccountCogOutline,
       path: '/account-settings'

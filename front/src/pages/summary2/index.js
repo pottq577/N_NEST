@@ -6,9 +6,11 @@ export default function Component() {
   const [conclusion, setConclusion] = useState('')
   const [finalSummary, setFinalSummary] = useState('')
   const [imageBase64, setImageBase64] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async e => {
     e.preventDefault()
+    setIsLoading(true)
 
     try {
       const summaryIntro = await fetchSummary(introduction, 'Introduction')
@@ -20,20 +22,21 @@ export default function Component() {
       setFinalSummary(finalSummaryText)
       const imageResponse = await handleImageGeneration(finalSummaryText)
 
-      setImageBase64(imageResponse.base64_image) // Use base64 image directly
+      setImageBase64(imageResponse.base64_image)
 
       await saveSummaryData({
         finalSummary: finalSummaryText,
-        imageData: imageResponse.base64_image // 이미지를 base64 형식으로 저장합니다.
+        imageData: imageResponse.base64_image
       })
 
-      // 초기화 코드 추가
+      setIsLoading(false)
       setIntroduction('')
       setBody('')
       setConclusion('')
       setImageBase64('')
     } catch (error) {
       console.error('Error:', error)
+      setIsLoading(false)
     }
   }
 
@@ -104,10 +107,10 @@ export default function Component() {
   }
 
   return (
-    <div className='w-full h-screen flex items-center justify-center bg-gray-100'>
-      <div className='max-w-5xl mx-auto p-8 bg-white shadow-xl rounded-xl'>
-        <h1 className='text-5xl font-bold text-center text-gray-800 mb-8'>Automated Essay Summarizer</h1>
-        <form className='space-y-10' onSubmit={handleSubmit}>
+    <div className='container'>
+      <div className='form-container'>
+        <h1 className='title'>Automated Essay Summarizer</h1>
+        <form onSubmit={handleSubmit}>
           <TextareaField
             label='Introduction'
             placeholder='Type your introduction here.'
@@ -121,20 +124,11 @@ export default function Component() {
             value={conclusion}
             onChange={setConclusion}
           />
-          <button type='submit' className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'>
+          <button className='submit-button' disabled={isLoading}>
             Summarize and Generate Image
           </button>
+          {isLoading && <div className='loading-icon'></div>}
         </form>
-        {imageBase64 && (
-          <div className='mt-8 text-center'>
-            <img
-              src={`data:image/png;base64,${imageBase64}`}
-              alt='Generated'
-              className='inline-block max-w-full h-auto rounded-lg shadow'
-            />
-            {finalSummary && <p className='mt-4 bg-gray-100 border border-gray-300 rounded-lg p-4'>{finalSummary}</p>}
-          </div>
-        )}
       </div>
     </div>
   )
@@ -142,14 +136,9 @@ export default function Component() {
 
 function TextareaField({ label, placeholder, value, onChange }) {
   return (
-    <div className='space-y-3'>
-      <label className='block text-lg font-semibold text-gray-700'>{label}</label>
-      <textarea
-        className='w-full h-32 px-4 py-3 text-base text-gray-700 bg-white border border-gray-300 rounded-lg shadow focus:outline-none focus:ring-4 focus:ring-indigo-300 focus:border-indigo-500'
-        placeholder={placeholder}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-      ></textarea>
+    <div className='textarea-container'>
+      <label>{label}</label>
+      <textarea placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)}></textarea>
     </div>
   )
 }
