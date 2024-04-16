@@ -1,129 +1,165 @@
 import React, { useState } from 'react'
+import Box from '@mui/material/Box'
+import Grid from '@mui/material/Grid'
+import Paper from '@mui/material/Paper'
+import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
+import TextField from '@mui/material/TextField'
 import { styled } from '@mui/material/styles'
+import Typography from '@mui/material/Typography'
+
+// import EditIcon from '@mui/icons-material/Edit'
+// import IconButton from '@mui/material/IconButton'
 
 const ImgStyled = styled('img')(({ theme }) => ({
-  width: 120,
-  height: 120,
-  marginRight: theme.spacing(6.25),
-  borderRadius: theme.shape.borderRadius
+  width: 100,
+  height: 100,
+  border: '10'
 }))
 
-const AddButton = ({ onClick }) => {
-  const baseStyle = {
-    backgroundColor: 'transparent',
-    border: '1px solid #ccc',
-    padding: '5px 10px',
-    cursor: 'pointer',
-    outline: 'none'
-  }
-
-  const [style, setStyle] = React.useState(baseStyle)
+const ProfileSection = () => {
+  const [imgSrc, setImgSrc] = useState('/images/avatars/1.png')
 
   return (
-    <button
-      style={style}
-      onMouseEnter={() => setStyle({ ...style, backgroundColor: '#f0f0f0' })}
-      onMouseLeave={() => setStyle(baseStyle)}
-      onClick={onClick}
-    >
-      추가
-    </button>
+    <Grid container spacing={2} alignItems='center'>
+      <Grid item xs={9}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            minHeight: 100
+          }}
+        >
+          <Typography variant='h4'>홍길동</Typography>
+          <Typography variant='body1'>honggildong@example.com</Typography>
+          <Typography variant='body1'>github.com/honggildong</Typography>
+        </Box>
+      </Grid>
+      <Grid item xs={3}>
+        <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          <ImgStyled src={imgSrc} alt='프로필 사진' />
+          {/* <IconButton color='primary' aria-label='edit profile'>
+            <EditIcon />
+          </IconButton> */}
+        </Box>
+      </Grid>
+    </Grid>
   )
 }
 
-const Career = () => {
-  const [imgSrc, setImgSrc] = useState('../../../../public/images/avatars/1.png')
+const EducationSection = () => {
+  const [educations, setEducations] = useState([])
+  const [newEducation, setNewEducation] = useState('')
+  const [isAdding, setIsAdding] = useState(false)
+
+  const addEducation = () => {
+    setIsAdding(true)
+  }
+
+  const saveEducation = () => {
+    if (newEducation.trim()) {
+      setEducations([...educations, newEducation.trim()])
+    }
+    setNewEducation('')
+    setIsAdding(false)
+  }
+
+  const cancelAddEducation = () => {
+    setNewEducation('')
+    setIsAdding(false)
+  }
 
   return (
-    <div
-      style={{
-        flexDirection: 'row',
-        display: 'flex',
-        padding: 30,
-        marginRight: 100
-      }}
-    >
-      {/* 이력서 세부 내용 div */}
-      <div
-        style={{
-          // backgroundColor: 'orange',
-          width: '70%',
-          padding: '20px', // Add padding
-          marginRight: '10px', // Add margin between the divs
-          boxSizing: 'border-box' // Ensure padding does not affect overall width
-          // boxShadow: '0 4px 8px 0 rgba(0,0,0,0.2)' // Shadow effect
-        }}
-      >
-        {/* Profile Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '24px', marginBottom: '8px' }}>홍길동</div>
-            <div style={{ marginBottom: '4px' }}>honggildong@example.com</div>
-            <div>github.com/honggildong</div>
-          </div>
-          <div>
-            <img src='imgSrc' alt='프로필 사진' style={{ width: '100px', height: '100px', borderRadius: '50%' }} />
-            <button style={{ marginLeft: '10px' }}>수정</button>
-          </div>
-        </div>
-        <hr />
+    <Box sx={{ width: '100%', minHeight: 150 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant='h6'>학력</Typography>
+        {!isAdding && (
+          <Button variant='outlined' onClick={addEducation}>
+            추가
+          </Button>
+        )}
+      </Box>
+      <Divider sx={{ my: 3 }} />
+      <Box sx={{ mt: 2 }} style={{ padding: 10 }}>
+        {educations.map((education, index) => (
+          <Typography key={index} variant='body1'>
+            • {education}
+          </Typography>
+        ))}
+        {isAdding && (
+          <>
+            <TextField
+              fullWidth
+              variant='outlined'
+              label='학력 추가'
+              value={newEducation}
+              onChange={e => setNewEducation(e.target.value)}
+              margin='normal'
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+              <Button sx={{ mr: 1 }} variant='outlined' onClick={cancelAddEducation}>
+                취소
+              </Button>
+              <Button variant='contained' color='primary' onClick={saveEducation}>
+                저장
+              </Button>
+            </Box>
+          </>
+        )}
+      </Box>
+    </Box>
+  )
+}
 
-        {/* Education Section */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ flexDirection: 'row', display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>학력</div>
-            <AddButton onClick={() => console.log('추가 clicked')} />
-          </div>
-          {/* Education List */}
-          <ul>
-            <li>서울대학교 컴퓨터 과학과 - 학사</li>
-            {/* More items */}
-          </ul>
-        </div>
-        <hr />
+const SummarySection = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  textAlign: 'center',
+  color: theme.palette.text.secondary
+}))
 
-        {/* Experience Section */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ flexDirection: 'row', display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>경력</div>
-            <AddButton onClick={() => console.log('추가 clicked')} />
-          </div>
-          {/* Experience List */}
-          <ul>
-            <li>NAVER - 소프트웨어 엔지니어</li>
-            {/* More items */}
-          </ul>
-        </div>
-        <hr />
-        {/* Skills Section */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ flexDirection: 'row', display: 'flex', justifyContent: 'space-between' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>스킬</div>
-            <AddButton onClick={() => console.log('추가 clicked')} />
-          </div>
-          {/* Skills List */}
-          <ul>
-            <li>자바스크립트</li>
-            {/* More items */}
-          </ul>
-        </div>
-      </div>
-      <Divider />
-      {/* 이력서 요약 내용 div */}
-      <div
-        style={{
-          // backgroundColor: 'violet',
-          width: '30%',
-          padding: '20px', // Add padding
-          boxSizing: 'border-box', // Ensure padding does not affect overall width
-          boxShadow: '0 4px 8px 0 rgba(0,0,0,0.2)', // Shadow effect
-          height: '500px'
-        }}
-      >
-        hi
-      </div>
-    </div>
+const Career = () => {
+  return (
+    <Box sx={{ flexGrow: 1, overflow: 'hidden', px: 3 }}>
+      <Grid container spacing={2} justifyContent='center'>
+        {/* 좌측 상세 정보 섹션 */}
+        <Grid item xs={12} md={8}>
+          {/* 프로필 섹션 */}
+          <ProfileSection />
+          <Box sx={{ my: 10 }} />
+
+          {/* 학력 섹션 */}
+          <EducationSection />
+          <Box sx={{ my: 10 }} />
+
+          {/* 경력 섹션 */}
+          <EducationSection />
+          <Box sx={{ my: 10 }} />
+
+          {/* 스킬 섹션 */}
+          <Box sx={{ my: 10 }} />
+          <EducationSection />
+        </Grid>
+        {/* 우측 요약 정보 섹션 */}
+        <Grid item xs={12} md={4}>
+          <SummarySection elevation={3}>
+            <Typography variant='h5' component='h2' gutterBottom>
+              이력서 완성도
+            </Typography>
+
+            <Divider sx={{ my: 2 }} />
+            <Typography variant='body1' gutterBottom>
+              honggildong@example.com
+            </Typography>
+            <Typography variant='body1' gutterBottom>
+              github.com/honggildong
+            </Typography>
+            {/* 요약 정보에 추가할 내용 */}
+          </SummarySection>
+        </Grid>
+      </Grid>
+    </Box>
   )
 }
 
