@@ -60,8 +60,6 @@ const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
 
 const RegisterPage = () => {
   const [values, setValues] = useState({
-    username: '',
-    password: '',
     email: '',
     emailVerificationCode: '' // 메일 인증 코드 상태 추가
   })
