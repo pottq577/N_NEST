@@ -15,6 +15,7 @@ const AddInfoPage = () => {
 
   const [githubInfo, setGithubInfo] = useState({
     githubUsername: '',
+    githubName: '',
     githubId: ''
   })
 
@@ -30,7 +31,8 @@ const AddInfoPage = () => {
         const data = await response.json()
         setGithubInfo({
           githubUsername: data.github_username,
-          githubName: data.github_name
+          githubName: data.github_name,
+          githubId: data.github_id
         })
       }
     }
@@ -135,6 +137,15 @@ const AddInfoPage = () => {
             readOnly: true
           }}
           value={githubInfo.githubName || 'Loading...'}
+          sx={{ mb: 2, width: '300px' }}
+        />
+        <TextField
+          label='GitHub Id'
+          variant='outlined'
+          InputProps={{
+            readOnly: true
+          }}
+          value={githubInfo.githubId || 'Loading...'}
           sx={{ mb: 2, width: '300px' }}
         />
         <Button type='submit' variant='contained' color='primary' sx={{ mt: 2 }}>
