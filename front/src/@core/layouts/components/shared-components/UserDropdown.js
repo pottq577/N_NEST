@@ -50,6 +50,14 @@ const UserDropdown = () => {
     setAnchorEl(null)
   }
 
+  const handleLogout = () => {
+    // 여기서 로그아웃 처리를 해줍니다.
+    // 로컬 스토리지나 쿠키를 비우거나 서버에 로그아웃 요청을 보내는 등의 방법을 사용할 수 있습니다.
+    // 예를 들어, 클라이언트 측에서 직접 세션을 제거하는 방법은 다음과 같습니다.
+    localStorage.removeItem('accessToken') // 혹은 다른 세션 관련 정보
+    router.push('/pages/login')
+  }
+
   const styles = {
     py: 2,
     px: 4,

@@ -35,10 +35,15 @@
   "cSpell.words": [
     "bson",
     "Customizer",
+    "dotenv",
     "fastapi",
+    "httpx",
     "jsonable",
     "popperjs",
-    "pydantic"
+    "pydantic",
+    "pymongo",
+    "starlette",
+    "uvicorn"
   ],
   "search-node-modules.path": "typescript-version/full-version/node_modules",
   "markdown.extension.toc.updateOnSave": false
