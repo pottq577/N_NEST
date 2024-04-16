@@ -5,7 +5,7 @@ export default function Component() {
   const [body, setBody] = useState('')
   const [conclusion, setConclusion] = useState('')
   const [finalSummary, setFinalSummary] = useState('')
-  const [imageURL, setImageURL] = useState('')
+  const [imageBase64, setImageBase64] = useState('')
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -15,12 +15,49 @@ export default function Component() {
       const summaryBody = await fetchSummary(body, 'Body')
       const summaryConclusion = await fetchSummary(conclusion, 'Conclusion')
       const combinedSummary = `${summaryIntro} ${summaryBody} ${summaryConclusion}`
-      const finalSummary = await fetchSummary(combinedSummary, 'finalsum') // Generate final summary
+      const finalSummaryText = await fetchSummary(combinedSummary, 'finalsum')
 
-      setFinalSummary(finalSummary)
-      handleImageGeneration(finalSummary) // 최종 요약을 이미지 생성에 사용
+      setFinalSummary(finalSummaryText)
+      const imageResponse = await handleImageGeneration(finalSummaryText)
+
+      setImageBase64(imageResponse.base64_image) // Use base64 image directly
+
+      await saveSummaryData({
+        finalSummary: finalSummaryText,
+        imageData: imageResponse.base64_image // 이미지를 base64 형식으로 저장합니다.
+      })
+
+      // 초기화 코드 추가
+      setIntroduction('')
+      setBody('')
+      setConclusion('')
+      setImageBase64('')
     } catch (error) {
       console.error('Error:', error)
+    }
+  }
+
+  const saveSummaryData = async data => {
+    try {
+      const response = await fetch('http://127.0.0.2:8000/saveSummary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          finalSummary: data.finalSummary,
+          imageData: data.imageData
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to save summary data, server responded with status ${response.status}`)
+      }
+
+      const responseData = await response.json()
+      console.log('Data saved successfully:', responseData)
+    } catch (error) {
+      console.error('Error saving data:', error)
     }
   }
 
@@ -40,18 +77,30 @@ export default function Component() {
   }
 
   const handleImageGeneration = async text => {
-    const response = await fetch('http://127.0.0.1:8000/generate-image/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ prompt: text }) // 최종 요약 텍스트로 이미지 생성 요청
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`)
+    try {
+      const response = await fetch('http://127.0.0.1:8000/generate-image/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prompt: text })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
+      }
+      const result = await response.json()
+      console.log('Image generation result:', result)
+      if (!result.base64_image) {
+        throw new Error('Base64 image not found in response')
+      }
+      setImageBase64(result.base64_image) // Use base64 image directly
+
+      return result
+    } catch (error) {
+      console.error('Failed to generate image:', error)
+      throw error
     }
-    const result = await response.json()
-    setImageURL(result.image_url)
   }
 
   return (
@@ -76,9 +125,13 @@ export default function Component() {
             Summarize and Generate Image
           </button>
         </form>
-        {imageURL && (
+        {imageBase64 && (
           <div className='mt-8 text-center'>
-            <img src={imageURL} alt='Generated' className='inline-block max-w-full h-auto rounded-lg shadow' />
+            <img
+              src={`data:image/png;base64,${imageBase64}`}
+              alt='Generated'
+              className='inline-block max-w-full h-auto rounded-lg shadow'
+            />
             {finalSummary && <p className='mt-4 bg-gray-100 border border-gray-300 rounded-lg p-4'>{finalSummary}</p>}
           </div>
         )}

@@ -4,7 +4,10 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from openai import OpenAI
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
-
+from io import BytesIO
+from PIL import Image
+import base64
+import requests
 
 # Google API
 GOOGLE_API_KEY = ""
@@ -100,6 +103,7 @@ class ImageRequest(BaseModel):
 @app.post("/generate-image/")
 async def generate_image(request: ImageRequest):
     try:
+        # 이미지 생성
         response = client.images.generate(
             model="dall-e-3",
             prompt=request.prompt,
@@ -108,6 +112,19 @@ async def generate_image(request: ImageRequest):
             n=1,
         )
         image_url = response.data[0].url
-        return {"image_url": image_url}
+
+        # 이미지 다운로드
+        image_data = requests.get(image_url).content
+
+        # 이미지 크기 조정
+        image = Image.open(BytesIO(image_data))
+        resized_image = image.resize((256, 256))
+
+        # 이미지를 Base64로 인코딩
+        buffered = BytesIO()
+        resized_image.save(buffered, format="JPEG")
+        base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+        return {"base64_image": base64_image}
     except Exception as e:
         return {"error": str(e)}

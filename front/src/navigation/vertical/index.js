@@ -33,6 +33,11 @@ const navigation = () => {
       path: '/summaryprofessor'
     },
     {
+      title: 'project',
+      icon: HomeOutline,
+      path: '/project'
+    },
+    {
       title: 'Account Settings',
       icon: AccountCogOutline,
       path: '/account-settings'
