@@ -4,7 +4,7 @@ export default function ProjectSubmissionForm() {
   const [projectTitle, setProjectTitle] = useState('')
   const [technologiesUsed, setTechnologiesUsed] = useState('')
   const [problemToSolve, setProblemToSolve] = useState('')
-  const [summary, setSummary] = useState('')
+  const [summary, setSummary] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -13,7 +13,6 @@ export default function ProjectSubmissionForm() {
     setIsLoading(true)
     setError('')
 
-    // 수정된 URL 형식: Path Parameters 사용
     const url = `http://localhost:8000/summarize/Gen/${encodeURIComponent(projectTitle)}/${encodeURIComponent(
       technologiesUsed
     )}/${encodeURIComponent(problemToSolve)}`
@@ -24,7 +23,7 @@ export default function ProjectSubmissionForm() {
         throw new Error(`HTTP error! Status: ${response.status}`)
       }
       const data = await response.json()
-      setSummary(data.text) // 서버에서 "text"라는 키에 결과를 저장한다고 가정
+      setSummary(data)
     } catch (error) {
       console.error('Error:', error)
       setError('Failed to fetch the project summary. Please try again.')
@@ -77,7 +76,18 @@ export default function ProjectSubmissionForm() {
         ) : (
           <div className='summary-container'>
             <h3>Generated Summary</h3>
-            <p>{summary}</p> {/* 결과 표시 */}
+            <p>
+              <strong>Project Title:</strong> {summary.project_title}
+            </p>
+            <p>
+              <strong>Background:</strong> {summary.background}
+            </p>
+            <p>
+              <strong>Development Content:</strong> {summary.development_content}
+            </p>
+            <p>
+              <strong>Expected Effects:</strong> {summary.expected_effects}
+            </p>
           </div>
         )}
       </div>

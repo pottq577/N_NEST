@@ -8,6 +8,7 @@ from io import BytesIO
 from PIL import Image
 import base64
 import requests
+import re
 # Google API
 GOOGLE_API_KEY = ""
 # OpenAI API
@@ -93,6 +94,17 @@ async def generate_content(category: str, text: str = Query(...)):
     response = model.generate_content(prompt)
     return {"text": response.text}
 
+
+
+def extract_section(content, start_pattern, end_pattern):
+    start = re.search(start_pattern, content)
+    end = re.search(end_pattern, content)
+    if start and end:
+        return content[start.end():end.start()].strip()
+    elif start:
+        return content[start.end():].strip()
+    return ""
+
 @app.get("/summarize/Gen/{title}/{technologies}/{problem}")
 async def generate_content(
     title: str = Path(..., description="Title of the project"),
@@ -101,7 +113,6 @@ async def generate_content(
 ):
     model = genai.GenerativeModel('gemini-pro')
     prompt = (
-        f"다음 정보를 포함한 프로젝트 계획서를 작성해줘:\n"
         f"프로젝트 제목: {title}\n"
         f"사용 기술: {technologies}\n"
         f"해결 문제: {problem}\n\n"
@@ -109,13 +120,28 @@ async def generate_content(
         f"프로젝트 제목:\n추진 배경:\n개발 내용:\n기대 효과:"
     )
     response = model.generate_content(prompt)
-    return {"text": response.text}
+    generated_text = response.text
+
+    # 각 섹션 추출
+    project_title = extract_section(generated_text, "프로젝트 제목:", "추진 배경:")
+    background = extract_section(generated_text, "추진 배경:", "개발 내용:")
+    development_content = extract_section(generated_text, "개발 내용:", "기대 효과:")
+    expected_effects = extract_section(generated_text, "기대 효과:", "$")  # $는 텍스트 끝을 의미
+
+    return {
+        "project_title": project_title,
+        "background": background,
+        "development_content": development_content,
+        "expected_effects": expected_effects
+    }
+
+
+
+
 
 
 class ImageRequest(BaseModel):
     prompt: str
-
-
 
 @app.post("/generate-image/")
 async def generate_image(request: ImageRequest):
