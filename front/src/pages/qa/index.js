@@ -66,56 +66,48 @@ export default function QuestionListPage() {
 
       <style jsx>{`
         .container {
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
+          align-items: stretch;
           max-width: 800px;
           margin: auto;
           padding: 1rem;
           font-family: 'Arial', sans-serif;
+          height: 100vh;
         }
         header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
           margin-bottom: 1rem;
         }
-        h1 {
-          font-size: 2rem;
-          color: #333;
+        main {
+          flex-grow: 1;
+          overflow-y: auto;
+        }
+        h1,
+        select {
+          color: #333; // 기존 텍스트 색상 유지
+        }
+        h2 {
+          font-size: 1.5rem;
+          color: #007bff; // 파란색으로 변경
+          margin-bottom: 0.5rem;
         }
         button {
           padding: 0.5rem 1rem;
-          background-color: #007bff;
+          background-color: #007bff; // 원래의 파란색으로 변경
           color: white;
           border: none;
           border-radius: 5px;
           cursor: pointer;
         }
         button:hover {
-          background-color: #0056b3;
-        }
-        article {
-          border-bottom: 1px solid #ccc;
-          padding: 1rem 0;
-        }
-        h2 {
-          font-size: 1.5rem;
-          color: #007bff;
-          margin-bottom: 0.5rem;
+          background-color: #0056b3; // 호버 상태의 색상
         }
         .question-stats {
-          display: flex;
           gap: 1rem;
-          font-size: 1rem;
-          color: #777;
         }
         .question-category {
           background-color: #f8f9fa;
-          padding: 0.25rem 0.5rem;
-          border-radius: 5px;
-        }
-        select {
-          padding: 0.5rem;
-          border-radius: 5px;
-          border: 1px solid #ccc;
         }
       `}</style>
     </div>

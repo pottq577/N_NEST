@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException,  Path,Query
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from openai import OpenAI
@@ -8,7 +8,6 @@ from io import BytesIO
 from PIL import Image
 import base64
 import requests
-
 # Google API
 GOOGLE_API_KEY = ""
 # OpenAI API
@@ -58,27 +57,27 @@ genai.configure(api_key=GOOGLE_API_KEY)
 @app.get("/summarize/Introduction")
 async def generate_content(text: str = Query(..., description="Text to summarize")):
     model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content("요약해줘: " + text)
+    response = model.generate_content("프로젝트의 기본 소개에 대한 내용을 중점으로 짧게 요약해줘: " + text)
     return {"text": response.text}
 
 @app.get("/summarize/Body")
 async def generate_content(text: str = Query(..., description="Text to summarize")):
     model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content("요약해줘: " + text)
+    response = model.generate_content("프로젝트의 개발과정 및 설명에 대한 내용으로 짧게요약해줘: " + text)
     return {"text": response.text}
 
 @app.get("/summarize/Conclusion")
 async def generate_content(text: str = Query(..., description="Text to summarize")):
     model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content("요약해줘: " + text)
+    response = model.generate_content("프로젝트의 결론에 대한 내용으로 짧게 요약해줘: " + text)
     return {"text": response.text}
 
 
-@app.get("/summarize/Gen")
-async def generate_content(text: str = Query(..., description="Text to summarize")):
-    model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content("이거에 관련된 프로젝트 계획서를 작성해줘: " + text)
-    return {"text": response.text}
+# @app.get("/summarize/Gen")
+# async def generate_content(text: str = Query(..., description="Text to summarize")):
+#     model = genai.GenerativeModel('gemini-pro')
+#     response = model.generate_content("이거에 관련된 프로젝트 계획서를 작성해줘: " + text)
+#     return {"text": response.text}
 
 @app.get("/summarize/finalsum")
 async def generate_final_summary(text: str = Query(..., description="Text to generate final summary")):
@@ -91,6 +90,24 @@ async def generate_final_summary(text: str = Query(..., description="Text to gen
 async def generate_content(category: str, text: str = Query(...)):
     model = genai.GenerativeModel('gemini-pro')
     prompt = f"{category}을(를) 중점적으로 요약해줘: {text}"  # 각 카테고리에 맞게 프롬프트를 수정
+    response = model.generate_content(prompt)
+    return {"text": response.text}
+
+@app.get("/summarize/Gen/{title}/{technologies}/{problem}")
+async def generate_content(
+    title: str = Path(..., description="Title of the project"),
+    technologies: str = Path(..., description="Technologies to be used"),
+    problem: str = Path(..., description="Problem that the project aims to solve")
+):
+    model = genai.GenerativeModel('gemini-pro')
+    prompt = (
+        f"다음 정보를 포함한 프로젝트 계획서를 작성해줘:\n"
+        f"프로젝트 제목: {title}\n"
+        f"사용 기술: {technologies}\n"
+        f"해결 문제: {problem}\n\n"
+        f"결과는 다음과 같은 포맷으로 제공해줘:\n"
+        f"프로젝트 제목:\n추진 배경:\n개발 내용:\n기대 효과:"
+    )
     response = model.generate_content(prompt)
     return {"text": response.text}
 

@@ -22,21 +22,6 @@ code:not([class*='language-']):after {
 code[class*='language-'] {
   padding: 0;
 }
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background: #f0f0f0;
-}
-
-.form-container {
-  background: white;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  width: 600px;
-}
 
 .title {
   text-align: center;
@@ -116,13 +101,12 @@ code[class*='language-'] {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: #f0f0f0;
 }
 
 .form-container {
   width: 600px;
   padding: 20px;
-  background: white;
+
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -149,7 +133,6 @@ code[class*='language-'] {
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background 0.3s;
 }
 
 .category-button.selected {

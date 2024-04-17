@@ -17,10 +17,16 @@ const navigation = () => {
       icon: HomeOutline,
       path: '/'
     },
+
+    // {
+    //   title: 'summary',
+    //   icon: HomeOutline,
+    //   path: '/summary'
+    // },
     {
-      title: 'summary',
+      title: 'generate',
       icon: HomeOutline,
-      path: '/summary'
+      path: '/generate'
     },
     {
       title: 'Product',
