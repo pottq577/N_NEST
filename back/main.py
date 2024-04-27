@@ -74,17 +74,21 @@ async def github_login_callback(request: Request, code: str = Query(...)):
         )
         token_response.raise_for_status()
         access_token = token_response.json().get("access_token")
-
+        print(f"Access Token: {access_token}")  # Log the access token
         # Use the access token to fetch the user's profile
         user_response = await client.get(
             "https://api.github.com/user",
             headers={"Authorization": f"Bearer {access_token}"}
         )
         user_response.raise_for_status()
+
+        if user_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="GitHub에서 사용자 상세 정보를 가져오는데 실패")
+
         user_info = user_response.json()
 
         # Check if user exists in the database
-        user_in_db = await user_collection.find_one({"github_id": user_info['id']})
+        user_in_db = await user_collection.find_one({"githubId": user_info['id']})
         if not user_in_db:
             raise HTTPException(status_code=404, detail="User not registered")
 
@@ -98,9 +102,15 @@ async def github_login_callback(request: Request, code: str = Query(...)):
         # Log user info and token to the console
         print(f"Login Successful: {user_info['login']}")
         print(f"JWT Token Issued: {token}")
+        print(f"User Info: {user_info}")
 
-        # Redirect or respond with the token and user info
-        return {"token": token, "user_info": user_info}
+        # If token is successfully created, redirect to the main app page
+        if token:
+            return RedirectResponse(url="http://localhost:3000/projects")
+        else:
+            return JSONResponse(status_code=400, content={"message": "Failed to create token"})
+
+
 
 # 회원가입
 @app.get("/auth/callback")

@@ -56,28 +56,45 @@ const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
     color: theme.palette.text.secondary
   }
 }))
+
 const LoginPage = () => {
   const theme = useTheme()
   const router = useRouter()
 
-  // ** State
-  const [token, setToken] = useState(null)
-
   useEffect(() => {
-    const { token } = router.query
-    if (token) {
-      localStorage.setItem('jwtToken', token) // JWT 토큰 저장
-      router.push('/') // 로그인 성공 후 대시보드로 리다이렉트
+    const { code } = router.query
+
+    if (code) {
+      fetchToken(code)
     }
   }, [router])
 
-  const handleGitHubLogin = () => {
-    // GitHub OAuth 설정 정보
-    const clientId = 'Iv1.636c6226a979a74a'
-    const redirectUri = encodeURIComponent('http://localhost:3000/auth/login')
-    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user`
+  const fetchToken = async code => {
+    print(code)
+    try {
+      const response = await fetch(`http://localhost:8000/auth/login?code=${code}`)
+      const data = await response.json()
 
-    window.location.href = githubUrl // GitHub 로그인 페이지로 리다이렉트
+      console.log('Response data:', data)
+      if (data.token) {
+        localStorage.setItem('jwtToken', data.token)
+        console.log(`${data.user_info.login} 로그인 성공!`)
+        window.location.href = '/' // Directly redirect to the main page
+      } else {
+        alert('로그인에 실패했습니다. 토큰을 받지 못했습니다.')
+      }
+    } catch (error) {
+      console.error('Error fetching token:', error)
+      alert('로그인 중 오류 발생.')
+    }
+  }
+
+  const handleGitHubLogin = () => {
+    const clientId = 'Iv1.636c6226a979a74a'
+    const redirectUri = encodeURIComponent('http://localhost:8000/auth/login')
+    const scope = encodeURIComponent('read:user')
+    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`
+    window.location.href = githubUrl
   }
 
   const handleChange = prop => event => {
