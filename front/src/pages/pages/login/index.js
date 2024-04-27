@@ -1,5 +1,5 @@
 // ** React Imports
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // ** Next Imports
 import Link from 'next/link'
@@ -56,26 +56,29 @@ const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
     color: theme.palette.text.secondary
   }
 }))
-
 const LoginPage = () => {
-  // ** State
-  const [values, setValues] = useState({
-    password: '',
-    showPassword: false
-  })
-  const handleGitHubLogin = () => {
-    // GitHub OAuth 설정 정보
-    const clientId = 'Iv1.636c6226a979a74a' // GitHub에서 제공받은 Client ID
-    const redirectUri = 'http://localhost:3000/auth/callback' // GitHub OAuth 앱 설정에서 지정한 Redirect URI
-    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user`
-
-    // 클라이언트 사이드에서 리다이렉트 진행
-    window.location.href = githubUrl
-  }
-
-  // ** Hook
   const theme = useTheme()
   const router = useRouter()
+
+  // ** State
+  const [token, setToken] = useState(null)
+
+  useEffect(() => {
+    const { token } = router.query
+    if (token) {
+      localStorage.setItem('jwtToken', token) // JWT 토큰 저장
+      router.push('/') // 로그인 성공 후 대시보드로 리다이렉트
+    }
+  }, [router])
+
+  const handleGitHubLogin = () => {
+    // GitHub OAuth 설정 정보
+    const clientId = 'Iv1.636c6226a979a74a'
+    const redirectUri = encodeURIComponent('http://localhost:3000/auth/login')
+    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=read:user`
+
+    window.location.href = githubUrl // GitHub 로그인 페이지로 리다이렉트
+  }
 
   const handleChange = prop => event => {
     setValues({ ...values, [prop]: event.target.value })

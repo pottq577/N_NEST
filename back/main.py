@@ -8,6 +8,9 @@ from pydantic import BaseModel
 import httpx
 from dotenv import load_dotenv
 import os
+import jwt
+from datetime import datetime, timedelta, timezone
+from jose import jwt, JWTError
 
 load_dotenv()
 
@@ -30,6 +33,7 @@ app.add_middleware(
 
 # MongoDB 클라이언트 설정
 MONGODB_URL = "mongodb+srv://CBJ:admin13579@cluster1.vtagppt.mongodb.net/"  # 실제 연결 URI
+
 # MongoDB 클라이언트 생성
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client['N-Nest'] # 데이터베이스 선택
@@ -37,9 +41,9 @@ user_collection = db['User']
 
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
-# 환경변수에서 비밀 키 읽기
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = 'http://localhost:8000/auth/callback'
+
 # 데이터 모델 정의
 class UserInfo(BaseModel):
     name: str
@@ -50,13 +54,55 @@ class UserInfo(BaseModel):
     githubName: str
     githubId: int
 
-@app.get("/login/github")
-async def login_with_github():
-    # GitHub 로그인 페이지로 사용자를 리다이렉트합니다.
-    return RedirectResponse(
-        url=f"https://github.com/login/oauth/authorize?client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}&scope=user:email"
-    )
+# JWT 설정 ===========================================
+SECRET_KEY = os.getenv("JWT_SECRET", "your_jwt_secret")
+ALGORITHM = "HS256"
 
+@app.get("/auth/login")
+async def github_login_callback(request: Request, code: str = Query(...)):
+    async with httpx.AsyncClient() as client:
+        # Exchange the code for the GitHub access token
+        token_response = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data={
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": REDIRECT_URI
+            },
+            headers={"Accept": "application/json"}
+        )
+        token_response.raise_for_status()
+        access_token = token_response.json().get("access_token")
+
+        # Use the access token to fetch the user's profile
+        user_response = await client.get(
+            "https://api.github.com/user",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        user_response.raise_for_status()
+        user_info = user_response.json()
+
+        # Check if user exists in the database
+        user_in_db = await user_collection.find_one({"github_id": user_info['id']})
+        if not user_in_db:
+            raise HTTPException(status_code=404, detail="User not registered")
+
+        # Issue JWT token
+        token_data = {
+            "sub": user_info["login"],
+            "github_id": user_info["id"],
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
+        }
+        token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+        # Log user info and token to the console
+        print(f"Login Successful: {user_info['login']}")
+        print(f"JWT Token Issued: {token}")
+
+        # Redirect or respond with the token and user info
+        return {"token": token, "user_info": user_info}
+
+# 회원가입
 @app.get("/auth/callback")
 async def github_auth_callback(request: Request, code: str = Query(...)):
     async with httpx.AsyncClient() as client:
@@ -85,32 +131,51 @@ async def github_auth_callback(request: Request, code: str = Query(...)):
             headers={"Authorization": f"Bearer {access_token}"}
         )
         user_info = user_response.json()
-        print(user_info)
-        # 세션에 사용자 정보를 저장합니다.
-        request.session['github_username'] = user_info.get('login', 'default_login')
-        request.session['github_name'] = user_info.get('name', 'default_name')
-        request.session['github_id'] = user_info.get('id', 'default_id')  # GitHub ID 추가 저장
 
-        # 데이터베이스에서 사용자 확인 (추가적인 데이터베이스 로직 필요)
-        # 여기에서 사용자의 데이터베이스 존재 여부를 확인하고, 적절한 페이지로 리디렉션합니다.
-        # 예를 들어, 사용자가 새로운 경우 등록 페이지로 리디렉션
+        # 데이터베이스에서 사용자 확인
         user_exists = await check_user_in_database(user_info['id'])
         if user_exists:
-            return RedirectResponse(url="http://localhost:3000")
+            # 회원 정보가 있는 경우, 로그인 처리 및 대시보드로 리디렉션
+            response = RedirectResponse(url="http://localhost:3000/dashboard")
         else:
-            return RedirectResponse(url="http://localhost:3000/pages/register/addInfo")
+            # 신규 회원인 경우, 회원가입 페이지로 리디렉션
+            response = RedirectResponse(url="http://localhost:3000/pages/register/addInfo")
+        return response
 
 async def check_user_in_database(github_id: int):
-    # GitHub ID로 사용자를 데이터베이스에서 조회
-    user_collection = db['User']  # 'users' 컬렉션을 사용
     user = await user_collection.find_one({"github_id": github_id})
-    return user is not None  # 사용자가 데이터베이스에 존재하는지 여부 반환
+    return user is not None
+
+
+
+@app.get("/api/session/info")
+async def get_session_info(request: Request):
+    user_info = request.session.get('user_info', None)
+    token = request.session.get('access_token', None)
+    if user_info and token:
+        return {"user": user_info, "token": token}
+    else:
+        raise HTTPException(status_code=404, detail="No session or token information available")
+
+@app.get("/api/user/status")
+async def get_user_status(request: Request):
+    token = request.session.get('access_token', None)
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get('sub')
+            print(f"Token will expire at {payload['exp']} UTC")
+            return {"logged_in": True, "user_id": user_id, "token_valid": True}
+        except JWTError as e:
+            print(f"Token verification failed: {str(e)}")
+            return {"logged_in": True, "token_valid": False, "error": str(e)}
+    return {"logged_in": False}
+
 
 @app.on_event("startup")
 async def startup_db_client():
     app.mongodb_client = AsyncIOMotorClient(MONGODB_URL)
-    app.mongodb = app.mongodb_client['N-Nest']  # 데이터베이스 선택
-
+    app.mongodb = app.mongodb_client['N-Nest']
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
