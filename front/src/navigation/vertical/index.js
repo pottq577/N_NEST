@@ -17,10 +17,36 @@ const navigation = () => {
       icon: HomeOutline,
       path: '/'
     },
+
+    // {
+    //   title: 'summary',
+    //   icon: HomeOutline,
+    //   path: '/summary'
+    // },
     {
-      title: 'summary',
+      title: 'generate',
       icon: HomeOutline,
-      path: '/summary'
+      path: '/generate'
+    },
+    {
+      title: 'Product',
+      icon: HomeOutline,
+      path: '/summary2'
+    },
+    {
+      title: 'Professor',
+      icon: HomeOutline,
+      path: '/summaryprofessor'
+    },
+    {
+      title: 'project',
+      icon: HomeOutline,
+      path: '/project'
+    },
+    {
+      title: 'Q&A',
+      icon: AccountCogOutline,
+      path: '/qa'
     },
     {
       title: 'Account Settings',

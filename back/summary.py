@@ -32,8 +32,8 @@ async def summarize(request: SummarizeRequest):
         raise HTTPException(status_code=400, detail="No text provided for summarization")
 
     # 텍스트를 토큰화하고 모델에 입력
-    inputs = tokenizer("summarize: " + request.text, return_tensors="pt", max_length=512, truncation=True)
-    summary_ids = model.generate(**inputs, max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
+    inputs = tokenizer("summarize: " + request.text, return_tensors="pt", max_length=1000, truncation=True)
+    summary_ids = model.generate(**inputs, max_length=400, min_length=100, length_penalty=2.0, num_beams=4, early_stopping=True)
 
     # 요약된 텍스트 출력
     summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
