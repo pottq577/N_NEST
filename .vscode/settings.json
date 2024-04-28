@@ -46,5 +46,8 @@
     "uvicorn"
   ],
   "search-node-modules.path": "typescript-version/full-version/node_modules",
-  "markdown.extension.toc.updateOnSave": false
+  "markdown.extension.toc.updateOnSave": false,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.autopep8"
+  }
 }

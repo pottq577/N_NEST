@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
 import { Tabs, Tab, Box } from '@mui/material'
-import Overview from '../../views/projects/components/overview/index'
-import Project from '../../views/projects/components/projects/index'
+import Overview from '../../views/projects/overview/index'
+import Project from '../../views/projects/projects/index'
+import Portfolio from 'src/views/projects/portfolio'
+import Career from 'src/views/projects/career'
 
 /**
  * 탭 UI 및 상태 관리 로직 구현
@@ -49,10 +51,10 @@ export default function TabsContainer() {
         <Project />
       </TabPanel>
       <TabPanel value={value} index={2}>
-        경력 관리 내용
+        <Career />
       </TabPanel>
       <TabPanel value={value} index={3}>
-        포트폴리오 생성 내용
+        <Portfolio />
       </TabPanel>
     </Box>
   )
