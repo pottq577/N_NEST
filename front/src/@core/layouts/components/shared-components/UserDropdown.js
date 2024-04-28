@@ -1,5 +1,5 @@
 // ** React Imports
-import { useState, Fragment } from 'react'
+import { useState, Fragment, useEffect } from 'react'
 
 // ** Next Import
 import { useRouter } from 'next/router'
@@ -35,9 +35,16 @@ const BadgeContentSpan = styled('span')(({ theme }) => ({
 const UserDropdown = () => {
   // ** States
   const [anchorEl, setAnchorEl] = useState(null)
-
-  // ** Hooks
+  const [userName, setUserName] = useState('')
   const router = useRouter()
+
+  useEffect(() => {
+    // 로컬 스토리지에서 사용자 이름 불러오기
+    const storedUserName = localStorage.getItem('userName')
+    if (storedUserName) {
+      setUserName(storedUserName)
+    }
+  }, [])
 
   const handleDropdownOpen = event => {
     setAnchorEl(event.currentTarget)
@@ -51,11 +58,10 @@ const UserDropdown = () => {
   }
 
   const handleLogout = () => {
-    // 여기서 로그아웃 처리를 해줍니다.
-    // 로컬 스토리지나 쿠키를 비우거나 서버에 로그아웃 요청을 보내는 등의 방법을 사용할 수 있습니다.
-    // 예를 들어, 클라이언트 측에서 직접 세션을 제거하는 방법은 다음과 같습니다.
-    localStorage.removeItem('accessToken') // 혹은 다른 세션 관련 정보
-    router.push('/pages/login')
+    // 로컬 스토리지에서 토큰 제거
+    localStorage.removeItem('accessToken')
+    // 로그아웃 후 로그인 페이지로 리디렉트
+    handleDropdownClose('/pages/login')
   }
 
   const styles = {
@@ -82,7 +88,7 @@ const UserDropdown = () => {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Avatar
-          alt='John Doe'
+          alt={userName}
           onClick={handleDropdownOpen}
           sx={{ width: 40, height: 40 }}
           src='/images/avatars/1.png'
@@ -103,10 +109,11 @@ const UserDropdown = () => {
               badgeContent={<BadgeContentSpan />}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
-              <Avatar alt='John Doe' src='/images/avatars/1.png' sx={{ width: '2.5rem', height: '2.5rem' }} />
+              <Avatar alt={userName} src='/images/avatars/1.png' sx={{ width: '2.5rem', height: '2.5rem' }} />
             </Badge>
             <Box sx={{ display: 'flex', marginLeft: 3, alignItems: 'flex-start', flexDirection: 'column' }}>
-              <Typography sx={{ fontWeight: 600 }}>John Doe</Typography>
+              <Typography sx={{ fontWeight: 600 }}>{userName}</Typography>
+
               <Typography variant='body2' sx={{ fontSize: '0.8rem', color: 'text.disabled' }}>
                 Admin
               </Typography>
@@ -152,7 +159,7 @@ const UserDropdown = () => {
           </Box>
         </MenuItem>
         <Divider />
-        <MenuItem sx={{ py: 2 }} onClick={() => handleDropdownClose('/pages/login')}>
+        <MenuItem sx={{ py: 2 }} onClick={handleLogout}>
           <LogoutVariant sx={{ marginRight: 2, fontSize: '1.375rem', color: 'text.secondary' }} />
           Logout
         </MenuItem>

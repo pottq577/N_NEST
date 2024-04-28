@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Request, Depends
+from fastapi import FastAPI, HTTPException, Query, Request, Depends, APIRouter, Response, Cookie
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +11,8 @@ import os
 import jwt
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-
+from typing import Dict
+import json
 load_dotenv()
 
 app = FastAPI()
@@ -58,8 +59,56 @@ class UserInfo(BaseModel):
 SECRET_KEY = os.getenv("JWT_SECRET", "your_jwt_secret")
 ALGORITHM = "HS256"
 
+router = APIRouter()
+
+# 각 사용자의 GitHub 로그인 이름을 저장하는 딕셔너리
+user_logins: Dict[int, str] = {}
+
+
+# 쿠키에서 JWT 토큰을 읽어서 해당 토큰의 내용을 반환하는 엔드포인트
+@app.get("/read-cookie")
+async def read_cookie(jwt_token: str = Cookie(None)):
+    if jwt_token is None:
+        raise HTTPException(status_code=400, detail="JWT token is missing in the cookie")
+    return {"jwt_token_content": jwt_token}
+
+
+
+
+# JWT 토큰에서 사용자 정보 추출하는 함수
+async def get_current_user(request: Request):
+    jwt_token = request.cookies.get("jwtToken")
+    print(jwt_token)
+    if jwt_token is None:
+        raise HTTPException(status_code=403, detail="Credentials are not provided.")
+    try:
+        payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        github_access_token = payload.get("github_token")  # GitHub access token을 payload에서 추출
+        if username is None or github_access_token is None:
+            raise HTTPException(status_code=403, detail="Invalid credentials")
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Invalid credentials")
+    return {"username": username, "access_token": github_access_token}
+
+
+# 사용자의 GitHub 레포지토리 정보를 가져오는 API
+@app.get("/user/repositories")
+async def get_user_repositories(user=Depends(get_current_user)):
+    username = user["username"]
+    access_token = user["access_token"]  # GitHub access token을 사용
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"https://api.github.com/users/{username}/repos",
+            headers={"Authorization": f"token {access_token}"}
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="GitHub API error")
+        data = response.json()
+        return data
+
 @app.get("/auth/login")
-async def github_login_callback(request: Request, code: str = Query(...)):
+async def github_login_callback(request: Request, response: Response, code: str = Query(...)):
     async with httpx.AsyncClient() as client:
         # Exchange the code for the GitHub access token
         token_response = await client.post(
@@ -74,8 +123,9 @@ async def github_login_callback(request: Request, code: str = Query(...)):
         )
         token_response.raise_for_status()
         access_token = token_response.json().get("access_token")
-        print(f"Access Token: {access_token}")  # Log the access token
-        # Use the access token to fetch the user's profile
+        print(f"Access Token: {access_token}")  # 접근 토큰 로깅
+
+        # GitHub API를 통해 사용자 정보 가져오기
         user_response = await client.get(
             "https://api.github.com/user",
             headers={"Authorization": f"Bearer {access_token}"}
@@ -92,25 +142,48 @@ async def github_login_callback(request: Request, code: str = Query(...)):
         if not user_in_db:
             raise HTTPException(status_code=404, detail="User not registered")
 
-        # Issue JWT token
+        # JWT 토큰 발행 (GitHub access token도 포함)
         token_data = {
             "sub": user_info["login"],
             "github_id": user_info["id"],
+            "github_token": access_token,  # GitHub access token을 토큰 데이터에 추가
             "exp": datetime.now(timezone.utc) + timedelta(hours=1)
         }
-        token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
-        # Log user info and token to the console
-        print(f"Login Successful: {user_info['login']}")
-        print(f"JWT Token Issued: {token}")
-        print(f"User Info: {user_info}")
+        jwt_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+
+        # JWT 토큰을 HTTP Only 쿠키에 저장
+        response.set_cookie(
+            key="jwtToken",
+            value=jwt_token,
+            httponly=True,
+            max_age=3600,
+            expires=3600,
+            path='/',
+            secure=True
+        )
+        print("JWT 토큰이 쿠키에 저장되었습니다:", jwt_token)  # 쿠키에 저장된 JWT 토큰 로깅
+
+        user_login = user_info["login"]
+        print(user_info["login"])
+        print(user_login)
+        # 사용자 이름을 인-메모리 딕셔너리에 저장
+        user_logins[user_info["id"]] = user_info["login"]
 
         # If token is successfully created, redirect to the main app page
-        if token:
-            return RedirectResponse(url="http://localhost:3000/projects")
+        if jwt_token:
+            return RedirectResponse(url="http://localhost:3000")
         else:
             return JSONResponse(status_code=400, content={"message": "Failed to create token"})
 
+        #return {"token": token, "user_info": user_info,"code": code}
 
+@app.get("/user/{user_login}")
+async def get_user_login(user_login: str):
+    """ 저장된 사용자 이름을 반환하는 엔드포인트 """
+    if user_login in user_logins:
+        return {"user_login": user_logins[user_login]}
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
 
 # 회원가입
 @app.get("/auth/callback")
@@ -241,9 +314,26 @@ async def add_user_info(user_info: UserInfo):
         raise HTTPException(status_code=500, detail="Failed to save user info")
 
 
+@app.get("/github/{username}/repos")
+async def get_github_repos(username: str, github_login: str = Depends(lambda x: user_logins.get(x, None))):
+    if github_login is None:
+        raise HTTPException(status_code=404, detail="GitHub login not found")
 
+    async with httpx.AsyncClient() as client:
+        # GitHub API 호출
+        response = await client.get(f"https://api.github.com/users/{github_login}/repos")
 
+        if response.status_code != 200:
+            # 요청이 실패하면 HTTP 예외 발생
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch repositories")
 
+        # 응답 데이터 반환
+        return response.json()
+
+# 딕셔너리에 저장된 모든 사용자의 GitHub 로그인 이름을 반환하는 엔드포인트
+@app.get("/user-logins")
+async def get_user_logins():
+    return JSONResponse(user_logins)
 
 
 if __name__ == "__main__":

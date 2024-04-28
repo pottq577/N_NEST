@@ -62,32 +62,15 @@ const LoginPage = () => {
   const router = useRouter()
 
   useEffect(() => {
-    const { code } = router.query
-
-    if (code) {
-      fetchToken(code)
+    // URL에서 토큰을 추출하여 로컬 스토리지에 저장
+    const { token } = router.query
+    if (token) {
+      localStorage.setItem('jwtToken', token)
+      console.log('Token stored:', token)
+      // 토큰 저장 후 메인 페이지로 리디렉션
+      //router.push('/')
     }
-  }, [router])
-
-  const fetchToken = async code => {
-    print(code)
-    try {
-      const response = await fetch(`http://localhost:8000/auth/login?code=${code}`)
-      const data = await response.json()
-
-      console.log('Response data:', data)
-      if (data.token) {
-        localStorage.setItem('jwtToken', data.token)
-        console.log(`${data.user_info.login} 로그인 성공!`)
-        window.location.href = '/' // Directly redirect to the main page
-      } else {
-        alert('로그인에 실패했습니다. 토큰을 받지 못했습니다.')
-      }
-    } catch (error) {
-      console.error('Error fetching token:', error)
-      alert('로그인 중 오류 발생.')
-    }
-  }
+  }, [router.query])
 
   const handleGitHubLogin = () => {
     const clientId = 'Iv1.636c6226a979a74a'
