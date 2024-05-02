@@ -1,10 +1,25 @@
 import React, { useEffect, useState } from 'react'
-import { List, ListItem, ListItemText, Card, CardContent, Typography, IconButton, Link } from '@mui/material'
+import {
+  List,
+  ListItem,
+  ListItemText,
+  Card,
+  CardContent,
+  Typography,
+  IconButton,
+  Link,
+  Modal,
+  Box,
+  Button,
+  Grid
+} from '@mui/material'
 import { Add } from '@mui/icons-material'
 
 const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
+  const [openModal, setOpenModal] = useState(false)
+  const [selectedRepoName, setSelectedRepoName] = useState('')
 
   useEffect(() => {
     // 사용자 로그인 정보 가져오기
@@ -29,6 +44,22 @@ const UserProjectsPage = () => {
   // 유저네임을 클릭했을 때 해당 유저의 레포지토리 가져오기
   const handleClickUsername = username => {
     fetchUserRepos(username)
+  }
+
+  // 모달 열기
+  const handleOpenModal = () => {
+    setOpenModal(true)
+  }
+
+  // 모달 닫기
+  const handleCloseModal = () => {
+    setOpenModal(false)
+  }
+
+  // 레포지토리 추가 모달 열기
+  const handleOpenRepoModal = repoName => {
+    setSelectedRepoName(repoName)
+    setOpenModal(true)
   }
 
   return (
@@ -62,14 +93,57 @@ const UserProjectsPage = () => {
           <IconButton
             style={{ position: 'absolute', top: '5px', right: '5px' }}
             aria-label='Add'
-            onClick={() => {
-              // Add your functionality here
-            }}
+            onClick={() => handleOpenRepoModal(repo.name)}
           >
             <Add />
           </IconButton>
         </Card>
       ))}
+
+      {/* 모달 */}
+      <Modal open={openModal} onClose={handleCloseModal}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '80%',
+            maxWidth: 600,
+            bgcolor: 'background.paper',
+            borderRadius: '8px', // 둥근 모서리 적용
+            boxShadow: 24,
+            p: 4
+          }}
+        >
+          <Typography variant='h5' gutterBottom align='center'>
+            Repository: {selectedRepoName} 웹에 등록하기
+            <br />
+            <Typography variant='body2' component='span' color='error'>
+              등록시 모두가 해당 내용을 볼 수 있습니다.
+            </Typography>
+          </Typography>
+          <Grid container spacing={2} justifyContent='center'>
+            <Grid item>
+              <Button
+                variant='contained'
+                onClick={() => {
+                  handleCloseModal()
+                  window.location.href = 'http://localhost:3000/generate/'
+                }}
+                sx={{ mr: 2 }}
+              >
+                문서 생성
+              </Button>
+            </Grid>
+            <Grid item>
+              <Button variant='contained' onClick={handleCloseModal}>
+                기존 문서 등록
+              </Button>
+            </Grid>
+          </Grid>
+        </Box>
+      </Modal>
     </div>
   )
 }
