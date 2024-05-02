@@ -14,12 +14,14 @@ import {
   Grid
 } from '@mui/material'
 import { Add } from '@mui/icons-material'
+import { useRouter } from 'next/router' // Next.js Router import
 
 const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
   const [openModal, setOpenModal] = useState(false)
   const [selectedRepoName, setSelectedRepoName] = useState('')
+  const router = useRouter() // Next.js Router instance
 
   useEffect(() => {
     // 사용자 로그인 정보 가져오기
@@ -60,6 +62,12 @@ const UserProjectsPage = () => {
   const handleOpenRepoModal = repoName => {
     setSelectedRepoName(repoName)
     setOpenModal(true)
+  }
+
+  // 문서 생성 페이지로 이동
+  const handleNavigateToDocumentUpload = () => {
+    handleCloseModal() // 모달 닫기
+    router.push('/document/upload') // 문서 업로드 페이지로 이동
   }
 
   return (
@@ -127,17 +135,14 @@ const UserProjectsPage = () => {
             <Grid item>
               <Button
                 variant='contained'
-                onClick={() => {
-                  handleCloseModal()
-                  window.location.href = 'http://localhost:3000/generate/'
-                }}
+                onClick={handleNavigateToDocumentUpload} // 문서 업로드 페이지로 이동
                 sx={{ mr: 2 }}
               >
                 문서 생성
               </Button>
             </Grid>
             <Grid item>
-              <Button variant='contained' onClick={handleCloseModal}>
+              <Button variant='contained' onClick={handleNavigateToDocumentUpload}>
                 기존 문서 등록
               </Button>
             </Grid>
