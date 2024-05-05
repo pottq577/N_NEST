@@ -171,3 +171,21 @@ async def generate_image(request: ImageRequest):
         return {"base64_image": base64_image}
     except Exception as e:
         return {"error": str(e)}
+
+
+
+# 기존문서 생성 요약 내용
+class SummaryRequest(BaseModel):
+    text: str
+
+@app.post("/generate-summary/")
+async def generate_summary(request: SummaryRequest):
+    if not request.text:
+        raise HTTPException(status_code=400, detail="No text provided for summarization")
+
+    # 텍스트를 토크나이저로 변환하고 요약 생성
+    inputs = tokenizer.encode("summarize: " + request.text, return_tensors="pt", max_length=512, truncation=True)
+    summary_ids = model.generate(inputs, max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
+    summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+    return {"summary": summary}

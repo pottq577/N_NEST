@@ -321,15 +321,25 @@ async def get_github_repos(username: str, github_login: str = Depends(lambda x: 
         raise HTTPException(status_code=404, detail="GitHub login not found")
 
     async with httpx.AsyncClient() as client:
-        # GitHub API 호출
         response = await client.get(f"https://api.github.com/users/{github_login}/repos")
-
         if response.status_code != 200:
-            # 요청이 실패하면 HTTP 예외 발생
             raise HTTPException(status_code=response.status_code, detail="Failed to fetch repositories")
 
-        # 응답 데이터 반환
+        repos = response.json()
+        contributors_tasks = [fetch_contributors(client, repo['contributors_url']) for repo in repos]
+        contributors_results = await asyncio.gather(*contributors_tasks)
+
+        for repo, contributors in zip(repos, contributors_results):
+            repo['contributors'] = contributors
+
+        return repos
+
+async def fetch_contributors(client: httpx.AsyncClient, contributors_url: str):
+    response = await client.get(contributors_url)
+    if response.status_code == 200:
         return response.json()
+    else:
+        return []  # 실패 시 빈 배열 반환
 
 # 딕셔너리에 저장된 모든 사용자의 GitHub 로그인 이름을 반환하는 엔드포인트
 @app.get("/user-logins")

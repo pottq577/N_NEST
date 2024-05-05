@@ -20,7 +20,7 @@ const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
   const [openModal, setOpenModal] = useState(false)
-  const [selectedRepoName, setSelectedRepoName] = useState('')
+  const [selectedRepo, setSelectedRepo] = useState(null)
   const router = useRouter() // Next.js Router instance
 
   useEffect(() => {
@@ -62,7 +62,8 @@ const UserProjectsPage = () => {
     fetchUserRepos(username)
   }
 
-  const handleOpenModal = () => {
+  const handleOpenModal = repo => {
+    setSelectedRepo(repo)
     setOpenModal(true)
   }
 
@@ -70,14 +71,27 @@ const UserProjectsPage = () => {
     setOpenModal(false)
   }
 
-  const handleOpenRepoModal = repoName => {
-    setSelectedRepoName(repoName)
-    setOpenModal(true)
-  }
-
   const handleNavigateToDocumentUpload = () => {
     handleCloseModal()
-    router.push('/document/upload')
+    router.push({
+      pathname: '/document/upload',
+      query: {
+        name: selectedRepo.name,
+        description: selectedRepo.description || 'No description',
+        language: selectedRepo.language || 'No info',
+        stars: selectedRepo.stargazers_count,
+        updatedAt: selectedRepo.updated_at,
+        license: selectedRepo.license ? selectedRepo.license.name : 'No license',
+        forks: selectedRepo.forks_count,
+        watchers: selectedRepo.watchers_count,
+        contributors: selectedRepo.contributors
+          ? selectedRepo.contributors.map(c => c.login).join(', ')
+          : 'No contributors info',
+        private: selectedRepo.private ? 'Yes' : 'No',
+        html_url: selectedRepo.html_url,
+        defaultBranch: selectedRepo.default_branch
+      }
+    })
   }
 
   return (
@@ -123,7 +137,7 @@ const UserProjectsPage = () => {
           <IconButton
             style={{ position: 'absolute', top: '5px', right: '5px' }}
             aria-label='Add'
-            onClick={() => handleOpenRepoModal(repo.name)}
+            onClick={() => handleOpenModal(repo)}
           >
             <Add />
           </IconButton>
@@ -146,7 +160,7 @@ const UserProjectsPage = () => {
           }}
         >
           <Typography variant='h5' gutterBottom align='center'>
-            Repository: {selectedRepoName} Web Registration
+            Repository: {selectedRepo?.name} Web Registration
             <br />
             <Typography variant='body2' component='span' color='error'>
               Upon registration, this content will be visible to everyone.

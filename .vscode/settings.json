@@ -37,6 +37,7 @@
     "Customizer",
     "dotenv",
     "fastapi",
+    "generativeai",
     "httpx",
     "jsonable",
     "openai",
