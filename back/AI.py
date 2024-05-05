@@ -9,11 +9,16 @@ from PIL import Image
 import base64
 import requests
 import re
-# Google API
-GOOGLE_API_KEY = ""
-# OpenAI API
-client = OpenAI(api_key='')
+from dotenv import load_dotenv
+import os
 
+# .env 파일에서 환경 변수 로드
+load_dotenv()
+
+# 환경 변수 로드
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.getenv("OpenAI_API")
+client = OPENAI_API_KEY
 app = FastAPI()
 
 # CORS 미들웨어 추가
