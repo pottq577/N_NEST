@@ -313,6 +313,7 @@ async def add_user_info(user_info: UserInfo):
     else:
         raise HTTPException(status_code=500, detail="Failed to save user info")
 
+import asyncio
 
 @app.get("/github/{username}/repos")
 async def get_github_repos(username: str, github_login: str = Depends(lambda x: user_logins.get(x, None))):

@@ -24,50 +24,60 @@ const UserProjectsPage = () => {
   const router = useRouter() // Next.js Router instance
 
   useEffect(() => {
-    // 사용자 로그인 정보 가져오기
     fetch('http://localhost:8000/user-logins')
       .then(response => response.json())
       .then(data => {
         setUserLogins(data)
+        // Assume the first user's username is usable and call fetchUserRepos automatically
+        if (data && Object.keys(data).length > 0) {
+          const defaultUsername = Object.values(data)[0] // Use the first username found in the user logins
+          fetchUserRepos(defaultUsername)
+        }
       })
       .catch(error => console.error('Error fetching user logins:', error))
   }, [])
 
-  // 사용자 레포지토리 가져오기
   const fetchUserRepos = username => {
     fetch(`https://api.github.com/users/${username}/repos`)
       .then(response => response.json())
-      .then(data => {
-        setUserRepos(data)
+      .then(repos => {
+        Promise.all(
+          repos.map(repo =>
+            fetch(repo.contributors_url)
+              .then(resp => (resp.ok ? resp.json() : Promise.reject('Failed to load contributors')))
+              .then(contributors => ({ ...repo, contributors }))
+              .catch(error => {
+                console.error('Error fetching contributors:', error)
+                return { ...repo, contributors: [] } // Handle errors by setting contributors to an empty array
+              })
+          )
+        )
+          .then(reposWithContributors => setUserRepos(reposWithContributors))
+          .catch(error => console.error('Error processing repos:', error))
       })
       .catch(error => console.error('Error fetching user repos:', error))
   }
 
-  // 유저네임을 클릭했을 때 해당 유저의 레포지토리 가져오기
   const handleClickUsername = username => {
     fetchUserRepos(username)
   }
 
-  // 모달 열기
   const handleOpenModal = () => {
     setOpenModal(true)
   }
 
-  // 모달 닫기
   const handleCloseModal = () => {
     setOpenModal(false)
   }
 
-  // 레포지토리 추가 모달 열기
   const handleOpenRepoModal = repoName => {
     setSelectedRepoName(repoName)
     setOpenModal(true)
   }
 
-  // 문서 생성 페이지로 이동
   const handleNavigateToDocumentUpload = () => {
-    handleCloseModal() // 모달 닫기
-    router.push('/document/upload') // 문서 업로드 페이지로 이동
+    handleCloseModal()
+    router.push('/document/upload')
   }
 
   return (
@@ -86,11 +96,23 @@ const UserProjectsPage = () => {
         <Card key={repo.id} style={{ marginBottom: '10px', position: 'relative' }}>
           <CardContent>
             <Typography variant='h6'>{repo.name}</Typography>
-            <Typography>{repo.description}</Typography>
+            <Typography>{repo.description || 'No description'}</Typography>
             <Typography>
-              Language: {repo.language}, Stars: {repo.stargazers_count}
+              Language: {repo.language || 'No info'}, Stars: {repo.stargazers_count}
             </Typography>
             <Typography>Last Updated: {new Date(repo.updated_at).toLocaleDateString()}</Typography>
+            <Typography>
+              Contributors:{' '}
+              {repo.contributors && repo.contributors.length > 0
+                ? repo.contributors.map(c => c.login).join(', ')
+                : 'No contributors info'}
+            </Typography>
+            <Typography>
+              Watchers: {repo.watchers_count}, Forks: {repo.forks_count}
+            </Typography>
+            <Typography>Licence: {repo.license ? repo.license.name : 'No license'}</Typography>
+            <Typography>Default Branch: {repo.default_branch}</Typography>
+            <Typography>Private: {repo.private ? 'Yes' : 'No'}</Typography>
             <Typography>
               URL:{' '}
               <Link href={repo.html_url} target='_blank' rel='noopener noreferrer' color='primary'>
@@ -108,7 +130,6 @@ const UserProjectsPage = () => {
         </Card>
       ))}
 
-      {/* 모달 */}
       <Modal open={openModal} onClose={handleCloseModal}>
         <Box
           sx={{
@@ -119,31 +140,27 @@ const UserProjectsPage = () => {
             width: '80%',
             maxWidth: 600,
             bgcolor: 'background.paper',
-            borderRadius: '8px', // 둥근 모서리 적용
+            borderRadius: '8px',
             boxShadow: 24,
             p: 4
           }}
         >
           <Typography variant='h5' gutterBottom align='center'>
-            Repository: {selectedRepoName} 웹에 등록하기
+            Repository: {selectedRepoName} Web Registration
             <br />
             <Typography variant='body2' component='span' color='error'>
-              등록시 모두가 해당 내용을 볼 수 있습니다.
+              Upon registration, this content will be visible to everyone.
             </Typography>
           </Typography>
           <Grid container spacing={2} justifyContent='center'>
             <Grid item>
-              <Button
-                variant='contained'
-                onClick={handleNavigateToDocumentUpload} // 문서 업로드 페이지로 이동
-                sx={{ mr: 2 }}
-              >
-                문서 생성
+              <Button variant='contained' onClick={handleNavigateToDocumentUpload} sx={{ mr: 2 }}>
+                Create Document
               </Button>
             </Grid>
             <Grid item>
               <Button variant='contained' onClick={handleNavigateToDocumentUpload}>
-                기존 문서 등록
+                Register Existing Document
               </Button>
             </Grid>
           </Grid>

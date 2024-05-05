@@ -39,6 +39,7 @@
     "fastapi",
     "httpx",
     "jsonable",
+    "openai",
     "popperjs",
     "pydantic",
     "pymongo",
