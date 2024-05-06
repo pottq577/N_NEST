@@ -9,6 +9,7 @@ from PIL import Image
 import base64
 import requests
 import re
+import logging
 # Google API
 GOOGLE_API_KEY = ""
 # OpenAI API
@@ -172,41 +173,41 @@ async def generate_image(request: ImageRequest):
     except Exception as e:
         return {"error": str(e)}
 
-class ITQuestion(BaseModel):
-    question: str
+class ClassificationRequest(BaseModel):
+    text: str
 
-class ITQuestion(BaseModel):
-    question: str
+@app.post("/classify")
+async def classify_text(request: ClassificationRequest):
+    if not request.text:
+        raise HTTPException(status_code=400, detail="No text provided")
 
-@app.post("/classify-it/")
-async def classify_it_field(question: ITQuestion):
-    client = openai.OpenAI(api_key="your-api-key")
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an AI trained to identify IT fields such as backend, frontend, security, and network."
-                },
-                {
-                    "role": "user",
-                    "content": question.question
-                }
-            ],
-            temperature=0.5,
-            max_tokens=150  # Adjusted max_tokens for better analysis
-        )
-        # Analyze the response to classify IT fields
-        response_text = response.choices[0].message["content"].lower()
-        results = {
-            "backend": 1 if "backend" in response_text else 0,
-            "frontend": 1 if "frontend" in response_text else 0,
-            "security": 1 if "security" in response_text else 0,
-            "network": 1 if "network" in response_text else 0
-        }
-        return results
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # 분류할 텍스트 설정
+    prompt_text = (
+        "Classify the following IT-related response into categories such as backend, frontend, security, network, cloud, and others: \n\n"
+        f"'{request.text}'"
+    )
 
+    # OpenAI API를 호출하여 결과를 가져옵니다.
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an AI that classifies IT-related questions."},
+            {"role": "user", "content": prompt_text}
+        ],
+        max_tokens=60
+    )
 
+    # 모델의 응답을 분석합니다.
+    raw_response = response.choices[0].message.content.strip()
+    categories = ["backend", "frontend", "security", "network", "cloud"]
+    it_terms = ["server", "api", "http", "frontend", "backend", "database", "network", "security", "encryption", "cloud", "storage", "virtualization"]
+
+    # IT 용어가 응답에 포함되어 있는지 확인
+    response_contains_it_terms = any(term in raw_response.lower() for term in it_terms)
+
+    # 응답을 카테고리와 매핑
+    if response_contains_it_terms:
+        for category in categories:
+            if category in raw_response.lower():
+                return {"category": category}
+    return {"category": "nothings"}

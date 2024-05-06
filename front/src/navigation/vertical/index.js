@@ -54,6 +54,11 @@ const navigation = () => {
       path: '/project'
     },
     {
+      title: 'Qtest',
+      icon: AccountCogOutline,
+      path: '/Qtest'
+    },
+    {
       title: 'Q&A',
       icon: AccountCogOutline,
       path: '/qa'
