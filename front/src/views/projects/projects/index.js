@@ -21,6 +21,8 @@ const UserProjectsPage = () => {
   const [userRepos, setUserRepos] = useState([])
   const [openModal, setOpenModal] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState(null)
+  const [currentUsername, setCurrentUsername] = useState('') // 현재 선택된 사용자 이름 저장
+  const [currentUserId, setCurrentUserId] = useState('') // 현재 선택된 사용자 ID 저장
   const router = useRouter() // Next.js Router instance
 
   useEffect(() => {
@@ -28,10 +30,12 @@ const UserProjectsPage = () => {
       .then(response => response.json())
       .then(data => {
         setUserLogins(data)
-        // Assume the first user's username is usable and call fetchUserRepos automatically
         if (data && Object.keys(data).length > 0) {
-          const defaultUsername = Object.values(data)[0] // Use the first username found in the user logins
-          fetchUserRepos(defaultUsername)
+          const defaultUsername = Object.values(data)[0]
+          const defaultUserId = Object.keys(data)[0]
+          setCurrentUsername(defaultUsername)
+          setCurrentUserId(defaultUserId)
+          fetchUserRepos(defaultUsername, defaultUserId)
         }
       })
       .catch(error => console.error('Error fetching user logins:', error))
@@ -89,7 +93,9 @@ const UserProjectsPage = () => {
           : 'No contributors info',
         private: selectedRepo.private ? 'Yes' : 'No',
         html_url: selectedRepo.html_url,
-        defaultBranch: selectedRepo.default_branch
+        defaultBranch: selectedRepo.default_branch,
+        userId: currentUserId, // 사용자 ID
+        username: currentUsername // 사용자 이름
       }
     })
   }

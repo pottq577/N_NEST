@@ -14,7 +14,7 @@ export default function Component() {
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/summarize/', {
+      const response = await fetch('http://127.0.0.1:8001/summarize/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

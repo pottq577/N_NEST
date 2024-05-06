@@ -11,22 +11,33 @@ export default function UploadDocument() {
   const [repoInfo, setRepoInfo] = useState({})
   const [summary, setSummary] = useState('') // 요약된 텍스트 상태
   const [generatedImage, setGeneratedImage] = useState('') // 생성된 이미지 URL 상태
+  const [userId, setUserId] = useState('') // 사용자 ID 상태 추가
+  const [username, setUsername] = useState('') // 사용자 이름 상태 추가
   const router = useRouter()
 
   useEffect(() => {
     if (router.query) {
       setRepoInfo(router.query)
+      setUserId(router.query.userId) // URL에서 사용자 ID 가져오기
+      setUsername(router.query.username) // URL에서 사용자 이름 가져오기
     }
   }, [router.query])
 
   const handleGenerateSummaryAndImage = async () => {
-    // 텍스트 요약 API 호출
-    const summaryResponse = await axios.post('http://127.0.0.1:8000/generate-summary/', { text: editedText })
-    setSummary(summaryResponse.data.summary)
+    try {
+      const summaryResponse = await axios.post('http://127.0.0.1:8001/generate-summary/', { text: editedText })
+      setSummary(summaryResponse.data.summary)
 
-    // 이미지 생성 API 호출
-    const imageResponse = await axios.post('http://127.0.0.1:8000/generate-image/', { prompt: editedText })
-    setGeneratedImage(imageResponse.data.image_url)
+      const imageResponse = await axios.post('http://127.0.0.1:8001/generate-image/', { prompt: editedText })
+      // 이미지 URL을 Base64 인코딩된 데이터로 설정
+      if (imageResponse.data.base64_image) {
+        setGeneratedImage(`data:image/jpeg;base64,${imageResponse.data.base64_image}`)
+      } else {
+        setGeneratedImage(imageResponse.data.image_url)
+      }
+    } catch (error) {
+      console.error('Error generating summary or image:', error)
+    }
   }
 
   const handleTextDrop = async event => {
@@ -89,9 +100,46 @@ export default function UploadDocument() {
     setText(editedText)
   }
 
+  const handleSaveDocument = async () => {
+    const projectData = {
+      userId: userId, // 사용자 ID
+      username: username, // 사용자 이름
+      name: repoInfo.name,
+      description: repoInfo.description,
+      language: repoInfo.language,
+      stars: repoInfo.stars,
+      updated_at: repoInfo.updatedAt,
+      license: repoInfo.license ? repoInfo.license.name : 'No license',
+      forks: repoInfo.forks,
+      watchers: repoInfo.watchers,
+      contributors: repoInfo.contributors.map(contributor => contributor.login).join(', '), // 변환된 contributors
+      is_private: repoInfo.private,
+      default_branch: repoInfo.defaultBranch,
+      repository_url: repoInfo.html_url,
+      text_extracted: text,
+      summary: summary,
+      image_preview_urls: images.map(image => image), // 이미지 URL 리스트
+      generated_image_url: generatedImage // 생성된 이미지 URL
+    }
+
+    try {
+      const response = await axios.post('http://127.0.0.1:8000/save-project', projectData)
+      console.log('Document saved:', response.data)
+      alert('Document saved successfully!')
+    } catch (error) {
+      console.error('Failed to save document:', error)
+      alert('Failed to save document!')
+    }
+  }
+
   return (
     <Container maxWidth='sm'>
       <Box my={4}>
+        <Typography variant='h5' gutterBottom>
+          User Information
+        </Typography>
+        <Typography variant='subtitle1'>User ID: {userId}</Typography>
+        <Typography variant='subtitle1'>Username: {username}</Typography>
         {/* 레포지토리 정보를 표시 */}
         <Typography variant='h5' gutterBottom>
           Repository Information
@@ -210,7 +258,7 @@ export default function UploadDocument() {
           Generated Image
         </Typography>
         {generatedImage && <img src={generatedImage} alt='Generated' style={{ width: '100%', height: 'auto' }} />}
-        <Button variant='contained' color='primary' sx={{ marginTop: '20px' }}>
+        <Button variant='contained' color='primary' onClick={handleSaveDocument} sx={{ marginTop: '20px' }}>
           Save Document
         </Button>
       </Box>

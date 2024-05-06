@@ -42,7 +42,7 @@ export default function Component() {
 
   const saveSummaryData = async data => {
     try {
-      const response = await fetch('http://127.0.0.2:8000/saveSummary', {
+      const response = await fetch('http://127.0.0.1:8001/saveSummary', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -65,7 +65,7 @@ export default function Component() {
   }
 
   const fetchSummary = async (text, section) => {
-    const response = await fetch(`http://127.0.0.1:8000/summarize/${section}?text=${encodeURIComponent(text)}`, {
+    const response = await fetch(`http://127.0.0.1:8001/summarize/${section}?text=${encodeURIComponent(text)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -81,7 +81,7 @@ export default function Component() {
 
   const handleImageGeneration = async text => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/generate-image/', {
+      const response = await fetch('http://127.0.0.1:8001/generate-image/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

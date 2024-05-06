@@ -13,7 +13,7 @@ export default function ProjectSubmissionForm() {
     setIsLoading(true)
     setError('')
 
-    const url = `http://localhost:8000/summarize/Gen/${encodeURIComponent(projectTitle)}/${encodeURIComponent(
+    const url = `http://localhost:8001/summarize/Gen/${encodeURIComponent(projectTitle)}/${encodeURIComponent(
       technologiesUsed
     )}/${encodeURIComponent(problemToSolve)}`
 

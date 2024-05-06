@@ -4,14 +4,15 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import httpx
 from dotenv import load_dotenv
 import os
 import jwt
+import asyncio
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-from typing import Dict
+from typing import Dict, Optional, List
 import json
 load_dotenv()
 
@@ -33,13 +34,13 @@ app.add_middleware(
 )
 
 # MongoDB 클라이언트 설정
-MONGODB_URL = "mongodb+srv://CBJ:admin13579@cluster1.vtagppt.mongodb.net/"  # 실제 연결 URI
+MONGODB_URL = os.getenv("MONGODB_URL")
 
 # MongoDB 클라이언트 생성
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client['N-Nest'] # 데이터베이스 선택
 user_collection = db['User']
-
+project_collection = db['Project']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -54,6 +55,24 @@ class UserInfo(BaseModel):
     githubUsername: str
     githubName: str
     githubId: int
+
+class ProjectData(BaseModel):
+    name: str
+    description: str
+    language: str
+    stars: int
+    updated_at: datetime
+    license: str
+    forks: int
+    watchers: int
+    contributors: int
+    is_private: bool
+    default_branch: str
+    repository_url: str
+    text_extracted: str
+    #image_preview_urls: List[str]
+    summary: str
+    #generated_image_url: str
 
 # JWT 설정 ===========================================
 SECRET_KEY = os.getenv("JWT_SECRET", "your_jwt_secret")
@@ -313,7 +332,32 @@ async def add_user_info(user_info: UserInfo):
     else:
         raise HTTPException(status_code=500, detail="Failed to save user info")
 
-import asyncio
+
+@app.post('/save-project2')
+async def save_project(project_data: ProjectData):
+    print(project_data)
+    try:
+        # MongoDB 'Project' 컬렉션에 데이터 저장
+        new_project = await db.Project.insert_one(project_data.dict())
+        return {"message": "Document saved successfully", "project_id": str(new_project.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save document: {str(e)}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @app.get("/github/{username}/repos")
 async def get_github_repos(username: str, github_login: str = Depends(lambda x: user_logins.get(x, None))):
@@ -345,6 +389,67 @@ async def fetch_contributors(client: httpx.AsyncClient, contributors_url: str):
 @app.get("/user-logins")
 async def get_user_logins():
     return JSONResponse(user_logins)
+
+
+
+
+
+
+
+
+
+# 데이터 모델 정의
+class ProjectInfo(BaseModel):
+    user_id: str
+    username: str
+    name: str
+    description: Optional[str] = None
+    language: Optional[str] = None
+    stars: int
+    updated_at: str
+    license: Optional[str] = None
+    forks: int
+    watchers: int
+    contributors: List[str]
+    private: bool
+    default_branch: str
+    html_url: str
+
+@app.post("/save-project")
+async def save_project(project_info: ProjectInfo):
+    try:
+        result = await project_collection.insert_one(project_info.dict())
+        return {"message": "Project saved successfully", "id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving project: {str(e)}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

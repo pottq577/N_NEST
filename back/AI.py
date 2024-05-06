@@ -17,7 +17,9 @@ load_dotenv()
 
 # 환경 변수 로드
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+#print(GOOGLE_API_KEY)
 OPENAI_API_KEY = os.getenv("OpenAI_API")
+# print(OPENAI_API_KEY)
 client = OPENAI_API_KEY
 app = FastAPI()
 
@@ -64,6 +66,7 @@ genai.configure(api_key=GOOGLE_API_KEY)
 async def generate_content(text: str = Query(..., description="Text to summarize")):
     model = genai.GenerativeModel('gemini-pro')
     response = model.generate_content("프로젝트의 기본 소개에 대한 내용을 중점으로 짧게 요약해줘: " + text)
+
     return {"text": response.text}
 
 @app.get("/summarize/Body")
@@ -172,14 +175,26 @@ async def generate_image(request: ImageRequest):
         buffered = BytesIO()
         resized_image.save(buffered, format="JPEG")
         base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
-
+        print(base64_image)
         return {"base64_image": base64_image}
     except Exception as e:
         return {"error": str(e)}
 
+#===========================================================================
+@app.post("/generate-image-geminai/")
+async def generate_image(request: ImageRequest):
+    try:
+        # Geminai 모델 초기화
+        model = genai.GenerativeModel('gemini-pro')
+        # 이미지 생성 요청
+        response = model.generate_image(prompt=request.prompt)
+        # 결과 URL 반환
+        return {"image_url": response.image_url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-# 기존문서 생성 요약 내용
+# 기존문서 생성 요약 내용 << CBJ 난 이상하게 위에 안되고 해당 엔드포인트는 잘 됨.
 class SummaryRequest(BaseModel):
     text: str
 
@@ -188,9 +203,22 @@ async def generate_summary(request: SummaryRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="No text provided for summarization")
 
-    # 텍스트를 토크나이저로 변환하고 요약 생성
-    inputs = tokenizer.encode("summarize: " + request.text, return_tensors="pt", max_length=512, truncation=True)
-    summary_ids = model.generate(inputs, max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
+    # 입력 텍스트를 토크나이저로 변환하면서, 입력 최대 길이를 증가
+    inputs = tokenizer.encode("summarize: " + request.text, return_tensors="pt", max_length=1024, truncation=True)
+
+    # 요약 생성을 위한 매개변수 조정: 긴 텍스트를 고려하여 요약의 최대 길이와 최소 길이 증가
+    summary_ids = model.generate(
+        inputs,
+        max_length=500,  # 요약의 최대 길이 증가
+        min_length=100,  # 요약의 최소 길이 증가
+        length_penalty=2.0,  # 길이 패널티 적용하여 좀 더 긴 요약 생성
+        num_beams=6,  # 빔 탐색의 크기 증가하여 더 다양한 요약 생성
+        no_repeat_ngram_size=2,  # 반복을 줄이기 위해 n-gram 크기 설정
+        early_stopping=True
+    )
+
+    # 토크나이저를 사용해 요약 텍스트 디코딩
     summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
 
     return {"summary": summary}
+
