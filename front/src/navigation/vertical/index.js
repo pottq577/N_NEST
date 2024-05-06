@@ -17,6 +17,16 @@ const navigation = () => {
       icon: HomeOutline,
       path: '/'
     },
+    {
+      title: 'stu',
+      icon: HomeOutline,
+      path: '/stu'
+    },
+    {
+      title: 'pro',
+      icon: HomeOutline,
+      path: '/pro'
+    },
 
     // {
     //   title: 'summary',

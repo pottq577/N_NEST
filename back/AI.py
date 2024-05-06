@@ -171,3 +171,42 @@ async def generate_image(request: ImageRequest):
         return {"base64_image": base64_image}
     except Exception as e:
         return {"error": str(e)}
+
+class ITQuestion(BaseModel):
+    question: str
+
+class ITQuestion(BaseModel):
+    question: str
+
+@app.post("/classify-it/")
+async def classify_it_field(question: ITQuestion):
+    client = openai.OpenAI(api_key="your-api-key")
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo-preview",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an AI trained to identify IT fields such as backend, frontend, security, and network."
+                },
+                {
+                    "role": "user",
+                    "content": question.question
+                }
+            ],
+            temperature=0.5,
+            max_tokens=150  # Adjusted max_tokens for better analysis
+        )
+        # Analyze the response to classify IT fields
+        response_text = response.choices[0].message["content"].lower()
+        results = {
+            "backend": 1 if "backend" in response_text else 0,
+            "frontend": 1 if "frontend" in response_text else 0,
+            "security": 1 if "security" in response_text else 0,
+            "network": 1 if "network" in response_text else 0
+        }
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
