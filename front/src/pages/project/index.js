@@ -1,59 +1,61 @@
 import React, { useState, useEffect } from 'react'
+import { Container, Grid, Card, CardMedia, CardContent, Typography, CircularProgress, Box } from '@mui/material'
 
-function SummaryPage() {
-  const [summaries, setSummaries] = useState([]) // 요약 정보를 저장할 상태
+function Projects() {
+  const [projects, setProjects] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    // 서버에서 요약 정보를 불러오는 함수
-    const fetchSummaries = async () => {
-      try {
-        const response = await fetch('http://127.0.0.2:8000/api/summaries') // 서버 API 주소
-        if (!response.ok) {
-          throw new Error('Failed to fetch data')
-        }
-        const data = await response.json()
-        setSummaries(data) // 상태 업데이트
-      } catch (error) {
-        console.error('Error fetching summaries:', error)
-      }
-    }
-
-    fetchSummaries()
+    fetch('http://localhost:8000/api/projects')
+      .then(response => response.json())
+      .then(data => {
+        setProjects(data)
+        setIsLoading(false)
+      })
+      .catch(error => {
+        setError(error.message)
+        setIsLoading(false)
+      })
   }, [])
 
+  if (error)
+    return (
+      <Container>
+        <Typography color='error'>Failed to load projects: {error}</Typography>
+      </Container>
+    )
+  if (isLoading)
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    )
+
   return (
-    <div>
-      <h1>Summary Information</h1>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gridGap: '20px',
-          marginBottom: '20px'
-        }}
-      >
-        {summaries.map(summary => (
-          <div
-            key={summary._id}
-            style={{
-              padding: '10px',
-              border: '1px solid #ccc',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}
-          >
-            <img
-              src={`data:image/png;base64,${summary.imageData}`}
-              alt='Summary'
-              style={{ width: '100%', height: 'auto', maxWidth: '200px' }}
-            />
-            <p>{summary.finalSummary}</p>
-          </div>
+    <Container maxWidth='lg'>
+      <Grid container spacing={4}>
+        {projects.map(project => (
+          <Grid item key={project._id} xs={12} sm={6} md={4}>
+            <Card>
+              <CardMedia component='img' height='140' image={project.generated_image_url} alt='Project Image' />
+              <CardContent>
+                <Typography gutterBottom variant='h5' component='div'>
+                  {project.project_name}
+                </Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  {project.summary}
+                </Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  By: {project.username}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
         ))}
-      </div>
-    </div>
+      </Grid>
+    </Container>
   )
 }
 
-export default SummaryPage
+export default Projects

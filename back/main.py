@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
 import httpx
 from dotenv import load_dotenv
 import os
@@ -56,23 +56,47 @@ class UserInfo(BaseModel):
     githubName: str
     githubId: int
 
-class ProjectData(BaseModel):
-    name: str
-    description: str
-    language: str
+class ProjectInfo(BaseModel):
+    userId: int
+    username: str
+    project_name: str
+    description: str = "No description"
+    language: str = "Unknown"
     stars: int
-    updated_at: datetime
-    license: str
+    updated_at: str
+    license: Optional[str] = "None"
     forks: int
     watchers: int
-    contributors: int
-    is_private: bool
-    default_branch: str
+    contributors: str = "None"
+    is_private: bool = False
+    default_branch: str = "main"
     repository_url: str
     text_extracted: str
-    #image_preview_urls: List[str]
     summary: str
-    #generated_image_url: str
+    image_preview_urls: str
+    generated_image_url: str
+
+@app.post("/save-project/")
+async def save_project(project_data: ProjectInfo):
+    json_compatible_item_data = jsonable_encoder(project_data)
+    result = await project_collection.insert_one(json_compatible_item_data)  # 여기에 await 추가
+    if result.inserted_id:
+        return {"status": "success", "document_id": str(result.inserted_id)}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save the document")
+
+# ObjectId를 문자열로 변환하는 함수
+def transform_id(project):
+    project["id"] = str(project["_id"])
+    del project["_id"]
+    return project
+
+@app.get("/api/projects")
+async def read_projects():
+    projects = await db["Project"].find().to_list(100)
+    return [transform_id(project) for project in projects]
+
+
 
 # JWT 설정 ===========================================
 SECRET_KEY = os.getenv("JWT_SECRET", "your_jwt_secret")
@@ -155,7 +179,7 @@ async def github_login_callback(request: Request, response: Response, code: str 
             raise HTTPException(status_code=400, detail="GitHub에서 사용자 상세 정보를 가져오는데 실패")
 
         user_info = user_response.json()
-
+        print(f"GitHub User Info: {user_info}")
         # Check if user exists in the database
         user_in_db = await user_collection.find_one({"githubId": user_info['id']})
         if not user_in_db:
@@ -333,32 +357,6 @@ async def add_user_info(user_info: UserInfo):
         raise HTTPException(status_code=500, detail="Failed to save user info")
 
 
-@app.post('/save-project2')
-async def save_project(project_data: ProjectData):
-    print(project_data)
-    try:
-        # MongoDB 'Project' 컬렉션에 데이터 저장
-        new_project = await db.Project.insert_one(project_data.dict())
-        return {"message": "Document saved successfully", "project_id": str(new_project.inserted_id)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save document: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @app.get("/github/{username}/repos")
 async def get_github_repos(username: str, github_login: str = Depends(lambda x: user_logins.get(x, None))):
     if github_login is None:
@@ -395,65 +393,6 @@ async def get_user_logins():
 
 
 
-class ProjectInfo(BaseModel):
-    user_id: str
-    username: str
-    name: str
-    description: Optional[str] = None
-    language: Optional[str] = None
-    stars: int
-    updated_at: str
-    license: Optional[str] = None
-    forks: int
-    watchers: int
-    contributors: str  # 수정된 부분: 리스트 대신 문자열로 변경
-    private: bool
-    default_branch: str
-    html_url: str
-
-app = FastAPI()
-
-@app.post("/save-project")
-async def save_project(project_info: ProjectInfo):
-    try:
-        # 프론트엔드에서 전송된 문자열을 쉼표로 분리하여 리스트로 변환
-        contributors_list = project_info.contributors.split(', ')
-        # 수정된 데이터 모델에 맞게 contributors 필드를 리스트로 저장
-        project_info.contributors = contributors_list
-        result = await project_collection.insert_one(project_info.dict())
-        return {"message": "Project saved successfully", "id": str(result.inserted_id)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error saving project: {str(e)}")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

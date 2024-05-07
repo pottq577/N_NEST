@@ -65,7 +65,7 @@ const AddInfoPage = () => {
 
       if (response.ok) {
         alert('추가 정보가 성공적으로 저장되었습니다.')
-        router.push('http://localhost:3000/pages/login/') // 홈 페이지로 리디렉션
+        router.push('http://localhost:3000/pages/login/') // 로그인 페이지로 리디렉션
       } else {
         alert('추가 정보 저장에 실패했습니다.')
       }

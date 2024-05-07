@@ -14,6 +14,7 @@ export default function UploadDocument() {
   const [userId, setUserId] = useState('') // 사용자 ID 상태 추가
   const [username, setUsername] = useState('') // 사용자 이름 상태 추가
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (router.query) {
@@ -102,37 +103,52 @@ export default function UploadDocument() {
 
   const handleSaveDocument = async () => {
     const projectData = {
-      userId: userId, // 사용자 ID
-      username: username, // 사용자 이름
-      name: repoInfo.name,
-      description: repoInfo.description,
-      language: repoInfo.language,
-      stars: repoInfo.stars,
+      userId: parseInt(userId, 10), // 숫자형으로 변환
+      username: username,
+      project_name: repoInfo.name,
+      description: repoInfo.description || 'No description available', // 기본값 설정
+      language: repoInfo.language || 'Unknown', // 기본값 설정
+      stars: parseInt(repoInfo.stars, 10),
       updated_at: repoInfo.updatedAt,
-      license: repoInfo.license ? repoInfo.license.name : 'No license',
-      forks: repoInfo.forks,
-      watchers: repoInfo.watchers,
-      contributors: Array.isArray(repoInfo.contributors)
-        ? repoInfo.contributors.map(contributor => contributor.login).join(', ')
-        : 'No contributors',
-      is_private: repoInfo.private,
-      default_branch: repoInfo.defaultBranch,
+      license: repoInfo.license ? repoInfo.license.name : 'None', // 기본값 설정
+      forks: parseInt(repoInfo.forks, 10),
+      watchers: parseInt(repoInfo.watchers, 10),
+      contributors: repoInfo.contributors || 'None', // 기본값 설정
+      is_private: repoInfo.is_private ? (repoInfo.is_private.toLowerCase() === 'no' ? false : true) : false, // 기본값 설정
+      default_branch: repoInfo.defaultBranch || 'main', // 기본값 설정
       repository_url: repoInfo.html_url,
       text_extracted: text,
       summary: summary,
-      image_preview_urls: images.map(image => image), // 이미지 URL 리스트
-      generated_image_url: generatedImage // 생성된 이미지 URL
+      image_preview_urls: images.join(', '), // 배열을 쉼표로 구분된 문자열로
+      generated_image_url: generatedImage
     }
-    const projectDataJson = JSON.stringify(projectData)
 
+    /*console.log(userId)
+    console.log(username)
+    console.log(repoInfo.name)
+    console.log(repoInfo.description)
+    console.log(repoInfo.language)
+    console.log(repoInfo.stars)
+    console.log(repoInfo.updatedAt)
+    console.log(repoInfo.license)
+    console.log(repoInfo.forks)
+    console.log(repoInfo.watchers)
+    console.log(repoInfo.contributors)
+    console.log(repoInfo.private)
+    console.log(repoInfo.defaultBranch)
+    console.log(repoInfo.html_url)
+    console.log(text)
+    console.log(summary)*/
+    console.log(projectData)
     try {
-      const response = await axios.post('http://127.0.0.1:8000/save-project', projectDataJson, {
+      const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {
         headers: {
           'Content-Type': 'application/json'
         }
       })
       console.log('Document saved:', response.data)
       alert('Document saved successfully!')
+      router.push('http://127.0.0.1:3000/')
     } catch (error) {
       console.error('Failed to save document:', error)
       alert('Failed to save document!')
