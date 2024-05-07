@@ -17,7 +17,7 @@ load_dotenv()
 
 # 환경 변수 로드
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-#print(GOOGLE_API_KEY)
+# print(GOOGLE_API_KEY)
 OPENAI_API_KEY = os.getenv("OpenAI_API")
 # print(OPENAI_API_KEY)
 client = OPENAI_API_KEY

@@ -395,10 +395,6 @@ async def get_user_logins():
 
 
 
-
-
-
-# 데이터 모델 정의
 class ProjectInfo(BaseModel):
     user_id: str
     username: str
@@ -410,14 +406,20 @@ class ProjectInfo(BaseModel):
     license: Optional[str] = None
     forks: int
     watchers: int
-    contributors: List[str]
+    contributors: str  # 수정된 부분: 리스트 대신 문자열로 변경
     private: bool
     default_branch: str
     html_url: str
 
+app = FastAPI()
+
 @app.post("/save-project")
 async def save_project(project_info: ProjectInfo):
     try:
+        # 프론트엔드에서 전송된 문자열을 쉼표로 분리하여 리스트로 변환
+        contributors_list = project_info.contributors.split(', ')
+        # 수정된 데이터 모델에 맞게 contributors 필드를 리스트로 저장
+        project_info.contributors = contributors_list
         result = await project_collection.insert_one(project_info.dict())
         return {"message": "Project saved successfully", "id": str(result.inserted_id)}
     except Exception as e:

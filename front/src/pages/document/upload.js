@@ -112,7 +112,9 @@ export default function UploadDocument() {
       license: repoInfo.license ? repoInfo.license.name : 'No license',
       forks: repoInfo.forks,
       watchers: repoInfo.watchers,
-      contributors: repoInfo.contributors.map(contributor => contributor.login).join(', '), // 변환된 contributors
+      contributors: Array.isArray(repoInfo.contributors)
+        ? repoInfo.contributors.map(contributor => contributor.login).join(', ')
+        : 'No contributors',
       is_private: repoInfo.private,
       default_branch: repoInfo.defaultBranch,
       repository_url: repoInfo.html_url,
@@ -121,9 +123,14 @@ export default function UploadDocument() {
       image_preview_urls: images.map(image => image), // 이미지 URL 리스트
       generated_image_url: generatedImage // 생성된 이미지 URL
     }
+    const projectDataJson = JSON.stringify(projectData)
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/save-project', projectData)
+      const response = await axios.post('http://127.0.0.1:8000/save-project', projectDataJson, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       console.log('Document saved:', response.data)
       alert('Document saved successfully!')
     } catch (error) {
