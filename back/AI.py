@@ -6,14 +6,24 @@ from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
 from io import BytesIO
 from PIL import Image
+from typing import List
 import base64
 import requests
 import re
+from dotenv import load_dotenv
+import os
 import logging
+from collections import Counter
+
+
+load_dotenv()
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Google API
-GOOGLE_API_KEY = ""
+
 # OpenAI API
-client = OpenAI(api_key='')
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = FastAPI()
 
@@ -181,33 +191,44 @@ async def classify_text(request: ClassificationRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="No text provided")
 
-    # 분류할 텍스트 설정
+    # Set the text to classify
     prompt_text = (
-        "Classify the following IT-related response into categories such as backend, frontend, security, network, cloud, and others: \n\n"
+        "Classify the following IT-related response into categories such as backend, frontend, security, network, cloud, and others. Only assign a category if the relevance is over 80%: \n\n"
         f"'{request.text}'"
     )
 
-    # OpenAI API를 호출하여 결과를 가져옵니다.
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are an AI that classifies IT-related questions."},
-            {"role": "user", "content": prompt_text}
-        ],
-        max_tokens=60
-    )
-
-    # 모델의 응답을 분석합니다.
-    raw_response = response.choices[0].message.content.strip()
-    categories = ["backend", "frontend", "security", "network", "cloud"]
+    categories = ["backend", "frontend", "security", "network", "cloud", "others"]
     it_terms = ["server", "api", "http", "frontend", "backend", "database", "network", "security", "encryption", "cloud", "storage", "virtualization"]
+    results: List[str] = []
 
-    # IT 용어가 응답에 포함되어 있는지 확인
-    response_contains_it_terms = any(term in raw_response.lower() for term in it_terms)
+    # Query the OpenAI API three times
+    for _ in range(3):
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an AI that classifies IT-related questions."},
+                {"role": "user", "content": prompt_text}
+            ],
+            max_tokens=60
+        )
 
-    # 응답을 카테고리와 매핑
-    if response_contains_it_terms:
-        for category in categories:
-            if category in raw_response.lower():
-                return {"category": category}
-    return {"category": "nothings"}
+        # Analyze the model's response
+        raw_response = response.choices[0].message.content.strip().lower()
+
+        # Check if IT terms are present in the response
+        if any(term in raw_response for term in it_terms):
+            # Map response to category
+            found_categories = [category for category in categories if category in raw_response]
+            if found_categories:
+                results.extend(found_categories)
+            else:
+                results.append("others")
+        else:
+            results.append("others")
+
+    # Determine the most common category
+    if results:
+        most_common_category = Counter(results).most_common(1)[0][0]
+        return {"category": most_common_category}
+    else:
+        return {"category": "others"}

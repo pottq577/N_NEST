@@ -12,19 +12,48 @@ export default function AskQuestionPage() {
   const [code, setCode] = useState('')
   const router = useRouter()
 
-  const handleSubmit = e => {
+  const handleSubmit = async e => {
     e.preventDefault()
 
-    const newQuestion = {
-      title,
-      description,
-      category,
-      customCategories,
-      code
-    }
-    console.log('Submitting new question:', newQuestion)
+    // 먼저 분류 API에 description을 전송하고 결과를 받습니다.
+    try {
+      const classifyResponse = await fetch('http://127.0.0.1:8000/classify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: description }) // description을 전송
+      })
 
-    router.push('/')
+      if (!classifyResponse.ok) throw new Error('Failed to classify description')
+
+      const { category } = await classifyResponse.json() // 분류 결과를 받습니다.
+
+      const newQuestion = {
+        title,
+        description,
+        category, // 분류 결과로 받은 카테고리
+        customCategories,
+        code,
+        userId: '5f8d0d55b54764421b7156da'
+      }
+
+      // 이제 질문을 저장하는 API에 요청합니다.
+      const response = await fetch('http://127.0.0.2:8000/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newQuestion)
+      })
+
+      if (!response.ok) throw new Error('Failed to submit question')
+      alert('Question submitted successfully')
+      router.push('/')
+    } catch (error) {
+      console.error('Error:', error)
+      alert(error.message)
+    }
   }
 
   const handleCategoryChange = e => {
@@ -73,6 +102,7 @@ export default function AskQuestionPage() {
             value={description}
             onChange={e => setDescription(e.target.value)}
             required
+            minLength={20}
           ></textarea>
         </div>
         <div className='form-group'>
