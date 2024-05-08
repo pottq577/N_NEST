@@ -75,6 +75,31 @@ const UserProjectsPage = () => {
     setOpenModal(false)
   }
 
+  const handleNavigateToDocumentGeneration = () => {
+    handleCloseModal()
+    router.push({
+      pathname: '/document/generation',
+      query: {
+        name: selectedRepo.name,
+        description: selectedRepo.description || 'No description',
+        language: selectedRepo.language || 'No info',
+        stars: selectedRepo.stargazers_count,
+        updatedAt: selectedRepo.updated_at,
+        license: selectedRepo.license ? selectedRepo.license.name : 'No license',
+        forks: selectedRepo.forks_count,
+        watchers: selectedRepo.watchers_count,
+        contributors: selectedRepo.contributors
+          ? selectedRepo.contributors.map(c => c.login).join(', ')
+          : 'No contributors info',
+        private: selectedRepo.private ? 'Yes' : 'No',
+        html_url: selectedRepo.html_url,
+        defaultBranch: selectedRepo.default_branch,
+        userId: currentUserId, // 사용자 ID
+        username: currentUsername // 사용자 이름
+      }
+    })
+  }
+
   const handleNavigateToDocumentUpload = () => {
     handleCloseModal()
     router.push({
@@ -174,7 +199,7 @@ const UserProjectsPage = () => {
           </Typography>
           <Grid container spacing={2} justifyContent='center'>
             <Grid item>
-              <Button variant='contained' onClick={handleNavigateToDocumentUpload} sx={{ mr: 2 }}>
+              <Button variant='contained' onClick={handleNavigateToDocumentGeneration} sx={{ mr: 2 }}>
                 Create Document
               </Button>
             </Grid>
