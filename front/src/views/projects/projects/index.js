@@ -194,18 +194,18 @@ const UserProjectsPage = () => {
             Repository: {selectedRepo?.name} Web Registration
             <br />
             <Typography variant='body2' component='span' color='error'>
-              Upon registration, this content will be visible to everyone.
+              등록한 해당 정보는 모든 웹 사용자에게 보여집니다.
             </Typography>
           </Typography>
           <Grid container spacing={2} justifyContent='center'>
             <Grid item>
               <Button variant='contained' onClick={handleNavigateToDocumentGeneration} sx={{ mr: 2 }}>
-                Create Document
+                문서 생성
               </Button>
             </Grid>
             <Grid item>
               <Button variant='contained' onClick={handleNavigateToDocumentUpload}>
-                Register Existing Document
+                기존 문서 등록
               </Button>
             </Grid>
           </Grid>

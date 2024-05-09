@@ -177,10 +177,50 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, summary, setSummary }
   )
 }
 
-function SummaryAndImage({ summary }) {
+function SummaryAndImage({ summary, setSummary }) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [combinedSummary, setCombinedSummary] = useState('') // 요약된 내용을 저장할 상태
+
+  const handleSummarizeAll = async () => {
+    setIsLoading(true)
+    setError('')
+
+    const sections = {
+      background: summary.background,
+      development_content: summary.development_content,
+      expected_effects: summary.expected_effects
+    }
+
+    try {
+      const summaries = await Promise.all(
+        Object.entries(sections).map(([key, text]) =>
+          fetch('http://localhost:8001/summarize/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          }).then(response => (response.ok ? response.json() : Promise.reject(`Failed to summarize ${key}`)))
+        )
+      )
+
+      const newSummary = summaries.reduce((acc, data, index) => {
+        const sectionKey = Object.keys(sections)[index]
+        acc[sectionKey] = data.summary // 개별 요약 결과를 저장
+        return acc
+      }, {})
+
+      setCombinedSummary(summaries.map(s => s.summary).join(' ')) // 모든 요약 결과를 하나의 문자열로 합칩니다.
+      setIsLoading(false)
+    } catch (error) {
+      console.error('Error:', error)
+      setError('Failed to summarize one or more sections. Please try again.')
+      setIsLoading(false)
+    }
+  }
+
   return (
     <Box>
-      <Typography variant='h6'>Generated Summary:</Typography>
+      <Typography variant='h6'>Original Content and Summaries:</Typography>
       <Typography>
         <strong>Project Title:</strong> {summary.project_title}
       </Typography>
@@ -193,6 +233,16 @@ function SummaryAndImage({ summary }) {
       <Typography>
         <strong>Expected Effects:</strong> {summary.expected_effects}
       </Typography>
+      <Button onClick={handleSummarizeAll} disabled={isLoading}>
+        {isLoading ? <CircularProgress size={24} /> : 'Summarize All Sections'}
+      </Button>
+      {error && <Typography color='error'>{error}</Typography>}
+      {combinedSummary && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant='h6'>Combined Summary:</Typography>
+          <Typography>{combinedSummary}</Typography>
+        </Box>
+      )}
     </Box>
   )
 }
@@ -229,7 +279,7 @@ export default function ProjectGenerator() {
         />
       </TabPanel>
       <TabPanel value={tabIndex} index={2}>
-        <SummaryAndImage summary={summary} />
+        <SummaryAndImage summary={summary} setSummary={setSummary} />
       </TabPanel>
     </Container>
   )
