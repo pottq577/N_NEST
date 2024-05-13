@@ -57,7 +57,6 @@ class UserInfo(BaseModel):
     githubId: int
 
 class ProjectInfo(BaseModel):
-    userId: int
     username: str
     project_name: str
     description: str = "No description"
@@ -103,6 +102,28 @@ SECRET_KEY = os.getenv("JWT_SECRET", "your_jwt_secret")
 ALGORITHM = "HS256"
 
 router = APIRouter()
+
+class UserQuery(BaseModel):
+    githubUsername: str
+
+@app.post("/get-user-name/")
+async def get_user_name(query: UserQuery):
+    # MongoDB의 'users' 콜렉션에서 사용자 데이터 조회
+    user_data = await db.User.find_one({"githubUsername": query.githubUsername})
+    if user_data is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 반환 데이터에 'githubId' 추가
+    name = user_data.get("name", "No Name Available")  # 이름이 없는 경우를 대비한 기본값 설정
+    github_id = user_data.get("githubId", "No GitHub ID Available")  # GitHub ID가 없는 경우를 대비한 기본값 설정
+
+    return {"name": name, "githubId": github_id}
+
+
+
+
+
+
 
 # 각 사용자의 GitHub 로그인 이름을 저장하는 딕셔너리
 user_logins: Dict[int, str] = {}

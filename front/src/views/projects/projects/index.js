@@ -15,7 +15,8 @@ import {
 } from '@mui/material'
 import { Add } from '@mui/icons-material'
 import { useRouter } from 'next/router' // Next.js Router import
-
+import { getAuth, onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../../../../lib/firebase'
 const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
@@ -23,23 +24,55 @@ const UserProjectsPage = () => {
   const [selectedRepo, setSelectedRepo] = useState(null)
   const [currentUsername, setCurrentUsername] = useState('') // 현재 선택된 사용자 이름 저장
   const [currentUserId, setCurrentUserId] = useState('') // 현재 선택된 사용자 ID 저장
+  const [currentUser, setCurrentUser] = useState(null)
   const router = useRouter() // Next.js Router instance
 
   useEffect(() => {
-    fetch('http://localhost:8000/user-logins')
-      .then(response => response.json())
-      .then(data => {
-        setUserLogins(data)
-        if (data && Object.keys(data).length > 0) {
-          const defaultUsername = Object.values(data)[0]
-          const defaultUserId = Object.keys(data)[0]
-          setCurrentUsername(defaultUsername)
-          setCurrentUserId(defaultUserId)
-          fetchUserRepos(defaultUsername, defaultUserId)
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      if (user) {
+        const githubUsername = user.reloadUserInfo.screenName // 예를 들어 GitHub username
+        if (githubUsername) {
+          // GitHub 사용자 이름으로 MongoDB에서 사용자의 실제 이름을 조회
+          try {
+            const response = await fetch(`http://localhost:8000/get-user-name/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ githubUsername })
+            })
+            if (response.ok) {
+              const { name, githubId } = await response.json()
+              setCurrentUsername(name) // 응답으로 받은 이름을 상태에 설정
+              setCurrentUserId(githubId) // 응답으로 받은 githubId를 상태에 설정
+              setUserLogins(prev => ({ ...prev, [githubId]: name }))
+              const data = await response.json()
+              console.log(data)
+              console.log(currentUserId, currentUsername) // 상태 업데이트 후 로그 확인
+            } else {
+              throw new Error('Failed to fetch user name')
+            }
+          } catch (error) {
+            console.error('Error fetching user name:', error.message)
+          }
+          fetchUserRepos(user.reloadUserInfo.screenName)
         }
-      })
-      .catch(error => console.error('Error fetching user logins:', error))
-  }, [])
+        setCurrentUser({
+          uid: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          photoURL: user.photoURL,
+          providerData: user.providerData,
+          username: githubUsername
+        })
+      } else {
+        setCurrentUser(null)
+        setCurrentUsername('')
+      }
+    })
+
+    return () => unsubscribe() // 클린업 함수
+  }, [auth])
 
   const fetchUserRepos = username => {
     fetch(`https://api.github.com/users/${username}/repos`)
@@ -98,6 +131,7 @@ const UserProjectsPage = () => {
         username: currentUsername // 사용자 이름
       }
     })
+    console.log(currentUserId, currentUsername)
   }
 
   const handleNavigateToDocumentUpload = () => {
@@ -129,9 +163,9 @@ const UserProjectsPage = () => {
     <div>
       <h1>User Projects Page</h1>
       <List>
-        {Object.entries(userLogins).map(([id, username]) => (
-          <ListItem key={id} onClick={() => handleClickUsername(username)} button>
-            <ListItemText primary={`ID: ${id}, Username: ${username}`} />
+        {Object.entries(userLogins).map(([githubId, name]) => (
+          <ListItem key={githubId} onClick={() => handleClickUsername(name)} button>
+            <ListItemText primary={`ID: ${githubId}, Name: ${name}`} />
           </ListItem>
         ))}
       </List>
