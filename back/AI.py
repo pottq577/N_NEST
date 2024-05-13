@@ -23,7 +23,6 @@ load_dotenv()
 
 
 
-
 app = FastAPI()
 
 # CORS 미들웨어 추가
