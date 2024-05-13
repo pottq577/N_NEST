@@ -1,5 +1,14 @@
 // ** React Imports
 import { useState, Fragment } from 'react'
+import { useRouter } from 'next/router'
+import { auth } from '../../../../lib/firebase' // Firebase auth 임포트
+import { onAuthStateChanged } from 'firebase/auth'
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  GithubAuthProvider,
+  signInWithPopup
+} from 'firebase/auth'
 
 // ** Next Imports
 import Link from 'next/link'
@@ -59,20 +68,39 @@ const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
 }))
 
 const RegisterPage = () => {
-  const [values, setValues] = useState({
-    email: '',
-    emailVerificationCode: '' // 메일 인증 코드 상태 추가
-  })
-
-  const handleGitHubLogin = () => {
-    // GitHub OAuth 페이지로 리다이렉트
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=Iv1.636c6226a979a74a&redirect_uri=http://localhost:8000/auth/callback`
-  }
-
-  //https://github.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=YOUR_REDIRECT_URI&scope=user
-
-  // ** Hook
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const theme = useTheme()
+  const router = useRouter()
+
+  // 이메일과 비밀번호로 회원가입
+  const handleSignUp = async () => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      console.log('User created:', userCredential.user)
+      // 이메일 인증 메일 발송
+      await sendEmailVerification(userCredential.user)
+        .then(() => {
+          console.log('Verification email sent.')
+        })
+        .catch(error => {
+          console.error('Failed to send verification email:', error)
+        })
+    } catch (error) {
+      console.error('Signup error:', error.message)
+    }
+  }
+  const handleGitHubLogin = () => {
+    const provider = new GithubAuthProvider()
+    signInWithPopup(auth, provider)
+      .then(result => {
+        console.log('GitHub login successful', result.user)
+        router.push('/pages/register/addInfo') // 로그인 성공 후 리디렉션
+      })
+      .catch(error => {
+        console.error('GitHub login failed', error)
+      })
+  }
 
   return (
     <Box className='content-center'>
@@ -158,7 +186,26 @@ const RegisterPage = () => {
             </Typography>
             <Typography variant='body2'>Make your app management easy and fun!</Typography>
           </Box>
-
+          {/* <TextField
+            fullWidth
+            label='Email'
+            variant='outlined'
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label='Password'
+            type='password'
+            variant='outlined'
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <Button fullWidth size='large' variant='contained' onClick={handleSignUp} sx={{ mb: 2 }}>
+            Sign up with Email
+          </Button> */}
           <Button
             startIcon={<Github />}
             fullWidth

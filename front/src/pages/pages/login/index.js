@@ -1,5 +1,7 @@
 // ** React Imports
 import { useState, useEffect } from 'react'
+import { auth } from '../../../../lib/firebase' // Firebase 설정 경로가 올바른지 확인하세요.
+import { GithubAuthProvider, signInWithPopup } from 'firebase/auth' // Firebase 인증 관련 함수 추가
 
 // ** Next Imports
 import Link from 'next/link'
@@ -61,23 +63,18 @@ const LoginPage = () => {
   const theme = useTheme()
   const router = useRouter()
 
-  useEffect(() => {
-    // URL에서 토큰을 추출하여 로컬 스토리지에 저장
-    const { token } = router.query
-    if (token) {
-      localStorage.setItem('jwtToken', token)
-      console.log('Token stored:', token)
-      // 토큰 저장 후 메인 페이지로 리디렉션
-      //router.push('/')
-    }
-  }, [router.query])
-
   const handleGitHubLogin = () => {
-    const clientId = 'Iv1.636c6226a979a74a'
-    const redirectUri = encodeURIComponent('http://localhost:8000/auth/login')
-    const scope = encodeURIComponent('read:user')
-    const githubUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`
-    window.location.href = githubUrl
+    const provider = new GithubAuthProvider() // GitHub 인증 프로바이더 생성
+    signInWithPopup(auth, provider) // Firebase와 함께 signInWithPopup 사용
+      .then(result => {
+        // 인증 성공 시 로그
+        console.log('GitHub login successful', result.user)
+        router.push('/') // 로그인 후 리디렉션 경로
+      })
+      .catch(error => {
+        // 에러 처리
+        console.error('GitHub login failed', error)
+      })
   }
 
   const handleChange = prop => event => {
