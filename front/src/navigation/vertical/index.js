@@ -11,6 +11,7 @@ import AlertCircleOutline from 'mdi-material-ui/AlertCircleOutline'
 import GoogleCirclesExtended from 'mdi-material-ui/GoogleCirclesExtended'
 import ClipboardListOutline from 'mdi-material-ui/ClipboardListOutline'
 import HelpCircleOutline from 'mdi-material-ui/HelpCircleOutline'
+import ShieldAccountOutline from 'mdi-material-ui/ShieldAccountOutline'
 
 const navigation = () => {
   return [
@@ -108,6 +109,14 @@ const navigation = () => {
       icon: CubeOutline,
       title: 'Form Layouts',
       path: '/form-layouts'
+    },
+    {
+      sectionTitle: 'Administrator page'
+    },
+    {
+      icon: ShieldAccountOutline,
+      title: '관리자 페이지',
+      path: '/admin'
     }
   ]
 }

@@ -1,7 +1,7 @@
 // ** React Imports
 import { useState, useEffect } from 'react'
 import { auth } from '../../../../lib/firebase' // Firebase 설정 경로가 올바른지 확인하세요.
-import { GithubAuthProvider, signInWithPopup } from 'firebase/auth' // Firebase 인증 관련 함수 추가
+import { GithubAuthProvider, signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth' // Firebase 인증 관련 함수 추가
 
 // ** Next Imports
 import Link from 'next/link'
@@ -62,7 +62,12 @@ const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
 const LoginPage = () => {
   const theme = useTheme()
   const router = useRouter()
-
+  const [values, setValues] = useState({
+    email: '',
+    password: '',
+    showPassword: false
+  })
+  const [errorMessage, setErrorMessage] = useState('')
   const handleGitHubLogin = () => {
     const provider = new GithubAuthProvider() // GitHub 인증 프로바이더 생성
     signInWithPopup(auth, provider) // Firebase와 함께 signInWithPopup 사용
@@ -74,6 +79,21 @@ const LoginPage = () => {
       .catch(error => {
         // 에러 처리
         console.error('GitHub login failed', error)
+      })
+  }
+
+  const handleLogin = () => {
+    signInWithEmailAndPassword(auth, values.email, values.password)
+      .then(result => {
+        // 인증 성공 시 로그
+        console.log('Email login successful', result.user)
+        setErrorMessage('') // 성공 시 에러 메시지 지우기
+        router.push('/') // 로그인 후 리디렉션 경로
+      })
+      .catch(error => {
+        // 에러 처리
+        setErrorMessage('로그인 정보가 일치하지 않습니다.') // 에러 메시지 설정
+        console.error('Email login failed', error)
       })
   }
 
@@ -173,6 +193,47 @@ const LoginPage = () => {
             </Typography>
             <Typography variant='body2'>Make your app management easy and fun!</Typography>
           </Box>
+
+          <form noValidate autoComplete='off'>
+            <TextField
+              fullWidth
+              type='email'
+              label='Email'
+              sx={{ mb: 4 }}
+              value={values.email}
+              onChange={handleChange('email')}
+            />
+            <FormControl fullWidth sx={{ mb: 4 }}>
+              <InputLabel htmlFor='auth-login-password'>Password</InputLabel>
+              <OutlinedInput
+                label='Password'
+                value={values.password}
+                id='auth-login-password'
+                onChange={handleChange('password')}
+                type={values.showPassword ? 'text' : 'password'}
+                endAdornment={
+                  <InputAdornment position='end'>
+                    <IconButton
+                      edge='end'
+                      onClick={handleClickShowPassword}
+                      onMouseDown={handleMouseDownPassword}
+                      aria-label='toggle password visibility'
+                    >
+                      {values.showPassword ? <EyeOutline /> : <EyeOffOutline />}
+                    </IconButton>
+                  </InputAdornment>
+                }
+              />
+            </FormControl>
+            {errorMessage && (
+              <Typography variant='body2' sx={{ color: 'red', mb: 2 }}>
+                {errorMessage}
+              </Typography>
+            )}
+            <Button fullWidth size='large' variant='contained' onClick={handleLogin} sx={{ mb: 4 }}>
+              로그인
+            </Button>
+          </form>
 
           <Button
             startIcon={<Github />}

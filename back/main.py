@@ -41,6 +41,8 @@ client = AsyncIOMotorClient(MONGODB_URL)
 db = client['N-Nest'] # 데이터베이스 선택
 user_collection = db['User']
 project_collection = db['Project']
+course_collection = db["Course"]
+
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -74,6 +76,59 @@ class ProjectInfo(BaseModel):
     summary: str
     image_preview_urls: str
     generated_image_url: str
+
+
+class Course(BaseModel):
+    name: str
+    professor: str
+    day: str
+    time: str
+    code: str
+
+# ObjectId를 문자열로 변환하는 헬퍼 함수
+def course_helper(course) -> dict:
+    return {
+        "id": str(course["_id"]),
+        "display_name": f"{course['name']} - {course['professor']}",
+        "name": course["name"],
+        "professor": course["professor"],
+        "day": course["day"],
+        "time": course["time"],
+        "code": course["code"]
+    }
+
+@app.post("/save-courses/")
+async def save_courses(courses: List[Course]):
+    try:
+        # 데이터를 딕셔너리 형식으로 변환
+        course_data = [course.dict() for course in courses]
+
+        # 중복된 수업 코드 확인 및 필터링
+        existing_codes = set()
+        async for doc in course_collection.find({"code": {"$in": [course["code"] for course in course_data]}}):
+            existing_codes.add(doc["code"])
+        new_course_data = [course for course in course_data if course["code"] not in existing_codes]
+
+        if new_course_data:
+            # MongoDB에 데이터 삽입
+            await course_collection.insert_many(new_course_data)
+
+        return {"message": f"{len(new_course_data)} courses saved successfully, {len(existing_codes)} courses were already existing and not saved."}
+    except Exception as e:
+        print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 수업 목록 가져오는 엔드포인트
+@app.get("/courses/")
+async def get_courses():
+    try:
+        courses = []
+        async for course in course_collection.find():
+            courses.append(course_helper(course))
+        return courses
+    except Exception as e:
+        print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/save-project/")
 async def save_project(project_data: ProjectInfo):
