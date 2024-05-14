@@ -9,6 +9,8 @@ import CreditCardOutline from 'mdi-material-ui/CreditCardOutline'
 import AccountPlusOutline from 'mdi-material-ui/AccountPlusOutline'
 import AlertCircleOutline from 'mdi-material-ui/AlertCircleOutline'
 import GoogleCirclesExtended from 'mdi-material-ui/GoogleCirclesExtended'
+import ClipboardListOutline from 'mdi-material-ui/ClipboardListOutline'
+import HelpCircleOutline from 'mdi-material-ui/HelpCircleOutline'
 
 const navigation = () => {
   return [
@@ -23,7 +25,7 @@ const navigation = () => {
     //   icon: HomeOutline,
     //   path: '/summary'
     // },
-    {
+    /* {
       title: 'generate',
       icon: HomeOutline,
       path: '/generate'
@@ -32,20 +34,20 @@ const navigation = () => {
       title: 'Product',
       icon: HomeOutline,
       path: '/summary2'
-    },
+    }, */
     {
       title: 'Professor',
       icon: HomeOutline,
       path: '/summaryprofessor'
     },
     {
-      title: 'project',
-      icon: HomeOutline,
+      title: 'Project List',
+      icon: ClipboardListOutline,
       path: '/project'
     },
     {
       title: 'Q&A',
-      icon: AccountCogOutline,
+      icon: HelpCircleOutline,
       path: '/qa'
     },
     {
