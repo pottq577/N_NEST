@@ -1,64 +1,65 @@
-import React, { useState } from 'react'
+// pages/ask.js
+
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 export default function QuestionListPage() {
-  const [questions, setQuestions] = useState([
-    {
-      id: 1,
-      title:
-        'Using only CSS, is there a way to limit text inside a div to exactly, X number of characters without the use of Ellipsis?',
-      category: 'CSS',
-      votes: 0,
-      answers: 0,
-      views: 12
-    },
-    {
-      id: 2,
-      title: 'How to communicate with the server through retrofit2?',
-      category: 'Android',
-      votes: 0,
-      answers: 0,
-      views: 5
-    }
-  ])
+  const [questions, setQuestions] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('All')
+  const categories = ['All', 'CSS', 'Android', 'JavaScript', 'React']
 
-  const categories = ['All', 'CSS', 'Android', 'JavaScript', 'React'] // Add more categories as needed
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const response = await fetch('http://127.0.0.2:8000/list/questions')
+        if (!response.ok) throw new Error('Network response was not ok')
+        const data = await response.json()
+        console.log('Fetched data:', data) // This will show the structure of the data
+        setQuestions(data)
+      } catch (error) {
+        console.error('Error fetching questions:', error)
+      }
+    }
+
+    fetchQuestions()
+  }, [])
 
   return (
     <div className='container'>
-      <header>
+      <header className='header'>
         <h1>All Questions</h1>
-        <div>
-          <label htmlFor='category-select'>Choose a category:</label>
+        <div className='filter'>
+          {/* <label htmlFor='category-select'>Choose a category:</label>
           <select id='category-select' value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)}>
             {categories.map(category => (
               <option key={category} value={category}>
                 {category}
               </option>
             ))}
-          </select>
+          </select> */}
+          <Link href='/ask' passHref>
+            <button type='button' className='askButton'>
+              Ask Question
+            </button>
+          </Link>
         </div>
-        <Link href='/ask' passHref>
-          <button type='button'>Ask Question</button>
-        </Link>
       </header>
 
-      <main>
+      <main className='main'>
         {questions
           .filter(question => selectedCategory === 'All' || question.category === selectedCategory)
           .map(question => (
-            <article key={question.id}>
-              <Link href={`/questions/${question.id}`}>
-                <a>
+            <article key={question._id} className='questionCard'>
+              <Link href={`/questions/${question._id}`} passHref>
+                <a className='questionTitle'>
                   <h2>{question.title}</h2>
                 </a>
               </Link>
-              <div className='question-stats'>
+              <div className='questionStats'>
                 <span>{question.votes} votes</span>
-                <span>{question.answers} answers</span>
+                <span>{question.answers.length} answers</span> {/* If answers is an array */}
                 <span>{question.views} views</span>
-                <span className='question-category'>{question.category}</span>
+                <span className='categoryTag'>{question.category}</span>
               </div>
             </article>
           ))}
@@ -66,48 +67,65 @@ export default function QuestionListPage() {
 
       <style jsx>{`
         .container {
-          display: flex;
-          flex-direction: column;
-          justify-content: flex-start;
-          align-items: stretch;
           max-width: 800px;
           margin: auto;
-          padding: 1rem;
-          font-family: 'Arial', sans-serif;
-          height: 100vh;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          font-family: Arial, sans-serif;
         }
-        header {
-          margin-bottom: 1rem;
+        .header {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 20px;
         }
-        main {
-          flex-grow: 1;
-          overflow-y: auto;
+        .filter {
+          display: flex;
+          justify-content: center;
+          margin-top: 10px;
         }
-        h1,
-        select {
-          color: #333; // 기존 텍스트 색상 유지
+        .main {
+          width: 100%;
         }
-        h2 {
-          font-size: 1.5rem;
-          color: #007bff; // 파란색으로 변경
-          margin-bottom: 0.5rem;
+        .questionCard {
+          padding: 15px;
+          margin-bottom: 10px;
+          border: 1px solid #ccc;
+          border-radius: 8px;
+          transition: box-shadow 0.3s ease;
         }
-        button {
-          padding: 0.5rem 1rem;
-          background-color: #007bff; // 원래의 파란색으로 변경
+        .questionCard:hover {
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .questionTitle {
+          color: #007bff;
+          text-decoration: none;
+        }
+        .questionStats {
+          margin-top: 10px;
+          font-size: 0.9rem;
+        }
+        .categoryTag {
+          background-color: #007bff;
           color: white;
+          padding: 2px 5px;
+          border-radius: 5px;
+          font-size: 0.8rem;
+        }
+        .askButton {
+          background-color: #007bff;
+          color: white;
+          padding: 10px 20px;
           border: none;
           border-radius: 5px;
           cursor: pointer;
+          transition: background-color 0.3s;
         }
-        button:hover {
-          background-color: #0056b3; // 호버 상태의 색상
-        }
-        .question-stats {
-          gap: 1rem;
-        }
-        .question-category {
-          background-color: #f8f9fa;
+        .askButton:hover {
+          background-color: #0056b3;
         }
       `}</style>
     </div>
