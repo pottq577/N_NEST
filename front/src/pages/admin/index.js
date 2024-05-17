@@ -68,8 +68,18 @@ const Home = () => {
       }
     }
 
+    const fetchStudents = async () => {
+      try {
+        const response = await axios.get('http://localhost:8000/students/')
+        setStudents(response.data)
+      } catch (error) {
+        console.error('Error fetching students:', error)
+      }
+    }
+
     if (fileType === '학생') {
       fetchCourses()
+      fetchStudents()
     }
 
     // 파일 유형이 변경될 때 데이터 초기화
@@ -169,7 +179,7 @@ const Home = () => {
   const handleCourseChange = async event => {
     setSelectedCourse(event.target.value)
     // 선택한 수업에 대한 학생 목록을 가져오기 (삭제 탭에서만)
-    if (tabValue === 1 && fileType === '학생') {
+    if (fileType === '학생') {
       try {
         const response = await axios.get(`http://localhost:8000/students/?course_code=${event.target.value}`)
         setStudents(response.data)
@@ -290,6 +300,7 @@ const Home = () => {
               <FormControl fullWidth sx={{ mb: 2 }}>
                 <InputLabel id='course-label'>수업</InputLabel>
                 <Select labelId='course-label' value={selectedCourse} label='수업' onChange={handleCourseChange}>
+                  <MenuItem value=''>모든 수업</MenuItem> {/* '모든 수업' 옵션 추가 */}
                   {courses.map(course => (
                     <MenuItem key={course.id} value={course.code}>
                       {course.display_name}

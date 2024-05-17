@@ -218,6 +218,7 @@ async def get_students(course_code: Optional[str] = Query(None)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 # 학생 삭제 엔드포인트 (특정 수강 코드 삭제)
 @app.post("/delete-students/")
 async def delete_students(students: List[DeleteStudent]):
