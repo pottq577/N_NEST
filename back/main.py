@@ -14,6 +14,8 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from typing import Dict, Optional, List
 import json
+from bson import ObjectId
+
 load_dotenv()
 
 app = FastAPI()
@@ -42,7 +44,7 @@ db = client['N-Nest'] # 데이터베이스 선택
 user_collection = db['User']
 project_collection = db['Project']
 course_collection = db["Course"]
-
+student_collection = db["Student"]
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -85,6 +87,19 @@ class Course(BaseModel):
     time: str
     code: str
 
+class Student(BaseModel):
+    student_id: str
+    name: str
+    department: str
+    course_code: str
+
+class DeleteCourse(BaseModel):
+    code: str
+
+class DeleteStudent(BaseModel):
+    student_id: str
+    course_code: str
+
 # ObjectId를 문자열로 변환하는 헬퍼 함수
 def course_helper(course) -> dict:
     return {
@@ -97,6 +112,16 @@ def course_helper(course) -> dict:
         "code": course["code"]
     }
 
+def student_helper(student) -> dict:
+    return {
+        "id": str(student["_id"]),
+        "name": student["name"],
+        "student_id": student["student_id"],
+        "department": student["department"],
+        "course_codes": student["course_codes"]
+    }
+
+# 데이터 저장 엔드포인트
 @app.post("/save-courses/")
 async def save_courses(courses: List[Course]):
     try:
@@ -107,13 +132,17 @@ async def save_courses(courses: List[Course]):
         existing_codes = set()
         async for doc in course_collection.find({"code": {"$in": [course["code"] for course in course_data]}}):
             existing_codes.add(doc["code"])
-        new_course_data = [course for course in course_data if course["code"] not in existing_codes]
 
-        if new_course_data:
-            # MongoDB에 데이터 삽입
-            await course_collection.insert_many(new_course_data)
+        if existing_codes:
+            # 중복된 수업 코드가 있는 경우 400 에러 반환
+            raise HTTPException(status_code=400, detail="중복된 수업 코드가 있습니다.")
 
-        return {"message": f"{len(new_course_data)} courses saved successfully, {len(existing_codes)} courses were already existing and not saved."}
+        # 새로운 데이터만 삽입
+        await course_collection.insert_many(course_data)
+
+        return {"message": f"{len(course_data)} courses saved successfully."}
+    except HTTPException as e:
+        raise e  # 이미 처리된 HTTPException을 그대로 다시 raise
     except Exception as e:
         print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
         raise HTTPException(status_code=500, detail=str(e))
@@ -129,6 +158,80 @@ async def get_courses():
     except Exception as e:
         print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
         raise HTTPException(status_code=500, detail=str(e))
+
+# 학생 추가 엔드포인트
+@app.post("/save-students/")
+async def save_students(students: List[Student]):
+    try:
+        new_students = []
+        duplicate_students = []
+        updated_students = 0
+
+        for student in students:
+            existing_student = await student_collection.find_one({"student_id": student.student_id})
+            if existing_student:
+                if student.course_code not in existing_student["course_codes"]:
+                    await student_collection.update_one(
+                        {"student_id": student.student_id},
+                        {"$push": {"course_codes": student.course_code}}
+                    )
+                    updated_students += 1
+                else:
+                    duplicate_students.append(student.student_id)
+            else:
+                student_dict = student.dict()
+                student_dict["course_codes"] = [student_dict.pop("course_code")]
+                new_students.append(student_dict)
+
+        if new_students:
+            await student_collection.insert_many(new_students)
+
+        return {"message": f"{len(new_students)} new students saved successfully, {updated_students} students updated with new course codes, {len(duplicate_students)} students already existed with the same course code and were not saved."}
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 수업 삭제 엔드포인트
+@app.post("/delete-courses/")
+async def delete_courses(courses: List[DeleteCourse]):
+    try:
+        course_codes = [course.code for course in courses]
+        delete_result = await course_collection.delete_many({"code": {"$in": course_codes}})
+        return {"message": f"{delete_result.deleted_count} courses deleted successfully."}
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 학생 목록 가져오는 엔드포인트 (수업 코드로 필터링)
+@app.get("/students/")
+async def get_students(course_code: Optional[str] = Query(None)):
+    try:
+        print(f"Fetching students for course code: {course_code}")  # 디버깅 출력
+        students = []
+        query = {"course_codes": course_code} if course_code else {}
+        async for student in student_collection.find(query):
+            print(f"Found student: {student}")  # 디버깅 출력
+            students.append(student_helper(student))
+        return students
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 학생 삭제 엔드포인트 (특정 수강 코드 삭제)
+@app.post("/delete-students/")
+async def delete_students(students: List[DeleteStudent]):
+    try:
+        for student in students:
+            await student_collection.update_one(
+                {"student_id": student.student_id},
+                {"$pull": {"course_codes": student.course_code}}
+            )
+        return {"message": f"{len(students)} students updated successfully."}
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/save-project/")
 async def save_project(project_data: ProjectInfo):
