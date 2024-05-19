@@ -22,7 +22,6 @@ load_dotenv()
 # print(OPENAI_API_KEY)
 
 
-
 app = FastAPI()
 
 # CORS 미들웨어 추가

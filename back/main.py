@@ -15,10 +15,13 @@ from jose import jwt, JWTError
 from typing import Dict, Optional, List
 import json
 from bson import ObjectId
+import logging
+from fastapi.security import OAuth2PasswordBearer
 
 load_dotenv()
 
 app = FastAPI()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # CORS 미들웨어 설정
 app.add_middleware(
@@ -54,11 +57,17 @@ REDIRECT_URI = 'http://localhost:8000/auth/callback'
 class UserInfo(BaseModel):
     name: str
     schoolEmail: str
+    studentId: str
     age: int
     contact: str
     githubUsername: str
     githubName: str
     githubId: int
+
+class Comment(BaseModel):
+    username: str
+    content: str
+    timestamp: Optional[str] = None
 
 class ProjectInfo(BaseModel):
     username: str
@@ -78,7 +87,12 @@ class ProjectInfo(BaseModel):
     summary: str
     image_preview_urls: str
     generated_image_url: str
+    views: int = Field(default=0)
+    comments: List[Comment] = []
 
+class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 class Course(BaseModel):
     name: str
@@ -88,8 +102,8 @@ class Course(BaseModel):
     code: str
 
 class Student(BaseModel):
-    student_id: str
     name: str
+    student_id: str
     department: str
     course_code: str
 
@@ -99,6 +113,12 @@ class DeleteCourse(BaseModel):
 class DeleteStudent(BaseModel):
     student_id: str
     course_code: str
+
+
+# 학생 정보 모델
+class UserCourses(BaseModel):
+    user_info: UserInfo
+    courses: List[Course]
 
 # ObjectId를 문자열로 변환하는 헬퍼 함수
 def course_helper(course) -> dict:
@@ -120,6 +140,54 @@ def student_helper(student) -> dict:
         "department": student["department"],
         "course_codes": student["course_codes"]
     }
+
+# ObjectId를 문자열로 변환하는 함수
+def transform_id(document):
+    document["_id"] = str(document["_id"])
+    return document
+
+class UserQuery(BaseModel):
+    githubUsername: str
+
+@app.post("/api/user-courses")
+async def get_user_courses(query: UserQuery):
+    try:
+        # 1. User 콜렉션에서 studentId 조회
+        user_data = await db.User.find_one({"githubUsername": query.githubUsername})
+        if user_data is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        student_id = user_data.get("studentId")
+        if not student_id:
+            raise HTTPException(status_code=404, detail="Student ID not found in user data")
+
+        # 2. Student 콜렉션에서 학생 정보 조회
+        student_data = await db.Student.find_one({"student_id": student_id})
+        if student_data is None:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        # 3. Course 콜렉션에서 수업 정보 조회
+        course_codes = student_data.get("course_codes", [])
+        courses = []
+        for code in course_codes:
+            course_data = await db.Course.find_one({"code": code})
+            if course_data:
+                courses.append(transform_id(course_data))
+
+        # 4. 반환할 데이터 구성
+        result = {
+            "name": user_data.get("name", "No Name Available"),
+            "githubUsername": user_data.get("githubUsername", "No GitHub Username Available"),
+            "studentId": student_data.get("student_id", "No Student ID Available"),
+            "department": student_data.get("department", "No Department Available"),
+            "courses": courses
+        }
+
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 # 데이터 저장 엔드포인트
 @app.post("/save-courses/")
@@ -237,22 +305,81 @@ async def delete_students(students: List[DeleteStudent]):
 @app.post("/save-project/")
 async def save_project(project_data: ProjectInfo):
     json_compatible_item_data = jsonable_encoder(project_data)
+    if "views" not in json_compatible_item_data:
+        json_compatible_item_data["views"] = 0  # 기본값 설정
     result = await project_collection.insert_one(json_compatible_item_data)  # 여기에 await 추가
     if result.inserted_id:
         return {"status": "success", "document_id": str(result.inserted_id)}
     else:
         raise HTTPException(status_code=500, detail="Failed to save the document")
 
-# ObjectId를 문자열로 변환하는 함수
-def transform_id(project):
-    project["id"] = str(project["_id"])
-    del project["_id"]
-    return project
-
 @app.get("/api/projects")
 async def read_projects():
     projects = await db["Project"].find().to_list(100)
     return [transform_id(project) for project in projects]
+
+
+
+
+
+
+
+
+
+
+
+# @app.get("/api/projects/{project_id}")
+# async def read_project(project_id: str):
+#     try:
+#         project = await db["Project"].find_one({"_id": ObjectId(project_id)})
+#         if project is None:
+#             raise HTTPException(status_code=404, detail="Project not found")
+#         # 조회수 증가
+#         await db["Project"].update_one({"_id": ObjectId(project_id)}, {"$inc": {"views": 1}})
+#         return transform_id(project)
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/projects/{project_id}/comments")
+async def add_comment(project_id: str, comment: Comment):
+    try:
+        project = await project_collection.find_one({"_id": ObjectId(project_id)})
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # 댓글에 타임스탬프 추가
+        comment.timestamp = datetime.datetime.now().isoformat()
+        comment_dict = comment.dict()
+
+        update_result = await project_collection.update_one(
+            {"_id": ObjectId(project_id)},
+            {"$push": {"comments": comment_dict}}
+        )
+
+        if update_result.modified_count == 1:
+            return JSONResponse(status_code=200, content={"message": "Comment added successfully"})
+        else:
+            raise HTTPException(status_code=500, detail="Failed to add comment")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add comment: {str(e)}")
+
+
+@app.get("/api/projects/{project_id}")
+async def read_project(project_id: str):
+    try:
+        project = await project_collection.find_one({"_id": ObjectId(project_id)})
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        # 조회수 증가
+        await project_collection.update_one({"_id": ObjectId(project_id)}, {"$inc": {"views": 1}})
+        return transform_id(project)
+    except Exception as e:
+        print(f"Failed to fetch project: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch project: {str(e)}")
+
+
+
+
 
 
 
@@ -267,7 +394,7 @@ class UserQuery(BaseModel):
 
 @app.post("/get-user-name/")
 async def get_user_name(query: UserQuery):
-    # MongoDB의 'users' 콜렉션에서 사용자 데이터 조회
+    # MongoDB의 'User' 콜렉션에서 사용자 데이터 조회
     user_data = await db.User.find_one({"githubUsername": query.githubUsername})
     if user_data is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -278,7 +405,37 @@ async def get_user_name(query: UserQuery):
 
     return {"name": name, "githubId": github_id}
 
+@app.post("/api/user-info")
+async def get_user_info(query: UserQuery):
+    try:
+        user_data = await db.User.find_one({"githubUsername": query.githubUsername})
+        if user_data is None:
+            raise HTTPException(status_code=404, detail="User not found")
 
+        # 학번으로 학생 정보 조회
+        student_data = await db.Student.find_one({"studentId": user_data["studentId"]})
+        if student_data is None:
+            raise HTTPException(status_code=404, detail="Student data not found")
+
+        # 수업 정보 조회
+        course_codes = student_data.get("course_codes", [])
+        courses = []
+        for code in course_codes:
+            course_data = await db.Course.find_one({"code": code})
+            if course_data:
+                courses.append(course_data)
+
+        # 반환할 데이터 구성
+        result = {
+            "name": user_data.get("name", "No Name Available"),
+            "githubId": user_data.get("githubId", "No GitHub ID Available"),
+            "studentId": user_data.get("studentId", "No Student ID Available"),
+            "courses": courses
+        }
+
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
@@ -523,10 +680,10 @@ async def add_user_info(user_info: UserInfo):
     print(user_info)
     user_info = jsonable_encoder(user_info)  # Pydantic 객체를 JSON-호환 객체로 변환
 
-    # 이미 해당 GitHub ID를 가진 사용자가 있는지 확인
-    existing_user = await user_collection.find_one({"githubId": user_info['githubId']})
+    # 이미 해당 GitHub ID 또는 학번을 가진 사용자가 있는지 확인
+    existing_user = await user_collection.find_one({"$or": [{"githubId": user_info['githubId']}, {"studentId": user_info['studentId']}]})
     if existing_user:
-        raise HTTPException(status_code=400, detail="User with this GitHub ID already exists")
+        raise HTTPException(status_code=400, detail="User with this GitHub ID or Student ID already exists")
 
     # 사용자가 없는 경우에만 정보를 저장
     new_user = await user_collection.insert_one(user_info)

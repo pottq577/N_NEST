@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Container, Tab, Tabs, Box, Typography, TextField, Button, CircularProgress } from '@mui/material'
+import React, { useState, useEffect } from 'react'
+import { Container, Tab, Tabs, Box, Typography, TextField, Button, CircularProgress, Paper } from '@mui/material'
 import { useRouter } from 'next/router'
 import axios from 'axios'
 
@@ -18,7 +18,7 @@ function TabPanel(props) {
   )
 }
 
-function RepositoryInfo(RepositoryInfo) {
+function RepositoryInfo() {
   const router = useRouter()
   const {
     name,
@@ -217,7 +217,7 @@ function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombine
       }
 
       const imageData = await imageResponse.json()
-      setImage(imageData.base64_image)
+      setImage(`data:image/jpeg;base64,${imageData.base64_image}`)
 
       setIsLoading(false)
     } catch (error) {
@@ -255,7 +255,7 @@ function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombine
       {image && (
         <Box sx={{ mt: 2 }}>
           <Typography variant='h6'>Generated Image:</Typography>
-          <img src={`data:image/jpeg;base64,${image}`} alt='Generated' style={{ maxWidth: '100%', height: 'auto' }} />
+          <img src={image} alt='Generated' style={{ maxWidth: '100%', height: 'auto' }} />
         </Box>
       )}
     </Box>
@@ -273,63 +273,65 @@ export default function ProjectGenerator() {
   const [combinedSummary, setCombinedSummary] = useState('')
   const [image, setImage] = useState('')
 
+  const router = useRouter()
+
   const handleTabChange = (event, newValue) => {
     setTabIndex(newValue)
   }
 
-  // const handleSaveDocument = async () => {
-  //   const projectData = {
-  //     userId: parseInt(userId, 10), // 숫자형으로 변환
-  //     username: username,
-  //     project_name: repoInfo.name,
-  //     description: repoInfo.description || 'No description available', // 기본값 설정
-  //     language: repoInfo.language || 'Unknown', // 기본값 설정
-  //     stars: parseInt(repoInfo.stars, 10),
-  //     updated_at: repoInfo.updatedAt,
-  //     license: repoInfo.license ? repoInfo.license.name : 'None', // 기본값 설정
-  //     forks: parseInt(repoInfo.forks, 10),
-  //     watchers: parseInt(repoInfo.watchers, 10),
-  //     contributors: repoInfo.contributors || 'None', // 기본값 설정
-  //     is_private: repoInfo.is_private ? (repoInfo.is_private.toLowerCase() === 'no' ? false : true) : false, // 기본값 설정
-  //     default_branch: repoInfo.defaultBranch || 'main', // 기본값 설정
-  //     repository_url: repoInfo.html_url,
-  //     text_extracted: text,
-  //     summary: summary,
-  //     image_preview_urls: images.join(', '), // 배열을 쉼표로 구분된 문자열로
-  //     generated_image_url: generatedImage
-  //   }
+  const handleSaveDocument = async () => {
+    const {
+      name,
+      description,
+      language,
+      stars,
+      updatedAt,
+      license,
+      forks,
+      watchers,
+      contributors,
+      private: isPrivate,
+      html_url: htmlUrl,
+      defaultBranch,
+      userId,
+      username
+    } = router.query
 
-  //   /*console.log(userId)
-  //   console.log(username)
-  //   console.log(repoInfo.name)
-  //   console.log(repoInfo.description)
-  //   console.log(repoInfo.language)
-  //   console.log(repoInfo.stars)
-  //   console.log(repoInfo.updatedAt)
-  //   console.log(repoInfo.license)
-  //   console.log(repoInfo.forks)
-  //   console.log(repoInfo.watchers)
-  //   console.log(repoInfo.contributors)
-  //   console.log(repoInfo.private)
-  //   console.log(repoInfo.defaultBranch)
-  //   console.log(repoInfo.html_url)
-  //   console.log(text)
-  //   console.log(summary)*/
-  //   console.log(projectData)
-  //   try {
-  //     const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {
-  //       headers: {
-  //         'Content-Type': 'application/json'
-  //       }
-  //     })
-  //     console.log('Document saved:', response.data)
-  //     alert('Document saved successfully!')
-  //     router.push('http://127.0.0.1:3000/')
-  //   } catch (error) {
-  //     console.error('Failed to save document:', error)
-  //     alert('Failed to save document!')
-  //   }
-  // }
+    const projectData = {
+      userId: parseInt(userId, 10),
+      username: username,
+      project_name: name,
+      description: description || 'No description available',
+      language: language || 'Unknown',
+      stars: parseInt(stars, 10),
+      updated_at: updatedAt,
+      license: license || 'None',
+      forks: parseInt(forks, 10),
+      watchers: parseInt(watchers, 10),
+      contributors: contributors || 'None',
+      is_private: isPrivate === 'true',
+      default_branch: defaultBranch || 'main',
+      repository_url: htmlUrl,
+      text_extracted: combinedSummary,
+      summary: combinedSummary,
+      image_preview_urls: image,
+      generated_image_url: image
+    }
+
+    try {
+      const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      console.log('Document saved:', response.data)
+      alert('Document saved successfully!')
+      router.push('/')
+    } catch (error) {
+      console.error('Failed to save document:', error)
+      alert('Failed to save document!')
+    }
+  }
 
   return (
     <Container maxWidth='md'>
@@ -359,8 +361,9 @@ export default function ProjectGenerator() {
           setImage={setImage}
         />
       </TabPanel>
-      <Button>Save Document</Button>
+      <Button onClick={handleSaveDocument} sx={{ mt: 2 }}>
+        Save Document
+      </Button>
     </Container>
   )
 }
-// onClick={handleSaveDocument}

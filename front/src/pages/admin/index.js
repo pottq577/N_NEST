@@ -111,8 +111,8 @@ const Home = () => {
       }))
     } else if (fileType === '학생') {
       formattedData = data.slice(1).map(row => ({
-        student_id: row[0],
-        name: row[1],
+        name: row[0],
+        student_id: row[1],
         department: row[2],
         course_code: selectedCourse
       }))

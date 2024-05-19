@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Box, TextField, Button, Typography } from '@mui/material'
-import { useRouter } from 'next/router' // Next.js의 useRouter import
+import { Box, TextField, Button, Typography, Container, Grid, Card, CardContent } from '@mui/material'
+import { useRouter } from 'next/router'
 
 // ** Layout Import
 import BlankLayout from 'src/@core/layouts/BlankLayout'
@@ -9,7 +9,8 @@ const AddInfoPage = () => {
   const [userInfo, setUserInfo] = useState({
     name: '',
     schoolEmail: '',
-    age: '', // 숫자 입력 예정이라도 초기값은 문자열로 할 수 있습니다.
+    studentId: '', // 학번 입력 필드 추가
+    age: '',
     contact: ''
   })
 
@@ -19,13 +20,12 @@ const AddInfoPage = () => {
     githubId: ''
   })
 
-  const router = useRouter() // useRouter 훅 사용
+  const router = useRouter()
 
   useEffect(() => {
-    // 세션에서 깃허브 정보 가져오기
     const fetchGithubInfo = async () => {
       const response = await fetch('http://localhost:8000/api/session/github-info', {
-        credentials: 'include' // 쿠키 포함 설정
+        credentials: 'include'
       })
       if (response.ok) {
         const data = await response.json()
@@ -53,7 +53,7 @@ const AddInfoPage = () => {
       ...userInfo,
       ...githubInfo
     }
-    console.log(completeInfo) // 로그 출력
+    console.log(completeInfo)
     try {
       const response = await fetch('http://localhost:8000/api/user/additional-info', {
         method: 'POST',
@@ -65,94 +65,133 @@ const AddInfoPage = () => {
 
       if (response.ok) {
         alert('추가 정보가 성공적으로 저장되었습니다.')
-        router.push('http://localhost:3000/pages/login/') // 로그인 페이지로 리디렉션
+        router.push('http://localhost:3000/pages/login/')
       } else {
-        alert('추가 정보 저장에 실패했습니다.')
+        const errorData = await response.json()
+        alert(`추가 정보 저장에 실패했습니다: ${errorData.detail}`)
       }
     } catch (error) {
       console.error('추가 정보 저장 중 에러 발생:', error)
+      alert('추가 정보 저장 중 에러가 발생했습니다.')
     }
   }
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh'
-      }}
-    >
-      <Typography variant='h4' sx={{ mb: 4 }}>
-        추가 사용자 정보 입력🚀
-      </Typography>
-      <form onSubmit={handleSubmit}>
-        <TextField
-          label='Name'
-          variant='outlined'
-          name='name'
-          value={userInfo.name}
-          onChange={handleChange}
-          sx={{ mb: 2, width: '300px' }}
-        />
-        <TextField
-          label='School Email Address'
-          variant='outlined'
-          name='schoolEmail'
-          value={userInfo.schoolEmail}
-          onChange={handleChange}
-          sx={{ mb: 2, width: '300px' }}
-        />
-        <TextField
-          label='Age'
-          variant='outlined'
-          name='age'
-          type='number'
-          value={userInfo.age}
-          onChange={handleChange}
-          sx={{ mb: 2, width: '300px' }}
-        />
-        <TextField
-          label='Contact Number'
-          variant='outlined'
-          name='contact'
-          value={userInfo.contact}
-          onChange={handleChange}
-          sx={{ mb: 2, width: '300px' }}
-        />
-        <TextField
-          label='GitHub Username'
-          variant='outlined'
-          InputProps={{
-            readOnly: true
-          }}
-          value={githubInfo.githubUsername || 'Loading...'}
-          sx={{ mt: 2, mb: 2, width: '300px' }}
-        />
-        <TextField
-          label='GitHub Name'
-          variant='outlined'
-          InputProps={{
-            readOnly: true
-          }}
-          value={githubInfo.githubName || 'Loading...'}
-          sx={{ mb: 2, width: '300px' }}
-        />
-        <TextField
-          label='GitHub Id'
-          variant='outlined'
-          InputProps={{
-            readOnly: true
-          }}
-          value={githubInfo.githubId || 'Loading...'}
-          sx={{ mb: 2, width: '300px' }}
-        />
-        <Button type='submit' variant='contained' color='primary' sx={{ mt: 2 }}>
-          정보 저장
-        </Button>
-      </form>
-    </Box>
+    <Container component='main' maxWidth='sm'>
+      <Card>
+        <CardContent>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '100vh'
+            }}
+          >
+            <Typography variant='h4' sx={{ mb: 4 }}>
+              추가 사용자 정보 입력 🚀
+            </Typography>
+            <form onSubmit={handleSubmit}>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    label='Name'
+                    variant='outlined'
+                    name='name'
+                    value={userInfo.name}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label='School Email Address'
+                    variant='outlined'
+                    name='schoolEmail'
+                    value={userInfo.schoolEmail}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label='Student ID'
+                    variant='outlined'
+                    name='studentId'
+                    value={userInfo.studentId}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label='Age'
+                    variant='outlined'
+                    name='age'
+                    type='number'
+                    value={userInfo.age}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label='Contact Number'
+                    variant='outlined'
+                    name='contact'
+                    value={userInfo.contact}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label='GitHub Username'
+                    variant='outlined'
+                    InputProps={{
+                      readOnly: true
+                    }}
+                    value={githubInfo.githubUsername || 'Loading...'}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label='GitHub Name'
+                    variant='outlined'
+                    InputProps={{
+                      readOnly: true
+                    }}
+                    value={githubInfo.githubName || 'Loading...'}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    label='GitHub Id'
+                    variant='outlined'
+                    InputProps={{
+                      readOnly: true
+                    }}
+                    value={githubInfo.githubId || 'Loading...'}
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+              <Button type='submit' variant='contained' color='primary' sx={{ mt: 3 }}>
+                정보 저장
+              </Button>
+            </form>
+          </Box>
+        </CardContent>
+      </Card>
+    </Container>
   )
 }
 
