@@ -4,9 +4,10 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 import httpx
 from dotenv import load_dotenv
+from collections import Counter
 import os
 import jwt
 import asyncio
@@ -17,8 +18,23 @@ import json
 from bson import ObjectId
 import logging
 from fastapi.security import OAuth2PasswordBearer
-
+import google.generativeai as genai
+from openai import OpenAI
+import requests
+import re
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 load_dotenv()
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+client2 = OpenAI(api_key=OPENAI_API_KEY)
+
+
+# 모델과 토크나이저 로드
+model_name = "lcw99/t5-large-korean-text-summary"
+model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -45,6 +61,7 @@ MONGODB_URL = os.getenv("MONGODB_URL")
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client['N-Nest'] # 데이터베이스 선택
 user_collection = db['User']
+questions_collection = db["questions"]
 project_collection = db['Project']
 course_collection = db["Course"]
 student_collection = db["Student"]
@@ -56,13 +73,13 @@ REDIRECT_URI = 'http://localhost:8000/auth/callback'
 # 데이터 모델 정의
 class UserInfo(BaseModel):
     name: str
-    schoolEmail: str
+    schoolEmail: EmailStr
     studentId: str
     age: int
     contact: str
     githubUsername: str
     githubName: str
-    githubId: int
+    githubId: str
 
 class Comment(BaseModel):
     username: str
@@ -677,7 +694,6 @@ async def get_github_info(request: Request):
 # 사용자 정보를 데이터베이스에 저장
 @app.post("/api/user/additional-info", response_description="Add new user info", response_model=dict)
 async def add_user_info(user_info: UserInfo):
-    print(user_info)
     user_info = jsonable_encoder(user_info)  # Pydantic 객체를 JSON-호환 객체로 변환
 
     # 이미 해당 GitHub ID 또는 학번을 가진 사용자가 있는지 확인
@@ -692,7 +708,6 @@ async def add_user_info(user_info: UserInfo):
         return JSONResponse(status_code=201, content={"message": "User info saved successfully", "user_id": str(new_user.inserted_id)})
     else:
         raise HTTPException(status_code=500, detail="Failed to save user info")
-
 
 @app.get("/github/{username}/repos")
 async def get_github_repos(username: str, github_login: str = Depends(lambda x: user_logins.get(x, None))):
@@ -726,9 +741,265 @@ async def get_user_logins():
     return JSONResponse(user_logins)
 
 
+class TimeSlot(BaseModel):
+    day: str
+    time: str
+
+class Schedule(BaseModel):
+    start: Optional[str] = None
+    end: Optional[str] = None
+    interval: int = 30
+    maxCapacity: int = 1
+
+class AvailabilityData(BaseModel):
+    weeklySchedule: dict = Field(default_factory=dict)
+    unavailableTimes: List[TimeSlot] = Field(default_factory=list)
+
+class ReservationData(BaseModel):
+    studentName: str
+    day: str
+    time: str
+
+@app.post("/availability/")
+async def save_availability(data: AvailabilityData):
+    try:
+        # MongoDB에 데이터 저장
+        result = await db.availability.insert_one(data.dict())
+        return {"message": "Availability settings saved successfully!", "id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/availability/", response_model=AvailabilityData)
+async def get_availability():
+    try:
+        # MongoDB에서 가장 최근의 데이터 불러오기
+        data = await db.availability.find_one(sort=[('_id', -1)])
+        if data:
+            return AvailabilityData(**data)
+        else:
+            raise HTTPException(status_code=404, detail="No availability settings found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/reservations/")
+async def get_reservations():
+    try:
+        reservations = await db.reservations.find().to_list(None)
+        for reservation in reservations:
+            reservation["_id"] = str(reservation["_id"])
+        return reservations
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/reservation/")
+async def make_reservation(data: ReservationData):
+    try:
+        # 예약 가능한 시간 확인
+        availability = await db.availability.find_one(sort=[('_id', -1)])
+        if not availability:
+            raise HTTPException(status_code=404, detail="No availability settings found.")
+
+        weekly_schedule = availability['weeklySchedule']
+        unavailable_times = availability['unavailableTimes']
+
+        # 예약 가능한 시간인지 확인
+        if data.day not in weekly_schedule or not weekly_schedule[data.day]['start'] or not weekly_schedule[data.day]['end']:
+            raise HTTPException(status_code=400, detail="Invalid reservation time.")
+
+        # 예약 불가능한 시간대인지 확인
+        if any(slot['day'] == data.day and slot['time'] == data.time for slot in unavailable_times):
+            raise HTTPException(status_code=400, detail="The selected time is unavailable.")
+
+        # 해당 시간대의 예약 수 확인
+        existing_reservations = await db.reservations.count_documents({"day": data.day, "time": data.time})
+        if existing_reservations >= weekly_schedule[data.day]['maxCapacity']:
+            raise HTTPException(status_code=400, detail="The selected time is fully booked.")
+
+        # 예약 데이터 저장
+        result = await db.reservations.insert_one(data.dict())
+        return {"message": "Reservation saved successfully!", "id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 
+
+
+# Pydantic 모델 정의
+class ClassificationRequest(BaseModel):
+    text: str
+
+@app.post("/classify")
+async def classify_text(request: ClassificationRequest):
+    if not request.text:
+        raise HTTPException(status_code=400, detail="No text provided")
+
+    # Set the text to classify
+    prompt_text = (
+        "Classify the following IT-related response into categories such as backend, frontend, security, network, cloud, and others. Only assign a category if the relevance is over 80%: \n\n"
+        f"'{request.text}'"
+    )
+
+    categories = ["backend", "frontend", "security", "network", "cloud", "others"]
+    it_terms = ["server", "api", "http", "frontend", "backend", "database", "network", "security", "encryption", "cloud", "storage", "virtualization"]
+    results: List[str] = []
+
+    # Query the OpenAI API three times
+    for _ in range(3):
+        response = client2.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an AI that classifies IT-related questions."},
+                {"role": "user", "content": prompt_text}
+            ],
+            max_tokens=60
+        )
+
+        # Analyze the model's response
+        raw_response = response.choices[0].message.content.strip().lower()
+
+        # Check if IT terms are present in the response
+        if any(term in raw_response for term in it_terms):
+            # Map response to category
+            found_categories = [category for category in categories if category in raw_response]
+            if found_categories:
+                results.extend(found_categories)
+            else:
+                results.append("others")
+        else:
+            results.append("others")
+
+    # Determine the most common category
+    if results:
+        most_common_category = Counter(results).most_common(1)[0][0]
+        return {"category": most_common_category}
+    else:
+        return {"category": "others"}
+
+class CodeComment(BaseModel):
+    lineNumber: int
+    text: str
+    resolved: str
+
+class Answer(BaseModel):
+    text: str
+    userId: str
+    createdAt: datetime = Field(default_factory=datetime.now)
+    codeComments: Dict[str, CodeComment] = {}
+
+class Question(BaseModel):
+    title: str
+    description: str
+    category: str
+    customCategories: List[str]
+    code: str
+    userId: str
+    createdAt: datetime = Field(default_factory=datetime.now)
+    codeComments: Dict[str, CodeComment] = {}
+
+class QuestionInDB(Question):
+    id: str
+    votes: int = 0
+    answers: List[Answer] = []
+    views: int = 0
+
+# 질문 저장
+@app.post("/questions", response_model=QuestionInDB)
+async def save_question(question: Question):
+    try:
+        question_dict = question.dict()
+        result = await db.questions.insert_one(question_dict)
+        question_dict["_id"] = str(result.inserted_id)
+        return QuestionInDB(id=str(result.inserted_id), **question_dict)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error saving question")
+
+@app.get("/list/questions", response_model=List[QuestionInDB])
+async def list_questions():
+    try:
+        questions = await questions_collection.find().to_list(1000)
+        return [QuestionInDB(id=str(q["_id"]), **q) for q in questions]
+    except Exception as e:
+        print(f"Error fetching questions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching questions")
+
+@app.get("/questions/{id}", response_model=QuestionInDB)
+async def get_question(id: str):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+        return QuestionInDB(id=str(question["_id"]), **question)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error fetching question")
+
+@app.post("/questions/{id}/comments")
+async def save_comment(id: str, comment: CodeComment):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        if f"codeComments.{comment.lineNumber}" in question:
+            question[f"codeComments.{comment.lineNumber}"].append(comment.dict())
+        else:
+            question["codeComments"][comment.lineNumber] = [comment.dict()]
+
+        result = await questions_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"codeComments": question["codeComments"]}}
+        )
+
+        if result.modified_count == 1:
+            return {"message": "Comment added successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Error adding comment")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding comment: {str(e)}")
+
+@app.post("/questions/{id}/comments/{lineNumber}/resolve")
+async def toggle_resolve_comment(id: str, lineNumber: int):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        if str(lineNumber) in question["codeComments"]:
+            comments = question["codeComments"][str(lineNumber)]
+            for comment in comments:
+                comment["resolved"] = 'true' if comment["resolved"] == 'false' else 'false'
+
+            result = await questions_collection.update_one(
+                {"_id": ObjectId(id)},
+                {"$set": {f"codeComments.{lineNumber}": comments}}
+            )
+
+            if result.modified_count == 1:
+                return {"message": "Comment resolve status toggled"}
+            else:
+                raise HTTPException(status_code=500, detail="Error toggling resolve status")
+        else:
+            raise HTTPException(status_code=404, detail="Comment not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
+
+@app.post("/questions/{id}/answers")
+async def save_answer(id: str, answer: Answer):
+    try:
+        question = await db.questions.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+        answer_dict = answer.dict()
+        result = await db.questions.update_one(
+            {"_id": ObjectId(id)},
+            {"$push": {"answers": answer_dict}}
+        )
+        if result.modified_count == 1:
+            return {"message": "Answer added successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Error adding answer")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding answer: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

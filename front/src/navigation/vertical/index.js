@@ -15,10 +15,25 @@ import ShieldAccountOutline from 'mdi-material-ui/ShieldAccountOutline'
 
 const navigation = () => {
   return [
+    // {
+    //   title: 'Dashboard',
+    //   icon: HomeOutline,
+    //   path: '/'
+    // },
     {
-      title: 'Dashboard',
+      title: 'studentEvaluation',
       icon: HomeOutline,
-      path: '/'
+      path: '/studentEvaluation'
+    },
+    {
+      title: 'ProfessorAvaliability',
+      icon: HomeOutline,
+      path: '/professorAvaliability'
+    },
+    {
+      title: 'studentBooking',
+      icon: HomeOutline,
+      path: '/studentBooking'
     },
 
     // {
@@ -76,43 +91,43 @@ const navigation = () => {
       path: '/pages/register',
       openInNewTab: true
     },
-    {
-      title: 'Error',
-      icon: AlertCircleOutline,
-      path: '/pages/error',
-      openInNewTab: true
-    },
+    // {
+    //   title: 'Error',
+    //   icon: AlertCircleOutline,
+    //   path: '/pages/error',
+    //   openInNewTab: true
+    // },
     {
       sectionTitle: 'User Interface'
     },
-    {
-      title: 'Typography',
-      icon: FormatLetterCase,
-      path: '/typography'
-    },
-    {
-      title: 'Icons',
-      path: '/icons',
-      icon: GoogleCirclesExtended
-    },
-    {
-      title: 'Cards',
-      icon: CreditCardOutline,
-      path: '/cards'
-    },
-    {
-      title: 'Tables',
-      icon: Table,
-      path: '/tables'
-    },
-    {
-      icon: CubeOutline,
-      title: 'Form Layouts',
-      path: '/form-layouts'
-    },
-    {
-      sectionTitle: 'Administrator page'
-    },
+    // {
+    //   title: 'Typography',
+    //   icon: FormatLetterCase,
+    //   path: '/typography'
+    // },
+    // {
+    //   title: 'Icons',
+    //   path: '/icons',
+    //   icon: GoogleCirclesExtended
+    // },
+    // {
+    //   title: 'Cards',
+    //   icon: CreditCardOutline,
+    //   path: '/cards'
+    // },
+    // {
+    //   title: 'Tables',
+    //   icon: Table,
+    //   path: '/tables'
+    // },
+    // {
+    //   icon: CubeOutline,
+    //   title: 'Form Layouts',
+    //   path: '/form-layouts'
+    // },
+    // {
+    //   sectionTitle: 'Administrator page'
+    // },
     {
       icon: ShieldAccountOutline,
       title: '관리자 페이지',

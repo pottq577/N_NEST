@@ -1,46 +1,92 @@
-// pages/ask.js
-
-import React, { useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { auth } from '../../../lib/firebase'; // Firebase 설정 가져오기
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function AskQuestionPage() {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('CSS') // 기본 카테고리 설정
-  const [customCategories, setCustomCategories] = useState([])
-  const [code, setCode] = useState('')
-  const router = useRouter()
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('CSS'); // 기본 카테고리 설정
+  const [customCategories, setCustomCategories] = useState([]);
+  const [code, setCode] = useState('');
+  const [userId, setUserId] = useState('');
+  const router = useRouter();
 
-  const handleSubmit = e => {
-    e.preventDefault()
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        setUserId('');
+        console.error('No user is signed in');
+      }
+    });
 
-    const newQuestion = {
-      title,
-      description,
-      category,
-      customCategories,
-      code
+    return () => unsubscribe();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const currentDate = new Date().toISOString();
+
+    // 먼저 분류 API에 description을 전송하고 결과를 받습니다.
+    try {
+      const classifyResponse = await fetch('http://127.0.0.1:8000/classify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: description }), // description을 전송
+      });
+
+      if (!classifyResponse.ok) throw new Error('Failed to classify description');
+
+      const { category } = await classifyResponse.json(); // 분류 결과를 받습니다.
+
+      const newQuestion = {
+        title,
+        description,
+        category, // 분류 결과로 받은 카테고리
+        customCategories,
+        code,
+        userId, // Firebase Auth 사용자 ID를 포함
+        createdAt: currentDate, // 작성 날짜를 포함
+      };
+
+      // 이제 질문을 저장하는 API에 요청합니다.
+      const response = await fetch('http://127.0.0.1:8000/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newQuestion),
+      });
+
+      if (!response.ok) throw new Error('Failed to submit question');
+      alert('Question submitted successfully');
+      router.push('/');
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error.message);
     }
-    console.log('Submitting new question:', newQuestion)
+  };
 
-    router.push('/')
-  }
+  const handleCategoryChange = (e) => {
+    setCategory(e.target.value);
+  };
 
-  const handleCategoryChange = e => {
-    setCategory(e.target.value)
-  }
-
-  const handleAddCustomCategory = e => {
+  const handleAddCustomCategory = (e) => {
     if (e.key === 'Enter' && e.target.value) {
-      setCustomCategories(prev => [...prev, e.target.value])
-      e.target.value = '' // 입력 필드 초기화
+      setCustomCategories((prev) => [...prev, e.target.value]);
+      e.target.value = ''; // 입력 필드 초기화
     }
-  }
+  };
 
-  const handleCodeChange = e => {
-    setCode(e.target.value)
-  }
+  const handleCodeChange = (e) => {
+    setCode(e.target.value);
+  };
 
   return (
     <div className='container'>
@@ -48,31 +94,16 @@ export default function AskQuestionPage() {
         <h1>Ask a Question</h1>
         <div className='form-group'>
           <label htmlFor='question-title'>Title</label>
-          <input type='text' id='question-title' value={title} onChange={e => setTitle(e.target.value)} required />
-        </div>
-        <div className='form-group'>
-          <label htmlFor='question-category'>Category</label>
-          <select id='question-category' value={category} onChange={handleCategoryChange}>
-            <option value='CSS'>CSS</option>
-            <option value='JavaScript'>JavaScript</option>
-            <option value='React'>React</option>
-            <option value='Android'>Android</option>
-            {/* 기타 기술 카테고리를 추가할 수 있습니다 */}
-          </select>
-          {customCategories.map((cat, index) => (
-            <div key={index} className='custom-category'>
-              {cat}
-            </div>
-          ))}
-          <input type='text' placeholder='Add custom category' onKeyPress={handleAddCustomCategory} />
+          <input type='text' id='question-title' value={title} onChange={(e) => setTitle(e.target.value)} required />
         </div>
         <div className='form-group'>
           <label htmlFor='question-description'>Description</label>
           <textarea
             id='question-description'
             value={description}
-            onChange={e => setDescription(e.target.value)}
+            onChange={(e) => setDescription(e.target.value)}
             required
+            minLength={20}
           ></textarea>
         </div>
         <div className='form-group'>
@@ -115,7 +146,6 @@ export default function AskQuestionPage() {
           margin-bottom: 0.5rem;
         }
         input,
-        select,
         textarea {
           width: 100%;
           padding: 0.5rem;
@@ -151,15 +181,7 @@ export default function AskQuestionPage() {
         button[type='button']:hover {
           background-color: #5a6268;
         }
-        .custom-category {
-          background-color: #e9ecef;
-          border-radius: 5px;
-          padding: 0.25rem 0.5rem;
-          display: inline-block;
-          margin-right: 0.5rem;
-          margin-top: 0.5rem;
-        }
       `}</style>
     </div>
-  )
+  );
 }
