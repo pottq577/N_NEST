@@ -79,6 +79,16 @@ function ProjectDetails() {
       })
   }
 
+  const renderPreviewImages = () => {
+    if (!project || !project.image_preview_urls) return null
+
+    return project.image_preview_urls.map((url, index) => (
+      <Box key={index} sx={{ marginRight: '10px', marginBottom: '10px' }}>
+        <img src={url} alt={`Preview ${index}`} style={{ maxWidth: '100%', height: 'auto' }} />
+      </Box>
+    ))
+  }
+
   if (error) {
     return (
       <Container>
@@ -99,6 +109,7 @@ function ProjectDetails() {
     <Container maxWidth='lg' sx={{ mt: 4 }}>
       {project && (
         <Grid container spacing={4}>
+          {/* Repository Information and Generated Image */}
           <Grid item xs={12} md={6}>
             <Card variant='outlined'>
               <CardContent>
@@ -149,6 +160,18 @@ function ProjectDetails() {
           </Grid>
           <Grid item xs={12} md={6}>
             <Card variant='outlined'>
+              <CardMedia
+                component='img'
+                image={project.generated_image_url}
+                alt='Generated'
+                style={{ width: '80%', height: 'auto', margin: '0 auto' }}
+              />
+            </Card>
+          </Grid>
+
+          {/* Summary Information and Preview Images */}
+          <Grid item xs={12} md={6}>
+            <Card variant='outlined'>
               <CardContent>
                 <Typography variant='h6' gutterBottom>
                   Summary Information
@@ -159,6 +182,20 @@ function ProjectDetails() {
               </CardContent>
             </Card>
           </Grid>
+          <Grid item xs={12} md={6}>
+            <Card variant='outlined'>
+              <CardContent>
+                <Typography variant='h6' gutterBottom>
+                  Preview Images
+                </Typography>
+                <Box display='flex' flexDirection='row' flexWrap='wrap'>
+                  {renderPreviewImages()}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Text Extracted */}
           <Grid item xs={12}>
             <Card variant='outlined'>
               <CardContent>
@@ -171,16 +208,8 @@ function ProjectDetails() {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12}>
-            <Card variant='outlined'>
-              <CardMedia
-                component='img'
-                image={project.generated_image_url}
-                alt='Generated'
-                style={{ width: '100%', maxWidth: '66%', height: 'auto', margin: '0 auto' }}
-              />
-            </Card>
-          </Grid>
+
+          {/* Comments */}
           <Grid item xs={12}>
             <Card variant='outlined'>
               <CardContent>

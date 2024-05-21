@@ -85,7 +85,7 @@ class ProjectInfo(BaseModel):
     repository_url: str
     text_extracted: str
     summary: str
-    image_preview_urls: str
+    image_preview_urls: List[str]
     generated_image_url: str
     views: int = Field(default=0)
     comments: List[Comment] = []
