@@ -14,6 +14,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from typing import Dict, Optional, List
+
 import json
 from bson import ObjectId
 import logging
@@ -752,28 +753,44 @@ class Schedule(BaseModel):
     maxCapacity: int = 1
 
 class AvailabilityData(BaseModel):
+    userId: str
     weeklySchedule: dict = Field(default_factory=dict)
     unavailableTimes: List[TimeSlot] = Field(default_factory=list)
 
 class ReservationData(BaseModel):
     studentName: str
+    userId: str
     day: str
+    date: str
     time: str
 
 @app.post("/availability/")
 async def save_availability(data: AvailabilityData):
     try:
-        # MongoDB에 데이터 저장
-        result = await db.availability.insert_one(data.dict())
-        return {"message": "Availability settings saved successfully!", "id": str(result.inserted_id)}
+        existing_data = await db.availability.find_one({"userId": data.userId})
+        if existing_data:
+            await db.availability.update_one({"userId": data.userId}, {"$set": data.dict()})
+        else:
+            await db.availability.insert_one(data.dict())
+        return {"message": "Availability settings saved successfully!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/availability/", response_model=AvailabilityData)
-async def get_availability():
+@app.get("/availability/", response_model=List[AvailabilityData])
+async def get_all_availability():
     try:
-        # MongoDB에서 가장 최근의 데이터 불러오기
-        data = await db.availability.find_one(sort=[('_id', -1)])
+        data = await db.availability.find().to_list(None)
+        if data:
+            return [AvailabilityData(**item) for item in data]
+        else:
+            raise HTTPException(status_code=404, detail="No availability settings found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/availability/user", response_model=AvailabilityData)
+async def get_availability(userId: str = Query(...)):
+    try:
+        data = await db.availability.find_one({"userId": userId})
         if data:
             return AvailabilityData(**data)
         else:
@@ -794,33 +811,27 @@ async def get_reservations():
 @app.post("/reservation/")
 async def make_reservation(data: ReservationData):
     try:
-        # 예약 가능한 시간 확인
-        availability = await db.availability.find_one(sort=[('_id', -1)])
+        availability = await db.availability.find_one({"userId": data.userId})
         if not availability:
             raise HTTPException(status_code=404, detail="No availability settings found.")
 
         weekly_schedule = availability['weeklySchedule']
         unavailable_times = availability['unavailableTimes']
 
-        # 예약 가능한 시간인지 확인
         if data.day not in weekly_schedule or not weekly_schedule[data.day]['start'] or not weekly_schedule[data.day]['end']:
             raise HTTPException(status_code=400, detail="Invalid reservation time.")
 
-        # 예약 불가능한 시간대인지 확인
         if any(slot['day'] == data.day and slot['time'] == data.time for slot in unavailable_times):
             raise HTTPException(status_code=400, detail="The selected time is unavailable.")
 
-        # 해당 시간대의 예약 수 확인
         existing_reservations = await db.reservations.count_documents({"day": data.day, "time": data.time})
         if existing_reservations >= weekly_schedule[data.day]['maxCapacity']:
             raise HTTPException(status_code=400, detail="The selected time is fully booked.")
 
-        # 예약 데이터 저장
         result = await db.reservations.insert_one(data.dict())
         return {"message": "Reservation saved successfully!", "id": str(result.inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 
 
@@ -876,16 +887,22 @@ async def classify_text(request: ClassificationRequest):
     else:
         return {"category": "others"}
 
-class CodeComment(BaseModel):
+class CodeAnswer(BaseModel):
     lineNumber: int
     text: str
-    resolved: str
+    userId: str
+    resolved: str = "false"
+    createdAt: datetime = Field(default_factory=datetime.now)
+
+class GeneralAnswer(BaseModel):
+    text: str
+    userId: str
+    createdAt: datetime = Field(default_factory=datetime.now)
 
 class Answer(BaseModel):
     text: str
     userId: str
     createdAt: datetime = Field(default_factory=datetime.now)
-    codeComments: Dict[str, CodeComment] = {}
 
 class Question(BaseModel):
     title: str
@@ -895,7 +912,8 @@ class Question(BaseModel):
     code: str
     userId: str
     createdAt: datetime = Field(default_factory=datetime.now)
-    codeComments: Dict[str, CodeComment] = {}
+    codeAnswers: Dict[str, List[CodeAnswer]] = {}
+    generalAnswers: List[GeneralAnswer] = []
 
 class QuestionInDB(Question):
     id: str
@@ -903,11 +921,14 @@ class QuestionInDB(Question):
     answers: List[Answer] = []
     views: int = 0
 
-# 질문 저장
 @app.post("/questions", response_model=QuestionInDB)
 async def save_question(question: Question):
     try:
         question_dict = question.dict()
+        if "codeAnswers" not in question_dict:
+            question_dict["codeAnswers"] = {}
+        if "generalAnswers" not in question_dict:
+            question_dict["generalAnswers"] = []
         result = await db.questions.insert_one(question_dict)
         question_dict["_id"] = str(result.inserted_id)
         return QuestionInDB(id=str(result.inserted_id), **question_dict)
@@ -933,73 +954,75 @@ async def get_question(id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error fetching question")
 
-@app.post("/questions/{id}/comments")
-async def save_comment(id: str, comment: CodeComment):
+@app.post("/questions/{id}/answers")
+async def save_code_answer(id: str, answer: CodeAnswer):
     try:
         question = await questions_collection.find_one({"_id": ObjectId(id)})
         if question is None:
             raise HTTPException(status_code=404, detail="Question not found")
 
-        if f"codeComments.{comment.lineNumber}" in question:
-            question[f"codeComments.{comment.lineNumber}"].append(comment.dict())
-        else:
-            question["codeComments"][comment.lineNumber] = [comment.dict()]
+        if str(answer.lineNumber) not in question["codeAnswers"]:
+            question["codeAnswers"][str(answer.lineNumber)] = []
+
+        question["codeAnswers"][str(answer.lineNumber)].append(answer.dict())
 
         result = await questions_collection.update_one(
             {"_id": ObjectId(id)},
-            {"$set": {"codeComments": question["codeComments"]}}
+            {"$set": {"codeAnswers": question["codeAnswers"]}}
         )
 
-        if result.modified_count == 1:
-            return {"message": "Comment added successfully"}
-        else:
-            raise HTTPException(status_code=500, detail="Error adding comment")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error adding comment: {str(e)}")
-
-@app.post("/questions/{id}/comments/{lineNumber}/resolve")
-async def toggle_resolve_comment(id: str, lineNumber: int):
-    try:
-        question = await questions_collection.find_one({"_id": ObjectId(id)})
-        if question is None:
-            raise HTTPException(status_code=404, detail="Question not found")
-
-        if str(lineNumber) in question["codeComments"]:
-            comments = question["codeComments"][str(lineNumber)]
-            for comment in comments:
-                comment["resolved"] = 'true' if comment["resolved"] == 'false' else 'false'
-
-            result = await questions_collection.update_one(
-                {"_id": ObjectId(id)},
-                {"$set": {f"codeComments.{lineNumber}": comments}}
-            )
-
-            if result.modified_count == 1:
-                return {"message": "Comment resolve status toggled"}
-            else:
-                raise HTTPException(status_code=500, detail="Error toggling resolve status")
-        else:
-            raise HTTPException(status_code=404, detail="Comment not found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
-
-@app.post("/questions/{id}/answers")
-async def save_answer(id: str, answer: Answer):
-    try:
-        question = await db.questions.find_one({"_id": ObjectId(id)})
-        if question is None:
-            raise HTTPException(status_code=404, detail="Question not found")
-        answer_dict = answer.dict()
-        result = await db.questions.update_one(
-            {"_id": ObjectId(id)},
-            {"$push": {"answers": answer_dict}}
-        )
         if result.modified_count == 1:
             return {"message": "Answer added successfully"}
         else:
             raise HTTPException(status_code=500, detail="Error adding answer")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding answer: {str(e)}")
+
+@app.post("/questions/{id}/general-answers")
+async def save_general_answer(id: str, answer: GeneralAnswer):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        question["generalAnswers"].append(answer.dict())
+
+        result = await questions_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"generalAnswers": question["generalAnswers"]}}
+        )
+
+        if result.modified_count == 1:
+            return {"message": "General answer added successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Error adding general answer")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding general answer: {str(e)}")
+
+@app.post("/questions/{id}/answers/{lineNumber}/{answerIndex}/resolve")
+async def toggle_resolve_code_answer(id: str, lineNumber: int, answerIndex: int):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        line_answers = question["codeAnswers"].get(str(lineNumber), [])
+        if answerIndex < 0 or answerIndex >= len(line_answers):
+            raise HTTPException(status_code=404, detail="Answer not found")
+
+        line_answers[answerIndex]["resolved"] = 'true' if line_answers[answerIndex]["resolved"] == 'false' else 'false'
+
+        result = await questions_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {f"codeAnswers.{lineNumber}": line_answers}}
+        )
+
+        if result.modified_count == 1:
+            return {"message": "Answer resolve status toggled"}
+        else:
+            raise HTTPException(status_code=500, detail="Error toggling resolve status")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

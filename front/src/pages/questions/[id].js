@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
-import { auth } from '../../../lib/firebase'; // Firebase 설정 가져오기
+import { auth } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 export default function QuestionDetailPage() {
@@ -8,10 +8,11 @@ export default function QuestionDetailPage() {
   const { id } = router.query;
   const [questionDetails, setQuestionDetails] = useState(null);
   const [answerText, setAnswerText] = useState('');
+  const [generalAnswerText, setGeneralAnswerText] = useState('');
   const [userId, setUserId] = useState('');
-  const [codeComments, setCodeComments] = useState({});
+  const [codeAnswers, setCodeAnswers] = useState({});
   const [selectedLine, setSelectedLine] = useState(null);
-  const [commentText, setCommentText] = useState('');
+  const [expandedLines, setExpandedLines] = useState({});
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -37,78 +38,20 @@ export default function QuestionDetailPage() {
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         setQuestionDetails(data);
-        setCodeComments(data.codeComments || {});
+        setCodeAnswers(data.codeAnswers || {});
       } catch (error) {
         console.error('Error fetching question details:', error);
       }
     }
   }
 
-  const handleCommentSubmit = async () => {
-    if (commentText.trim()) {
-      try {
-        const response = await fetch(`http://127.0.0.1:8000/questions/${id}/comments`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            lineNumber: selectedLine,
-            text: commentText,
-            userId: userId,
-            resolved: 'false'
-          })
-        });
-
-        if (response.ok) {
-          await response.json();
-          setCommentText('');
-          setSelectedLine(null);
-          fetchQuestionDetails(); // Refresh comments
-        } else {
-          const errorData = await response.json();
-          throw new Error(`Failed to submit comment: ${JSON.stringify(errorData)}`);
-        }
-      } catch (error) {
-        console.error('Error posting comment:', error);
-        alert(`댓글 등록에 실패하였습니다: ${error.message}`);
-      }
-    } else {
-      alert('댓글을 입력해 주세요.');
-    }
-  };
-
   const handleLineClick = (lineNumber) => {
+    setExpandedLines(prev => ({ ...prev, [lineNumber]: !prev[lineNumber] }));
     setSelectedLine(lineNumber);
-    setCommentText(codeComments[lineNumber]?.text || '');
-  };
-
-  const handleResolveToggle = async (lineNumber) => {
-    if (userId === questionDetails.userId) { // 작성자만 변경 가능
-      try {
-        const response = await fetch(`http://127.0.0.1:8000/questions/${id}/comments/${lineNumber}/resolve`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          await response.json();
-          fetchQuestionDetails(); // Refresh comments
-        } else {
-          const errorData = await response.json();
-          throw new Error(`Failed to toggle resolve: ${JSON.stringify(errorData)}`);
-        }
-      } catch (error) {
-        console.error('Error toggling resolve:', error);
-        alert(`해결 상태 변경에 실패하였습니다: ${error.message}`);
-      }
-    }
   };
 
   const handleAnswerSubmit = async () => {
-    if (answerText.trim()) {
+    if (answerText.trim() && selectedLine !== null) {
       try {
         const response = await fetch(`http://127.0.0.1:8000/questions/${id}/answers`, {
           method: 'POST',
@@ -116,20 +59,17 @@ export default function QuestionDetailPage() {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            lineNumber: selectedLine,
             text: answerText,
             userId: userId,
-            codeComments: Object.fromEntries(
-              Object.entries(codeComments).map(([key, value]) => [
-                String(key),
-                { ...value, resolved: String(value.resolved) } // resolved 값을 문자열로 변환
-              ])
-            )
           })
         });
 
         if (response.ok) {
           await response.json();
-          window.location.reload();
+          setAnswerText('');
+          setSelectedLine(null);
+          fetchQuestionDetails();
         } else {
           const errorData = await response.json();
           throw new Error(`Failed to submit answer: ${JSON.stringify(errorData)}`);
@@ -140,6 +80,61 @@ export default function QuestionDetailPage() {
       }
     } else {
       alert('답변을 입력해 주세요.');
+    }
+  };
+
+  const handleGeneralAnswerSubmit = async () => {
+    if (generalAnswerText.trim()) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/questions/${id}/general-answers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: generalAnswerText,
+            userId: userId,
+          })
+        });
+
+        if (response.ok) {
+          await response.json();
+          setGeneralAnswerText('');
+          fetchQuestionDetails();
+        } else {
+          const errorData = await response.json();
+          throw new Error(`Failed to submit general answer: ${JSON.stringify(errorData)}`);
+        }
+      } catch (error) {
+        console.error('Error posting general answer:', error);
+        alert(`답변 등록에 실패하였습니다: ${error.message}`);
+      }
+    } else {
+      alert('답변을 입력해 주세요.');
+    }
+  };
+
+  const handleResolveToggle = async (lineNumber, answerIndex) => {
+    if (userId === questionDetails.userId) {
+      try {
+        const response = await fetch(`http://127.0.0.1:8000/questions/${id}/answers/${lineNumber}/${answerIndex}/resolve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          await response.json();
+          fetchQuestionDetails();
+        } else {
+          const errorData = await response.json();
+          throw new Error(`Failed to toggle resolve: ${JSON.stringify(errorData)}`);
+        }
+      } catch (error) {
+        console.error('Error toggling resolve:', error);
+        alert(`해결 상태 변경에 실패하였습니다: ${error.message}`);
+      }
     }
   };
 
@@ -161,27 +156,37 @@ export default function QuestionDetailPage() {
                 key={index}
                 style={{
                   ...styles.codeLine,
-                  backgroundColor: codeComments[index]?.resolved === 'true' ? '#d4edda' : 'inherit'
+                  backgroundColor: expandedLines[index] ? '#e8f4f8' : 'inherit',
+                  borderLeft: expandedLines[index] ? '4px solid #007bff' : 'none'
                 }}
                 onClick={() => handleLineClick(index)}
               >
                 <code>{line}</code>
-                {codeComments[index] && (
+                {codeAnswers[index] && (
                   <span style={styles.comment}>
-                    {codeComments[index].text}
-                    <button onClick={(e) => {
-                      e.stopPropagation();
-                      handleResolveToggle(index);
-                    }}>
-                      {codeComments[index].resolved === 'true' ? 'Unresolve' : 'Resolve'}
-                    </button>
+                    {codeAnswers[index].length}
                   </span>
+                )}
+                {expandedLines[index] && codeAnswers[index] && (
+                  <div style={styles.answersContainer}>
+                    {codeAnswers[index].map((answer, idx) => (
+                      <div key={idx} style={styles.answerCard}>
+                        <div style={styles.innerCard}>
+                          <span style={styles.smallMeta}>By User: {answer.userId}</span>
+                          <p>{answer.text}</p>
+                          <button onClick={() => handleResolveToggle(index, idx)}>
+                            {answer.resolved === 'true' ? 'Unresolve' : 'Resolve'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
           </pre>
           <button onClick={() => setSelectedLine(null)}>
-            {selectedLine !== null ? 'Cancel Comment' : 'Add Comment'}
+            {selectedLine !== null ? 'Cancel' : 'Add Answer'}
           </button>
         </div>
         <p>{questionDetails.description}</p>
@@ -191,20 +196,20 @@ export default function QuestionDetailPage() {
         <div style={styles.commentBox}>
           <textarea
             style={styles.commentTextarea}
-            placeholder='Add your comment'
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
+            placeholder='Add your answer'
+            value={answerText}
+            onChange={(e) => setAnswerText(e.target.value)}
           ></textarea>
-          <button style={styles.commentButton} onClick={handleCommentSubmit}>
-            Save Comment
+          <button style={styles.commentButton} onClick={handleAnswerSubmit}>
+            Save Answer
           </button>
         </div>
       )}
 
       <div style={styles.card}>
-        <h2>Answers:</h2>
-        {questionDetails.answers && questionDetails.answers.length > 0 ? (
-          questionDetails.answers.map((answer, index) => (
+        <h2>General Answers:</h2>
+        {questionDetails.generalAnswers && questionDetails.generalAnswers.length > 0 ? (
+          questionDetails.generalAnswers.map((answer, index) => (
             <div key={index} style={styles.answerCard}>
               <div style={styles.innerCard}>
                 <span style={styles.smallMeta}>By User: {answer.userId}</span>
@@ -214,18 +219,18 @@ export default function QuestionDetailPage() {
             </div>
           ))
         ) : (
-          <p>No answers yet.</p>
+          <p>No general answers yet.</p>
         )}
       </div>
       <div style={styles.card}>
         <textarea
           style={styles.textarea}
-          placeholder='Your Answer'
-          value={answerText}
-          onChange={(e) => setAnswerText(e.target.value)}
+          placeholder='Your General Answer'
+          value={generalAnswerText}
+          onChange={(e) => setGeneralAnswerText(e.target.value)}
         ></textarea>
-        <button style={styles.button} onClick={handleAnswerSubmit}>
-          Post Your Answer
+        <button style={styles.button} onClick={handleGeneralAnswerSubmit}>
+          Post Your General Answer
         </button>
       </div>
     </div>
@@ -264,16 +269,18 @@ const styles = {
   },
   codeLine: {
     position: 'relative',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    padding: '5px 10px'
   },
   comment: {
     position: 'absolute',
     left: '100%',
     marginLeft: '10px',
-    backgroundColor: '#f9f9f9',
-    border: '1px solid #e1e1e1',
-    padding: '5px',
-    borderRadius: '5px'
+    backgroundColor: '#007bff',
+    color: 'white',
+    borderRadius: '10px',
+    padding: '2px 8px',
+    fontSize: '12px'
   },
   commentBox: {
     display: 'flex',
@@ -323,5 +330,10 @@ const styles = {
     padding: '10px',
     borderRadius: '8px',
     margin: '10px 0'
+  },
+  answersContainer: {
+    marginTop: '10px',
+    borderTop: '1px solid #ddd',
+    paddingTop: '10px'
   }
 };
