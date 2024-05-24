@@ -217,7 +217,7 @@ function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombine
       }
 
       const imageData = await imageResponse.json()
-      setImage(`data:image/jpeg;base64,${imageData.base64_image}`)
+      setImage(`data:image/jpeg;base64,${imageData.base64_image}`) // Store as a single base64 string
 
       setIsLoading(false)
     } catch (error) {
@@ -298,7 +298,7 @@ export default function ProjectGenerator() {
     } = router.query
 
     const projectData = {
-      userId: parseInt(userId, 10),
+      userId: userId,
       username: username,
       project_name: name,
       description: description || 'No description available',
@@ -314,8 +314,8 @@ export default function ProjectGenerator() {
       repository_url: htmlUrl,
       text_extracted: combinedSummary,
       summary: combinedSummary,
-      image_preview_urls: image,
-      generated_image_url: image
+      image_preview_urls: [], // Save as an empty array
+      generated_image_url: image // Store the image as a single base64 string
     }
 
     try {
