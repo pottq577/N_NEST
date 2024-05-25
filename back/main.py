@@ -182,7 +182,33 @@ async def create_student(student: Student):
     return JSONResponse(status_code=201, content=object_id_to_str(created_student))
 
 
+class StudentCourses(BaseModel):
+    student_id: str
+    name: str
+    department: str
+    courses: List[Course]
 
+@app.get("/api/user-courses/{student_id}", response_model=StudentCourses)
+async def get_user_courses(student_id: str):
+    # Student 콜렉션에서 학생 정보 조회
+    student = await student_collection.find_one({"student_id": student_id})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    course_codes = student.get('course_codes', [])
+    courses = []
+
+    for code in course_codes:
+        course = await course_collection.find_one({"code": code})
+        if course:
+            courses.append(Course(**course))
+
+    return StudentCourses(
+        student_id=student['student_id'],
+        name=student['name'],
+        department=student['department'],
+        courses=courses
+    )
 
 
 
@@ -447,18 +473,24 @@ router = APIRouter()
 class UserQuery(BaseModel):
     githubUsername: str
 
-@app.post("/get-user-name/")
+class UserResponse(BaseModel):
+    name: str
+    githubId: str
+    studentId: str
+
+@app.post("/get-user-name/", response_model=UserResponse)
 async def get_user_name(query: UserQuery):
     # MongoDB의 'User' 콜렉션에서 사용자 데이터 조회
     user_data = await db.User.find_one({"githubUsername": query.githubUsername})
     if user_data is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # 반환 데이터에 'githubId' 추가
+    # 반환 데이터에 'githubId'와 'studentId' 추가
     name = user_data.get("name", "No Name Available")  # 이름이 없는 경우를 대비한 기본값 설정
     github_id = user_data.get("githubId", "No GitHub ID Available")  # GitHub ID가 없는 경우를 대비한 기본값 설정
+    student_id = user_data.get("studentId", "No Student ID Available")  # Student ID가 없는 경우를 대비한 기본값 설정
 
-    return {"name": name, "githubId": github_id}
+    return UserResponse(name=name, githubId=github_id, studentId=student_id)
 
 @app.post("/api/user-info")
 async def get_user_info(query: UserQuery):

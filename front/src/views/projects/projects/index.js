@@ -11,12 +11,18 @@ import {
   Modal,
   Box,
   Button,
-  Grid
+  Grid,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Avatar
 } from '@mui/material'
 import { Add } from '@mui/icons-material'
 import { useRouter } from 'next/router' // Next.js Router import
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../../../lib/firebase'
+
 const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
@@ -24,7 +30,10 @@ const UserProjectsPage = () => {
   const [selectedRepo, setSelectedRepo] = useState(null)
   const [currentUsername, setCurrentUsername] = useState('') // 현재 선택된 사용자 이름 저장
   const [currentUserId, setCurrentUserId] = useState('') // 현재 선택된 사용자 ID 저장
+  const [currentStudentId, setCurrentStudentId] = useState('') // 현재 선택된 사용자 학번 저장
   const [currentUser, setCurrentUser] = useState(null)
+  const [userCourses, setUserCourses] = useState([]) // 사용자의 수업 목록
+  const [selectedCourse, setSelectedCourse] = useState('') // 선택된 수업
   const router = useRouter() // Next.js Router instance
 
   useEffect(() => {
@@ -42,20 +51,19 @@ const UserProjectsPage = () => {
               body: JSON.stringify({ githubUsername })
             })
             if (response.ok) {
-              const { name, githubId } = await response.json()
+              const { name, githubId, studentId } = await response.json()
               setCurrentUsername(name) // 응답으로 받은 이름을 상태에 설정
               setCurrentUserId(githubId) // 응답으로 받은 githubId를 상태에 설정
-              setUserLogins(prev => ({ ...prev, [githubId]: name }))
-              const data = await response.json()
-              console.log(data)
-              console.log(currentUserId, currentUsername) // 상태 업데이트 후 로그 확인
+              setCurrentStudentId(studentId) // 응답으로 받은 학번을 상태에 설정
+              setUserLogins(prev => ({ ...prev, [githubId]: { name, studentId } }))
+              fetchUserRepos(user.reloadUserInfo.screenName)
+              fetchUserCourses(studentId) // 수업 목록 가져오기
             } else {
               throw new Error('Failed to fetch user name')
             }
           } catch (error) {
             console.error('Error fetching user name:', error.message)
           }
-          fetchUserRepos(user.reloadUserInfo.screenName)
         }
         setCurrentUser({
           uid: user.uid,
@@ -95,6 +103,13 @@ const UserProjectsPage = () => {
       .catch(error => console.error('Error fetching user repos:', error))
   }
 
+  const fetchUserCourses = studentId => {
+    fetch(`http://localhost:8000/api/user-courses/${studentId}`)
+      .then(response => response.json())
+      .then(data => setUserCourses(data.courses))
+      .catch(error => console.error('Error fetching user courses:', error))
+  }
+
   const handleClickUsername = username => {
     fetchUserRepos(username)
   }
@@ -128,10 +143,11 @@ const UserProjectsPage = () => {
         html_url: selectedRepo.html_url,
         defaultBranch: selectedRepo.default_branch,
         userId: currentUserId, // 사용자 ID
-        username: currentUsername // 사용자 이름
+        username: currentUsername, // 사용자 이름
+        studentId: currentStudentId, // 사용자 학번
+        course: selectedCourse // 선택된 수업
       }
     })
-    console.log(currentUserId, currentUsername)
   }
 
   const handleNavigateToDocumentUpload = () => {
@@ -154,7 +170,9 @@ const UserProjectsPage = () => {
         html_url: selectedRepo.html_url,
         defaultBranch: selectedRepo.default_branch,
         userId: currentUserId, // 사용자 ID
-        username: currentUsername // 사용자 이름
+        username: currentUsername, // 사용자 이름
+        studentId: currentStudentId, // 사용자 학번
+        course: selectedCourse // 선택된 수업
       }
     })
   }
@@ -163,9 +181,33 @@ const UserProjectsPage = () => {
     <div>
       <h1>User Projects Page</h1>
       <List>
-        {Object.entries(userLogins).map(([githubId, name]) => (
-          <ListItem key={githubId} onClick={() => handleClickUsername(name)} button>
-            <ListItemText primary={`ID: ${githubId}, Name: ${name}`} />
+        {Object.entries(userLogins).map(([githubId, userInfo]) => (
+          <ListItem key={githubId} onClick={() => handleClickUsername(userInfo.name)} button>
+            <Card
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: 2,
+                marginBottom: 2,
+                backgroundColor: '#f5f5f5',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+                borderRadius: 2,
+                '&:hover': {
+                  backgroundColor: '#e0e0e0'
+                }
+              }}
+            >
+              <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{userInfo.name.charAt(0).toUpperCase()}</Avatar>
+              <CardContent>
+                <Typography variant='h6'>{userInfo.name}</Typography>
+                <Typography variant='body2' color='textSecondary'>
+                  <strong>GitHub ID:</strong> {githubId}
+                </Typography>
+                <Typography variant='body2' color='textSecondary'>
+                  <strong>Student ID:</strong> {userInfo.studentId}
+                </Typography>
+              </CardContent>
+            </Card>
           </ListItem>
         ))}
       </List>
@@ -231,14 +273,38 @@ const UserProjectsPage = () => {
               등록한 해당 정보는 모든 웹 사용자에게 보여집니다.
             </Typography>
           </Typography>
+          <FormControl fullWidth sx={{ my: 2 }}>
+            <InputLabel id='course-select-label'>Select Course</InputLabel>
+            <Select
+              labelId='course-select-label'
+              value={selectedCourse}
+              label='Select Course'
+              onChange={e => setSelectedCourse(e.target.value)}
+            >
+              {userCourses && userCourses.length > 0 ? (
+                userCourses.map(course => (
+                  <MenuItem key={course.code} value={course.code}>
+                    {course.name} - {course.professor} ({course.day}, {course.time})
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled>No courses available</MenuItem>
+              )}
+            </Select>
+          </FormControl>
           <Grid container spacing={2} justifyContent='center'>
             <Grid item>
-              <Button variant='contained' onClick={handleNavigateToDocumentGeneration} sx={{ mr: 2 }}>
+              <Button
+                variant='contained'
+                onClick={handleNavigateToDocumentGeneration}
+                sx={{ mr: 2 }}
+                disabled={!selectedCourse}
+              >
                 문서 생성
               </Button>
             </Grid>
             <Grid item>
-              <Button variant='contained' onClick={handleNavigateToDocumentUpload}>
+              <Button variant='contained' onClick={handleNavigateToDocumentUpload} disabled={!selectedCourse}>
                 기존 문서 등록
               </Button>
             </Grid>
