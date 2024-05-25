@@ -141,6 +141,61 @@ def student_helper(student) -> dict:
         "course_codes": student["course_codes"]
     }
 
+
+def object_id_to_str(document):
+    """
+    BSON ObjectId를 문자열로 변환합니다.
+    """
+    if document:
+        document['_id'] = str(document['_id'])
+    return document
+
+@app.get("/courses/{course_code}", response_model=dict)
+async def get_course_with_students(course_code: str):
+    course = await course_collection.find_one({"code": course_code})
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    students_cursor = student_collection.find({"course_codes": course_code})
+    students = await students_cursor.to_list(length=None)  # 모든 학생을 리스트로 변환
+
+    course = object_id_to_str(course)
+    students = [object_id_to_str(student) for student in students]
+
+    return {
+        "course": course,
+        "students": students
+    }
+
+@app.post("/courses", response_model=dict)
+async def create_course(course: Course):
+    course_data = jsonable_encoder(course)
+    new_course = await course_collection.insert_one(course_data)
+    created_course = await course_collection.find_one({"_id": new_course.inserted_id})
+    return JSONResponse(status_code=201, content=object_id_to_str(created_course))
+
+@app.post("/students", response_model=dict)
+async def create_student(student: Student):
+    student_data = jsonable_encoder(student)
+    new_student = await student_collection.insert_one(student_data)
+    created_student = await student_collection.find_one({"_id": new_student.inserted_id})
+    return JSONResponse(status_code=201, content=object_id_to_str(created_student))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ObjectId를 문자열로 변환하는 함수
 def transform_id(document):
     document["_id"] = str(document["_id"])

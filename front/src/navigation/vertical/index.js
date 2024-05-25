@@ -118,6 +118,11 @@ const navigation = () => {
       title: '관리자 페이지',
       path: '/admin'
     }
+    // {
+    //   icon: ShieldAccountOutline,
+    //   title: '수업페이지',
+    //   path: '/course'
+    // }
   ]
 }
 

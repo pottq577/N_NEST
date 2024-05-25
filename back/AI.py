@@ -21,6 +21,7 @@ load_dotenv()
 # OPENAI_API_KEY = os.getenv("OpenAI_API")
 # print(OPENAI_API_KEY)
 
+
 app = FastAPI()
 
 # CORS 미들웨어 추가

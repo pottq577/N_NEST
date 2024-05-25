@@ -14,6 +14,7 @@ import {
   Divider
 } from '@mui/material'
 import axios from 'axios'
+import { useRouter } from 'next/router'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../../../lib/firebase'
 
@@ -21,6 +22,7 @@ const Overview = () => {
   const [userInfo, setUserInfo] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const router = useRouter()
 
   useEffect(() => {
     const fetchUserInfo = async githubUsername => {
@@ -74,6 +76,10 @@ const Overview = () => {
     )
   }
 
+  const handleCourseClick = courseCode => {
+    router.push(`/courses/${courseCode}`)
+  }
+
   return (
     <Container maxWidth='md' sx={{ mt: 4 }}>
       {userInfo && (
@@ -99,7 +105,7 @@ const Overview = () => {
             </Typography>
             <List>
               {userInfo.courses.map((course, index) => (
-                <ListItem key={index} sx={{ mb: 1 }}>
+                <ListItem button key={index} sx={{ mb: 1 }} onClick={() => handleCourseClick(course.code)}>
                   <Card sx={{ width: '100%', boxShadow: 1 }}>
                     <CardContent>
                       <Typography variant='h6'>{course.name}</Typography>
