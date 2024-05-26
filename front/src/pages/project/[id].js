@@ -121,6 +121,15 @@ function ProjectDetails() {
                   Repository Information
                 </Typography>
                 <Typography variant='body1' gutterBottom>
+                  <strong>Student ID:</strong> {project.student_id}
+                </Typography>
+                <Typography variant='body1' gutterBottom>
+                  <strong>Course Code:</strong> {project.course_code}
+                </Typography>
+                <Typography variant='body1' gutterBottom>
+                  <strong>Course:</strong> {project.course}
+                </Typography>
+                <Typography variant='body1' gutterBottom>
                   <strong>Description:</strong> {project.description}
                 </Typography>
                 <Typography variant='body1' gutterBottom>

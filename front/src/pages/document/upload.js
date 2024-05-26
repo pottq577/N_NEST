@@ -13,16 +13,32 @@ export default function UploadDocument() {
   const [generatedImage, setGeneratedImage] = useState('')
   const [userId, setUserId] = useState('')
   const [username, setUsername] = useState('')
+  const [studentId, setStudentId] = useState('')
+  const [course, setCourse] = useState('')
+  const [courseInfo, setCourseInfo] = useState({}) // 수업 정보를 저장할 상태 추가
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (router.query) {
+    if (router.query && router.query.course) {
       setRepoInfo(router.query)
       setUserId(router.query.userId)
       setUsername(router.query.username)
+      setStudentId(router.query.studentId)
+      setCourse(router.query.course)
+      fetchCourseInfo(router.query.course) // 수업 정보 가져오기
     }
   }, [router.query])
+
+  const fetchCourseInfo = async courseCode => {
+    if (!courseCode) return
+    try {
+      const response = await axios.get(`http://127.0.0.1:8000/api/courses/${courseCode}`)
+      setCourseInfo(response.data)
+    } catch (error) {
+      console.error('Error fetching course info:', error)
+    }
+  }
 
   const handleGenerateSummaryAndImage = async () => {
     try {
@@ -111,24 +127,32 @@ export default function UploadDocument() {
 
   const handleSaveDocument = async () => {
     const projectData = {
-      // userId: parseInt(userId, 10), // 숫자형으로 변환
       username: username,
+      student_id: studentId,
+      course: `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`, // 수업 정보 저장
+      course_code: courseInfo.code, // 수업 코드 저장
       project_name: repoInfo.name,
-      description: repoInfo.description || 'No description available', // 기본값 설정
-      language: repoInfo.language || 'Unknown', // 기본값 설정
+
+      description: repoInfo.description || 'No description available',
+      language: repoInfo.language || 'Unknown',
       stars: parseInt(repoInfo.stars, 10),
       updated_at: repoInfo.updatedAt,
-      license: repoInfo.license ? repoInfo.license.name : 'None', // 기본값 설정
+      license: repoInfo.license || 'None',
+
       forks: parseInt(repoInfo.forks, 10),
       watchers: parseInt(repoInfo.watchers, 10),
-      contributors: repoInfo.contributors || 'None', // 기본값 설정
-      is_private: repoInfo.is_private ? (repoInfo.is_private.toLowerCase() === 'no' ? false : true) : false, // 기본값 설정
-      default_branch: repoInfo.defaultBranch || 'main', // 기본값 설정
+      contributors: repoInfo.contributors || 'None',
+      is_private: repoInfo.private ? (repoInfo.private.toLowerCase() === 'no' ? false : true) : false,
+      default_branch: repoInfo.defaultBranch || 'main',
+
       repository_url: repoInfo.html_url,
       text_extracted: text,
       summary: summary,
       image_preview_urls: images,
-      generated_image_url: generatedImage
+      generated_image_url: generatedImage,
+
+      views: 0,
+      comments: []
     }
 
     console.log('Project Data:', projectData) // 디버깅을 위해 추가
@@ -156,6 +180,11 @@ export default function UploadDocument() {
         </Typography>
         <Typography variant='subtitle1'>User ID: {userId}</Typography>
         <Typography variant='subtitle1'>Username: {username}</Typography>
+        <Typography variant='subtitle1'>Student ID: {studentId}</Typography> {/* 추가된 항목 */}
+        <Typography variant='subtitle1'>
+          Course: {courseInfo.name}-{courseInfo.professor} ({courseInfo.day} {courseInfo.time})
+        </Typography>
+        <Typography variant='subtitle1'>Course Code: {courseInfo.code}</Typography> {/* 수업 이름과 교수 정보 */}
         <Typography variant='h5' gutterBottom>
           Repository Information
         </Typography>
@@ -196,7 +225,6 @@ export default function UploadDocument() {
             Drag & Drop to Upload Document
           </Typography>
         </Paper>
-
         <Paper
           onDrop={handleImageDrop}
           onDragOver={e => e.preventDefault()}

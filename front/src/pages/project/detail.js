@@ -102,6 +102,12 @@ function DetailPage() {
             {project.generated_image_url && (
               <img src={project.generated_image_url} alt='Generated' style={{ width: '100%', height: 'auto' }} />
             )}
+            <Typography variant='body1'>
+              <strong>Student ID:</strong> {project.student_id}
+            </Typography>
+            <Typography variant='body1'>
+              <strong>Course:</strong> {project.course}
+            </Typography>
           </Box>
         )}
       </Box>

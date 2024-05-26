@@ -18,7 +18,7 @@ function TabPanel(props) {
   )
 }
 
-function RepositoryInfo() {
+function RepositoryInfo({ courseInfo, studentId }) {
   const router = useRouter()
   const {
     name,
@@ -47,6 +47,18 @@ function RepositoryInfo() {
       </Typography>
       <Typography>
         <strong>Username:</strong> {username}
+      </Typography>
+      <Typography>
+        <strong>Student ID:</strong> {studentId}
+      </Typography>
+      <Typography variant='h6' gutterBottom>
+        Course Information
+      </Typography>
+      <Typography>
+        <strong>Course:</strong> {courseInfo.name}-{courseInfo.professor} ({courseInfo.day} {courseInfo.time})
+      </Typography>
+      <Typography>
+        <strong>Course Code:</strong> {courseInfo.code}
       </Typography>
       <Typography variant='h6' gutterBottom>
         Repository Information
@@ -272,8 +284,28 @@ export default function ProjectGenerator() {
   const [generateDoc, setGenerate] = useState({})
   const [combinedSummary, setCombinedSummary] = useState('')
   const [image, setImage] = useState('')
+  const [courseInfo, setCourseInfo] = useState({})
+  const [studentId, setStudentId] = useState('')
 
   const router = useRouter()
+
+  useEffect(() => {
+    if (router.query && router.query.course) {
+      setCourseInfo(router.query)
+      setStudentId(router.query.studentId)
+      fetchCourseInfo(router.query.course)
+    }
+  }, [router.query])
+
+  const fetchCourseInfo = async courseCode => {
+    if (!courseCode) return
+    try {
+      const response = await axios.get(`http://127.0.0.1:8000/api/courses/${courseCode}`)
+      setCourseInfo(response.data)
+    } catch (error) {
+      console.error('Error fetching course info:', error)
+    }
+  }
 
   const handleTabChange = (event, newValue) => {
     setTabIndex(newValue)
@@ -298,24 +330,34 @@ export default function ProjectGenerator() {
     } = router.query
 
     const projectData = {
-      userId: userId,
       username: username,
+      student_id: studentId, // 추가된 항목
+      course: courseInfo.name
+        ? `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`
+        : 'Unknown', // 추가된 항목
+      course_code: courseInfo.code, // 추가된 항목
       project_name: name,
+
       description: description || 'No description available',
       language: language || 'Unknown',
       stars: parseInt(stars, 10),
       updated_at: updatedAt,
       license: license || 'None',
+
       forks: parseInt(forks, 10),
       watchers: parseInt(watchers, 10),
       contributors: contributors || 'None',
       is_private: isPrivate === 'true',
       default_branch: defaultBranch || 'main',
+
       repository_url: htmlUrl,
       text_extracted: combinedSummary,
       summary: combinedSummary,
-      image_preview_urls: [], // Save as an empty array
-      generated_image_url: image // Store the image as a single base64 string
+      image_preview_urls: [],
+      generated_image_url: image,
+
+      views: 0,
+      comments: []
     }
 
     try {
@@ -341,7 +383,7 @@ export default function ProjectGenerator() {
         <Tab label='Summary and Image' />
       </Tabs>
       <TabPanel value={tabIndex} index={0}>
-        <RepositoryInfo />
+        <RepositoryInfo courseInfo={courseInfo} studentId={studentId} />
       </TabPanel>
       <TabPanel value={tabIndex} index={1}>
         <CreateDocumentForm

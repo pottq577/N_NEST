@@ -89,6 +89,9 @@ class ProjectInfo(BaseModel):
     generated_image_url: str
     views: int = Field(default=0)
     comments: List[Comment] = []
+    student_id: str
+    course: str
+    course_code: str
 
 class Config:
         arbitrary_types_allowed = True
@@ -211,7 +214,13 @@ async def get_user_courses(student_id: str):
     )
 
 
-
+@app.get("/api/courses/{course_code}", response_model=Course)
+async def get_course(course_code: str):
+    # Course 콜렉션에서 수업 정보 조회
+    course = await course_collection.find_one({"code": course_code})
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return Course(**course)
 
 
 
