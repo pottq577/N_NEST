@@ -35,6 +35,16 @@ const navigation = () => {
       icon: HomeOutline,
       path: '/studentBooking'
     },
+    {
+      title: 'corseinfo',
+      icon: HomeOutline,
+      path: '/corseinfo'
+    },
+    {
+      title: 'courseinfostudent',
+      icon: HomeOutline,
+      path: '/courseinfostudent'
+    },
 
     // {
     //   title: 'summary',

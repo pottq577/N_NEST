@@ -18,15 +18,12 @@ import {
   FormControl
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+
 
 export default function ProfessorEvaluation() {
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState('');
-  const [teams, setTeams] = useState([]);
-  const [teamName, setTeamName] = useState('');
   const [maxTeams, setMaxTeams] = useState(5);
-  const [selectedStudents, setSelectedStudents] = useState([]);
   const [criteria, setCriteria] = useState([]);
   const [newCriteria, setNewCriteria] = useState('');
 
@@ -49,23 +46,15 @@ export default function ProfessorEvaluation() {
     localStorage.setItem('selectedCourse', courseCode); // 선택된 과목을 로컬 스토리지에 저장
   };
 
-  const createTeam = async () => {
-    if (!teamName || selectedStudents.length === 0) return;
-    if (teams.length >= maxTeams) {
-      alert(`You can only create up to ${maxTeams} teams.`);
-      return;
-    }
+  const saveMaxTeams = async () => {
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/teams', {
+      await axios.post('http://127.0.0.1:8000/api/teams/max', {
         course_code: selectedCourse,
-        team_name: teamName,
-        students: selectedStudents
+        max_teams: maxTeams
       });
-      setTeams([...teams, { team_name: teamName, students: selectedStudents }]);
-      setTeamName('');
-      setSelectedStudents([]);
+      alert('Max teams set successfully');
     } catch (error) {
-      console.error('Error creating team:', error);
+      console.error('Error setting max teams:', error);
     }
   };
 
@@ -75,6 +64,7 @@ export default function ProfessorEvaluation() {
         course_code: selectedCourse,
         criteria: criteria
       });
+      alert('Evaluation criteria saved successfully');
     } catch (error) {
       console.error('Error saving evaluation criteria:', error);
     }
@@ -121,13 +111,6 @@ export default function ProfessorEvaluation() {
         <>
           <Box mt={2}>
             <TextField
-              label="Team Name"
-              variant="outlined"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              style={{ marginRight: '16px' }}
-            />
-            <TextField
               label="Max Teams"
               variant="outlined"
               type="number"
@@ -135,24 +118,10 @@ export default function ProfessorEvaluation() {
               onChange={(e) => setMaxTeams(e.target.value)}
               style={{ marginRight: '16px' }}
             />
-            <Button variant="contained" color="primary" onClick={createTeam}>
-              Create Team
+            <Button variant="contained" color="primary" onClick={saveMaxTeams}>
+              Set Max Teams
             </Button>
           </Box>
-
-          <Typography variant="h5" gutterBottom mt={4}>
-            Teams in Course: {selectedCourse}
-          </Typography>
-          <List>
-            {teams.map((team, index) => (
-              <ListItem key={index}>
-                <ListItemText
-                  primary={team.team_name}
-                  secondary={`Members: ${team.students.join(', ')}`}
-                />
-              </ListItem>
-            ))}
-          </List>
 
           <Box mt={4}>
             <Typography variant="h5" gutterBottom>Evaluation Criteria</Typography>
@@ -173,7 +142,7 @@ export default function ProfessorEvaluation() {
                 <ListItem key={index}>
                   <ListItemText primary={crit} />
                   <IconButton edge="end" aria-label="delete" onClick={() => removeCriteria(crit)}>
-                    <DeleteIcon />
+                
                   </IconButton>
                 </ListItem>
               ))}

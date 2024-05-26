@@ -158,7 +158,7 @@ async def generate_image(request: ImageRequest):
         # 이미지 생성
         response = client.images.generate(
             model="dall-e-3",
-            prompt=request.prompt,
+            prompt = f"{request.prompt}. 요약에서 중심으로 사용하거나 중심으로 강조한 기술을 이미지에 크게 보이게 해서 어떤 기술을 활용한 프로젝트인지 알 수 있는 이미지 만들어줘. 요약: {request.summary}"
             size="1024x1024",
             quality="standard",
             n=1,

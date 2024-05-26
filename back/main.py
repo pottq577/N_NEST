@@ -14,7 +14,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from typing import Dict, Optional, List
-
+import random
 import json
 from bson import ObjectId
 import logging
@@ -66,6 +66,8 @@ questions_collection = db["questions"]
 project_collection = db['Project']
 course_collection = db["Course"]
 student_collection = db["Student"]
+team_collection = db["Team"]
+evaluation_collection = db["Evaluation"]
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -123,8 +125,17 @@ class Student(BaseModel):
     name: str
     student_id: str
     department: str
-    course_code: str
+    course_codes: List[str]
 
+class Team(BaseModel):
+    course_code: str
+    team_name: str
+    students: List[str]  # student IDs
+
+class Evaluation(BaseModel):
+    student_id: str
+    team_id: str
+    scores: Dict[str, int]  # Dictionary with criteria and score
 class DeleteCourse(BaseModel):
     code: str
 
@@ -137,6 +148,24 @@ class DeleteStudent(BaseModel):
 class UserCourses(BaseModel):
     user_info: UserInfo
     courses: List[Course]
+
+class Team(BaseModel):
+    course_code: str
+    team_name: str
+    students: List[str]
+
+class EvaluationCriteria(BaseModel):
+    course_code: str
+    criteria: List[str]
+
+class MaxTeams(BaseModel):
+    course_code: str
+    max_teams: int
+
+class StudentRegistration(BaseModel):
+    course_code: str
+    student_id: str
+    team_name: str
 
 # ObjectId를 문자열로 변환하는 헬퍼 함수
 def course_helper(course) -> dict:
@@ -167,82 +196,152 @@ def transform_id(document):
 class UserQuery(BaseModel):
     githubUsername: str
 
-@app.post("/api/user-courses")
-async def get_user_courses(query: UserQuery):
-    try:
-        # 1. User 콜렉션에서 studentId 조회
-        user_data = await db.User.find_one({"githubUsername": query.githubUsername})
-        if user_data is None:
-            raise HTTPException(status_code=404, detail="User not found")
+def convert_objectid_to_str(doc):
+    if isinstance(doc, dict):
+        for key, value in doc.items():
+            if isinstance(value, ObjectId):
+                doc[key] = str(value)
+            elif isinstance(value, list):
+                doc[key] = [convert_objectid_to_str(item) for item in value]
+            elif isinstance(value, dict):
+                doc[key] = convert_objectid_to_str(value)
+    return doc
 
-        student_id = user_data.get("studentId")
-        if not student_id:
-            raise HTTPException(status_code=404, detail="Student ID not found in user data")
+@app.post("/api/teams/max")
+async def set_max_teams(max_teams: MaxTeams):
+    course_code = max_teams.course_code
+    max_teams_count = max_teams.max_teams
+    await course_collection.update_one({"code": course_code}, {"$set": {"max_teams": max_teams_count}})
+    return {"message": "Max teams set successfully"}
 
-        # 2. Student 콜렉션에서 학생 정보 조회
-        student_data = await db.Student.find_one({"student_id": student_id})
-        if student_data is None:
-            raise HTTPException(status_code=404, detail="Student not found")
+@app.post("/api/teams/register")
+async def register_student(student_registration: StudentRegistration):
+    team = await team_collection.find_one({"course_code": student_registration.course_code, "team_name": student_registration.team_name})
+    if not team:
+        team = Team(course_code=student_registration.course_code, team_name=student_registration.team_name, students=[student_registration.student_id])
+        await team_collection.insert_one(team.dict())
+    else:
+        if student_registration.student_id in team["students"]:
+            raise HTTPException(status_code=400, detail="Student already registered in this team")
+        team["students"].append(student_registration.student_id)
+        await team_collection.update_one({"_id": team["_id"]}, {"$set": {"students": team["students"]}})
+    return {"message": "Student registered successfully"}
 
-        # 3. Course 콜렉션에서 수업 정보 조회
-        course_codes = student_data.get("course_codes", [])
-        courses = []
-        for code in course_codes:
-            course_data = await db.Course.find_one({"code": code})
-            if course_data:
-                courses.append(transform_id(course_data))
+@app.post("/api/evaluations")
+async def save_evaluation_criteria(evaluation: EvaluationCriteria):
+    evaluation_dict = evaluation.dict()
+    existing_evaluation = await evaluation_collection.find_one({"course_code": evaluation.course_code})
+    if existing_evaluation:
+        await evaluation_collection.update_one({"course_code": evaluation.course_code}, {"$set": evaluation_dict})
+    else:
+        await evaluation_collection.insert_one(evaluation_dict)
+    return {"message": "Evaluation criteria saved"}
 
-        # 4. 반환할 데이터 구성
-        result = {
-            "name": user_data.get("name", "No Name Available"),
-            "githubUsername": user_data.get("githubUsername", "No GitHub Username Available"),
-            "studentId": student_data.get("student_id", "No Student ID Available"),
-            "department": student_data.get("department", "No Department Available"),
-            "courses": courses
-        }
+@app.get("/api/evaluations/{course_code}")
+async def get_evaluation_criteria(course_code: str):
+    evaluation = await evaluation_collection.find_one({"course_code": course_code})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation criteria not found")
+    return convert_objectid_to_str(evaluation)
 
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@app.post("/api/evaluate")
+async def submit_evaluation(data: Dict):
+    # 데이터 저장 로직을 여기에 추가하세요
+    pass
+
+@app.post("/api/teams/assign")
+async def assign_evaluations(course_code: str):
+    teams = await team_collection.find({"course_code": course_code}).to_list(None)
+    students = []
+    for team in teams:
+        students.extend(team["students"])
+
+    random.shuffle(students)
+    evaluations = {}
+    for student in students:
+        evaluations[student] = random.sample([team["team_name"] for team in teams], min(5, len(teams)))
+
+    return evaluations
 
 
+@app.post("/api/teams")
+async def create_teams(team: Team):
+    team_dict = team.dict()
+    result = await team_collection.insert_one(team_dict)
+    return {"id": str(result.inserted_id)}
 
-# 데이터 저장 엔드포인트
-@app.post("/save-courses/")
-async def save_courses(courses: List[Course]):
-    try:
-        # 데이터를 딕셔너리 형식으로 변환
-        course_data = [course.dict() for course in courses]
-
-        # 중복된 수업 코드 확인 및 필터링
-        existing_codes = set()
-        async for doc in course_collection.find({"code": {"$in": [course["code"] for course in course_data]}}):
-            existing_codes.add(doc["code"])
-
-        if existing_codes:
-            # 중복된 수업 코드가 있는 경우 400 에러 반환
-            raise HTTPException(status_code=400, detail="중복된 수업 코드가 있습니다.")
-
-        # 새로운 데이터만 삽입
-        await course_collection.insert_many(course_data)
-
-        return {"message": f"{len(course_data)} courses saved successfully."}
-    except HTTPException as e:
-        raise e  # 이미 처리된 HTTPException을 그대로 다시 raise
-    except Exception as e:
-        print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
-        raise HTTPException(status_code=500, detail=str(e))
-
-# 수업 목록 가져오는 엔드포인트
-@app.get("/courses/")
+@app.get("/api/courses", response_model=List[Course])
 async def get_courses():
     try:
         courses = []
         async for course in course_collection.find():
-            courses.append(course_helper(course))
+            courses.append(Course(**course))
         return courses
     except Exception as e:
-        print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/courses/{course_code}/students", response_model=List[Student])
+async def get_students_by_course(course_code: str):
+    try:
+        students = []
+        async for student in student_collection.find({"course_codes": course_code}):
+            students.append(Student(**student))
+        return students
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/teams", response_model=Team)
+async def create_team(team: Team):
+    try:
+        team_dict = team.dict()
+        result = await team_collection.insert_one(team_dict)
+        team_dict["_id"] = str(result.inserted_id)
+        return Team(**team_dict)
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/courses/{course_code}/teams", response_model=List[Team])
+async def get_teams_by_course(course_code: str):
+    try:
+        teams = []
+        async for team in team_collection.find({"course_code": course_code}):
+            teams.append(Team(**team))
+        return teams
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/evaluate", response_model=List[Evaluation])
+async def evaluate_teams(evaluations: List[Evaluation]):
+    try:
+        # Save evaluations to the database or process them as needed
+        return evaluations
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/start-evaluation/{course_code}")
+async def start_evaluation(course_code: str):
+    try:
+        students = []
+        async for student in student_collection.find({"course_codes": course_code}):
+            students.append(student["student_id"])
+
+        teams = []
+        async for team in team_collection.find({"course_code": course_code}):
+            teams.append(str(team["_id"]))
+
+        if not students or not teams:
+            raise HTTPException(status_code=404, detail="No students or teams found")
+
+        evaluations = {student: random.sample(teams, min(5, len(teams))) for student in students}
+
+        return evaluations
+    except Exception as e:
+        print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # 학생 추가 엔드포인트
