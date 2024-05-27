@@ -21,6 +21,10 @@ load_dotenv()
 # OPENAI_API_KEY = os.getenv("OpenAI_API")
 # print(OPENAI_API_KEY)
 
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = FastAPI()
 
@@ -149,8 +153,10 @@ async def generate_content(
 
 
 
+
 class ImageRequest(BaseModel):
     prompt: str
+
 
 @app.post("/generate-image/")
 async def generate_image(request: ImageRequest):
@@ -158,7 +164,7 @@ async def generate_image(request: ImageRequest):
         # 이미지 생성
         response = client.images.generate(
             model="dall-e-3",
-            prompt = f"{request.prompt}. 요약에서 중심으로 사용하거나 중심으로 강조한 기술을 이미지에 크게 보이게 해서 어떤 기술을 활용한 프로젝트인지 알 수 있는 이미지 만들어줘. 요약: {request.summary}"
+            prompt = f"요약: {request.prompt}. 프로젝트의 핵심기술을 한눈에 알 수 있도록 시각적으로 강조한 이미지를 생성해 주세요. 예를 들어, AI 기술의 경우 로봇 아이콘과 'AI'라는 텍스트를 포함한 이미지처럼, 핵심기술을 대표하는 아이콘과 텍스트를 포함해 주세요. 핵심기술 하나만 명확하게 표현해 주세요.",
             size="1024x1024",
             quality="standard",
             n=1,

@@ -2,25 +2,25 @@ import React, { useEffect, useState } from 'react'
 import { Box, Typography, Paper, Container, Button, TextField } from '@mui/material'
 import { useRouter } from 'next/router'
 import mammoth from 'mammoth'
-import axios from 'axios' // axios 추가
+import axios from 'axios'
 
 export default function UploadDocument() {
   const [text, setText] = useState('')
   const [editedText, setEditedText] = useState('')
   const [images, setImages] = useState([])
   const [repoInfo, setRepoInfo] = useState({})
-  const [summary, setSummary] = useState('') // 요약된 텍스트 상태
-  const [generatedImage, setGeneratedImage] = useState('') // 생성된 이미지 URL 상태
-  const [userId, setUserId] = useState('') // 사용자 ID 상태 추가
-  const [username, setUsername] = useState('') // 사용자 이름 상태 추가
+  const [summary, setSummary] = useState('')
+  const [generatedImage, setGeneratedImage] = useState('')
+  const [userId, setUserId] = useState('')
+  const [username, setUsername] = useState('')
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (router.query) {
       setRepoInfo(router.query)
-      setUserId(router.query.userId) // URL에서 사용자 ID 가져오기
-      setUsername(router.query.username) // URL에서 사용자 이름 가져오기
+      setUserId(router.query.userId)
+      setUsername(router.query.username)
     }
   }, [router.query])
 
@@ -30,7 +30,6 @@ export default function UploadDocument() {
       setSummary(summaryResponse.data.summary)
 
       const imageResponse = await axios.post('http://127.0.0.1:8001/generate-image/', { prompt: editedText })
-      // 이미지 URL을 Base64 인코딩된 데이터로 설정
       if (imageResponse.data.base64_image) {
         setGeneratedImage(`data:image/jpeg;base64,${imageResponse.data.base64_image}`)
       } else {
@@ -71,8 +70,17 @@ export default function UploadDocument() {
       return
     }
 
-    const imageUrl = URL.createObjectURL(file)
-    setImages(prevImages => [...prevImages, imageUrl])
+    const base64Image = await convertToBase64(file)
+    setImages(prevImages => [...prevImages, base64Image])
+  }
+
+  const convertToBase64 = file => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
 
   const readFile = file => {
@@ -103,7 +111,7 @@ export default function UploadDocument() {
 
   const handleSaveDocument = async () => {
     const projectData = {
-      userId: parseInt(userId, 10), // 숫자형으로 변환
+      // userId: parseInt(userId, 10), // 숫자형으로 변환
       username: username,
       project_name: repoInfo.name,
       description: repoInfo.description || 'No description available', // 기본값 설정
@@ -119,27 +127,12 @@ export default function UploadDocument() {
       repository_url: repoInfo.html_url,
       text_extracted: text,
       summary: summary,
-      image_preview_urls: images.join(', '), // 배열을 쉼표로 구분된 문자열로
+      image_preview_urls: images,
       generated_image_url: generatedImage
     }
 
-    /*console.log(userId)
-    console.log(username)
-    console.log(repoInfo.name)
-    console.log(repoInfo.description)
-    console.log(repoInfo.language)
-    console.log(repoInfo.stars)
-    console.log(repoInfo.updatedAt)
-    console.log(repoInfo.license)
-    console.log(repoInfo.forks)
-    console.log(repoInfo.watchers)
-    console.log(repoInfo.contributors)
-    console.log(repoInfo.private)
-    console.log(repoInfo.defaultBranch)
-    console.log(repoInfo.html_url)
-    console.log(text)
-    console.log(summary)*/
-    console.log(projectData)
+    console.log('Project Data:', projectData) // 디버깅을 위해 추가
+
     try {
       const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {
         headers: {
@@ -163,7 +156,6 @@ export default function UploadDocument() {
         </Typography>
         <Typography variant='subtitle1'>User ID: {userId}</Typography>
         <Typography variant='subtitle1'>Username: {username}</Typography>
-        {/* 레포지토리 정보를 표시 */}
         <Typography variant='h5' gutterBottom>
           Repository Information
         </Typography>
@@ -245,9 +237,9 @@ export default function UploadDocument() {
             Image Previews:
           </Typography>
           <Box display='flex' flexDirection='row' flexWrap='wrap'>
-            {images.map((imageUrl, index) => (
+            {images.map((base64Image, index) => (
               <Box key={index} sx={{ position: 'relative', marginRight: '10px', marginBottom: '10px' }}>
-                <img src={imageUrl} alt={`Image ${index}`} style={{ maxWidth: '200px', maxHeight: '200px' }} />
+                <img src={base64Image} alt={`Image ${index}`} style={{ maxWidth: '200px', maxHeight: '200px' }} />
                 <Button
                   variant='contained'
                   color='error'
@@ -260,7 +252,6 @@ export default function UploadDocument() {
             ))}
           </Box>
         </Box>
-        {/* 요약 및 이미지 생성 버튼 */}
         <Button
           variant='contained'
           color='primary'
@@ -269,14 +260,10 @@ export default function UploadDocument() {
         >
           Generate Summary and Image
         </Button>
-
-        {/* 요약 텍스트 출력 */}
         <Typography variant='h6' gutterBottom>
           Summary
         </Typography>
         <Typography>{summary || 'No summary available'}</Typography>
-
-        {/* 생성된 이미지 출력 */}
         <Typography variant='h6' gutterBottom>
           Generated Image
         </Typography>

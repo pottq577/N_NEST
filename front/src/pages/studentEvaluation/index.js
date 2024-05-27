@@ -1,190 +1,138 @@
 import Head from 'next/head';
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import {
-  Container,
-  Select,
-  MenuItem,
-  Typography,
-  TextField,
-  Button,
-  Box,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  Paper,
-  InputLabel,
-  FormControl
-} from '@mui/material';
+import { useState } from 'react';
+import { Container, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, Button, Typography, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
-export default function ProfessorEvaluation() {
-  const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [teams, setTeams] = useState([]);
-  const [teamName, setTeamName] = useState('');
-  const [maxTeams, setMaxTeams] = useState(5);
-  const [selectedStudents, setSelectedStudents] = useState([]);
-  const [criteria, setCriteria] = useState([]);
-  const [newCriteria, setNewCriteria] = useState('');
+export default function Home() {
+    const initialCriteria = ['Completeness', 'Presentation', 'Idea'];
+    const [students, setStudents] = useState([
+        { name: 'Student 1', team: 'Team A', Completeness: 0, Presentation: 0, Idea: 0 },
+        { name: 'Student 2', team: 'Team B', Completeness: 0, Presentation: 0, Idea: 0 }
+    ]);
+    const [criteria, setCriteria] = useState(initialCriteria);
+    const [newCriteria, setNewCriteria] = useState('');
+    const [totalScores, setTotalScores] = useState([]);
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const response = await axios.get('http://127.0.0.1:8000/api/courses');
-        setCourses(response.data);
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-      }
+    const handleChange = (index, field, value) => {
+        const updatedStudents = [...students];
+        updatedStudents[index][field] = parseInt(value) || 0;
+        setStudents(updatedStudents);
     };
 
-    fetchCourses();
-  }, []);
+    const calculateScores = () => {
+        const scores = students.map(student => {
+            const total = criteria.reduce((acc, crit) => acc + (student[crit] || 0), 0);
+            return { ...student, total };
+        });
+        scores.sort((a, b) => b.total - a.total);
+        setTotalScores(scores);
+    };
 
-  const handleCourseChange = (event) => {
-    const courseCode = event.target.value;
-    setSelectedCourse(courseCode);
-    localStorage.setItem('selectedCourse', courseCode); // 선택된 과목을 로컬 스토리지에 저장
-  };
+    const addCriteria = () => {
+        if (newCriteria && !criteria.includes(newCriteria)) {
+            setCriteria([...criteria, newCriteria]);
+            setStudents(students.map(student => ({ ...student, [newCriteria]: 0 })));
+            setNewCriteria('');
+        }
+    };
 
-  const createTeam = async () => {
-    if (!teamName || selectedStudents.length === 0) return;
-    if (teams.length >= maxTeams) {
-      alert(`You can only create up to ${maxTeams} teams.`);
-      return;
-    }
-    try {
-      const response = await axios.post('http://127.0.0.1:8000/api/teams', {
-        course_code: selectedCourse,
-        team_name: teamName,
-        students: selectedStudents
-      });
-      setTeams([...teams, { team_name: teamName, students: selectedStudents }]);
-      setTeamName('');
-      setSelectedStudents([]);
-    } catch (error) {
-      console.error('Error creating team:', error);
-    }
-  };
+    const removeCriteria = (crit) => {
+        const updatedCriteria = criteria.filter(c => c !== crit);
+        setCriteria(updatedCriteria);
+        setStudents(students.map(student => {
+            const updatedStudent = { ...student };
+            delete updatedStudent[crit];
+            return updatedStudent;
+        }));
+    };
 
-  const saveEvaluationCriteria = async () => {
-    try {
-      await axios.post('http://127.0.0.1:8000/api/evaluations', {
-        course_code: selectedCourse,
-        criteria: criteria
-      });
-    } catch (error) {
-      console.error('Error saving evaluation criteria:', error);
-    }
-  };
+    const exportToExcel = () => {
+        const worksheetData = [
+            ['Name', 'Team', ...criteria, 'Total'],
+            ...totalScores.map(student => [
+                student.name,
+                student.team,
+                ...criteria.map(crit => student[crit] || 0),
+                student.total
+            ])
+        ];
 
-  const addCriteria = () => {
-    if (newCriteria && !criteria.includes(newCriteria)) {
-      setCriteria([...criteria, newCriteria]);
-      setNewCriteria('');
-    }
-  };
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Evaluation Results');
+        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
 
-  const removeCriteria = (crit) => {
-    const updatedCriteria = criteria.filter(c => c !== crit);
-    setCriteria(updatedCriteria);
-  };
+        const data = new Blob([excelBuffer], { type: 'application/octet-stream' });
+        saveAs(data, 'evaluation_results.xlsx');
+    };
 
-  return (
-    <Container>
-      <Head>
-        <title>Professor Evaluation</title>
-      </Head>
-      <Typography variant="h4" gutterBottom>Professor Evaluation</Typography>
-
-      <FormControl fullWidth variant="outlined" style={{ marginBottom: '16px' }}>
-        <InputLabel>Select a course</InputLabel>
-        <Select
-          value={selectedCourse}
-          onChange={handleCourseChange}
-          displayEmpty
-          fullWidth
-          label="Select a course"
-        >
-          <MenuItem value="" disabled>Select a course</MenuItem>
-          {courses.map(course => (
-            <MenuItem key={course.code} value={course.code}>
-              {course.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-
-      {selectedCourse && (
-        <>
-          <Box mt={2}>
-            <TextField
-              label="Team Name"
-              variant="outlined"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              style={{ marginRight: '16px' }}
-            />
-            <TextField
-              label="Max Teams"
-              variant="outlined"
-              type="number"
-              value={maxTeams}
-              onChange={(e) => setMaxTeams(e.target.value)}
-              style={{ marginRight: '16px' }}
-            />
-            <Button variant="contained" color="primary" onClick={createTeam}>
-              Create Team
-            </Button>
-          </Box>
-
-          <Typography variant="h5" gutterBottom mt={4}>
-            Teams in Course: {selectedCourse}
-          </Typography>
-          <List>
-            {teams.map((team, index) => (
-              <ListItem key={index}>
-                <ListItemText
-                  primary={team.team_name}
-                  secondary={`Members: ${team.students.join(', ')}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-
-          <Box mt={4}>
-            <Typography variant="h5" gutterBottom>Evaluation Criteria</Typography>
-            <Box display="flex" alignItems="center">
-              <TextField
-                label="New Criteria"
-                variant="outlined"
-                value={newCriteria}
-                onChange={(e) => setNewCriteria(e.target.value)}
-                style={{ marginRight: '16px' }}
-              />
-              <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={addCriteria}>
-                Add Criteria
-              </Button>
-            </Box>
-            <List>
-              {criteria.map((crit, index) => (
-                <ListItem key={index}>
-                  <ListItemText primary={crit} />
-                  <IconButton edge="end" aria-label="delete" onClick={() => removeCriteria(crit)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-
-          <Button variant="contained" color="secondary" onClick={saveEvaluationCriteria}>
-            Save Evaluation Criteria
-          </Button>
-        </>
-      )}
-    </Container>
-  );
+    return (
+        <Container>
+            <Head>
+                <title>Student Evaluation</title>
+            </Head>
+            <Typography variant="h4" gutterBottom>Student Evaluation</Typography>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Team</TableCell>
+                            {criteria.map((crit, index) => (
+                                <TableCell key={index}>
+                                    {crit}
+                                    <IconButton size="small" onClick={() => removeCriteria(crit)}><DeleteIcon fontSize="small" /></IconButton>
+                                </TableCell>
+                            ))}
+                            <TableCell>Total</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {students.map((student, index) => (
+                            <TableRow key={index}>
+                                <TableCell>{student.name}</TableCell>
+                                <TableCell>{student.team}</TableCell>
+                                {criteria.map((crit, critIndex) => (
+                                    <TableCell key={critIndex}>
+                                        <TextField type="number" value={student[crit]} onChange={(e) => handleChange(index, crit, e.target.value)} />
+                                    </TableCell>
+                                ))}
+                                <TableCell>{criteria.reduce((acc, crit) => acc + (student[crit] || 0), 0)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+            <TextField label="New Criteria" value={newCriteria} onChange={(e) => setNewCriteria(e.target.value)} />
+            <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={addCriteria}>Add Criteria</Button>
+            <Button variant="contained" color="secondary" onClick={calculateScores}>Calculate Scores</Button>
+            <Button variant="contained" color="primary" onClick={exportToExcel}>Export to Excel</Button>
+            <Typography variant="h6" gutterBottom>Total Scores</Typography>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Rank</TableCell>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Team</TableCell>
+                            <TableCell>Total Score</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {totalScores.map((student, index) => (
+                            <TableRow key={index}>
+                                <TableCell>{index + 1}</TableCell>
+                                <TableCell>{student.name}</TableCell>
+                                <TableCell>{student.team}</TableCell>
+                                <TableCell>{student.total}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </Container>
+    );
 }
