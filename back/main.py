@@ -66,6 +66,7 @@ questions_collection = db["questions"]
 project_collection = db['Project']
 course_collection = db["Course"]
 student_collection = db["Student"]
+evaluation_collection = db["Evaluation"]
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -150,6 +151,7 @@ def course_helper(course) -> dict:
         "code": course["code"]
     }
 
+# 헬퍼 함수
 def student_helper(student) -> dict:
     return {
         "id": str(student["_id"]),
@@ -158,6 +160,7 @@ def student_helper(student) -> dict:
         "department": student["department"],
         "course_codes": student["course_codes"]
     }
+
 
 # ObjectId를 문자열로 변환하는 함수
 def transform_id(document):
@@ -1023,6 +1026,78 @@ async def toggle_resolve_code_answer(id: str, lineNumber: int, answerIndex: int)
             raise HTTPException(status_code=500, detail="Error toggling resolve status")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
+
+# 모델 정의
+class Evaluation(BaseModel):
+    evaluator_id: str
+    evaluatee_team: str
+    criteria: Dict[str, int]
+
+# 학생 평가 저장 엔드포인트
+@app.post("/api/evaluations/")
+async def save_evaluation(evaluation: Evaluation):
+    try:
+        evaluation_data = jsonable_encoder(evaluation)
+        new_evaluation = await evaluation_collection.insert_one(evaluation_data)
+        created_evaluation = await evaluation_collection.find_one({"_id": new_evaluation.inserted_id})
+        return JSONResponse(status_code=201, content=created_evaluation)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 학생 평가 조회 엔드포인트
+@app.get("/api/evaluations/{student_id}")
+async def get_evaluations(student_id: str):
+    try:
+        evaluations = await evaluation_collection.find({"evaluator_id": student_id}).to_list(1000)
+        return evaluations
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 팀 배정 엔드포인트
+@app.post("/api/assign-teams/")
+async def assign_teams(course_code: str):
+    try:
+        students = await student_collection.find({"course_codes": course_code}).to_list(1000)
+        if not students:
+            raise HTTPException(status_code=404, detail="No students found for the given course code")
+
+        all_teams = ['Team A', 'Team B', 'Team C', 'Team D', 'Team E', 'Team F', 'Team G', 'Team H']
+        assigned_teams = {team: [] for team in all_teams}
+
+        for student in students:
+            available_teams = [team for team in all_teams if len(assigned_teams[team]) < len(students) // len(all_teams)]
+            assigned_team = available_teams[0]
+            assigned_teams[assigned_team].append(student["student_id"])
+
+        return assigned_teams
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 수업 학생 조회 엔드포인트
+@app.get("/api/course-students/{course_code}")
+async def get_course_students(course_code: str):
+    try:
+        print(f"Fetching students for course code: {course_code}")  # 디버깅 로그
+        students = await student_collection.find({"course_codes": course_code}).to_list(1000)
+        return [student_helper(student) for student in students]
+    except Exception as e:
+        print(f"Error: {str(e)}")  # 디버깅 로그
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 모든 과목 코드를 불러오는 엔드포인트
+@app.get("/api/course-codes/")
+async def get_course_codes():
+    try:
+        courses = await course_collection.find().to_list(1000)
+        course_codes = [course['code'] for course in courses]
+        return course_codes
+    except Exception as e:
+        print(f"Error: {str(e)}")  # 디버깅 로그
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
 
 if __name__ == "__main__":
     import uvicorn

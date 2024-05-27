@@ -35,6 +35,11 @@ const navigation = () => {
       icon: HomeOutline,
       path: '/studentBooking'
     },
+    {
+      title: 'autoscore',
+      icon: HomeOutline,
+      path: '/autoscore'
+    },
 
     // {
     //   title: 'summary',
