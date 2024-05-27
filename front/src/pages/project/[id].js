@@ -10,8 +10,30 @@ import {
   CardContent,
   CardMedia,
   TextField,
-  Button
+  Button,
+  Link
 } from '@mui/material'
+import { styled } from '@mui/system'
+
+const CustomCard = styled(Card)(({ theme }) => ({
+  transition: 'transform 0.2s',
+  '&:hover': {
+    transform: 'scale(1.02)',
+    boxShadow: theme.shadows[10]
+  }
+}))
+
+const CustomButton = styled(Button)(({ theme }) => ({
+  transition: 'background-color 0.3s',
+  '&:hover': {
+    backgroundColor: theme.palette.primary.dark
+  }
+}))
+
+const CustomTypography = styled(Typography)(({ theme }) => ({
+  color: theme.palette.primary.main,
+  fontWeight: 'bold'
+}))
 
 function ProjectDetails() {
   const router = useRouter()
@@ -82,14 +104,13 @@ function ProjectDetails() {
   const renderPreviewImages = () => {
     if (!project || !project.image_preview_urls) return null
 
-    // project.image_preview_urls가 문자열일 경우 배열로 변환
     const imageUrls = Array.isArray(project.image_preview_urls)
       ? project.image_preview_urls
       : project.image_preview_urls.split(',').map(url => url.trim())
 
     return imageUrls.map((url, index) => (
       <Box key={index} sx={{ marginRight: '10px', marginBottom: '10px' }}>
-        <img src={url} alt={`Preview ${index}`} style={{ maxWidth: '100%', height: 'auto' }} />
+        <img src={url} alt={`Preview ${index}`} style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }} />
       </Box>
     ))
   }
@@ -115,11 +136,11 @@ function ProjectDetails() {
       {project && (
         <Grid container spacing={4}>
           <Grid item xs={12} md={6}>
-            <Card variant='outlined'>
+            <CustomCard variant='outlined'>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Repository Information
-                </Typography>
+                </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   <strong>Student ID:</strong> {project.student_id}
                 </Typography>
@@ -161,66 +182,66 @@ function ProjectDetails() {
                 </Typography>
                 <Typography variant='body1' gutterBottom>
                   <strong>Repository URL:</strong>{' '}
-                  <a href={project.repository_url} target='_blank' rel='noopener noreferrer'>
+                  <Link href={project.repository_url} target='_blank' rel='noopener noreferrer'>
                     {project.repository_url}
-                  </a>
+                  </Link>
                 </Typography>
                 <Typography variant='body1' gutterBottom>
                   <strong>Views:</strong> {project.views ?? 0} {/* 기본값 설정 */}
                 </Typography>
               </CardContent>
-            </Card>
+            </CustomCard>
           </Grid>
           <Grid item xs={12} md={6}>
-            <Card variant='outlined'>
+            <CustomCard variant='outlined'>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Summary Information
-                </Typography>
+                </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   {project.summary}
                 </Typography>
               </CardContent>
-            </Card>
+            </CustomCard>
           </Grid>
           <Grid item xs={12}>
-            <Card variant='outlined'>
+            <CustomCard variant='outlined'>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Text Extracted
-                </Typography>
+                </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   {project.text_extracted}
                 </Typography>
               </CardContent>
-            </Card>
+            </CustomCard>
           </Grid>
           <Grid item xs={12}>
-            <Card variant='outlined'>
+            <CustomCard variant='outlined'>
               <CardMedia
                 component='img'
                 image={project.generated_image_url}
                 alt='Generated'
-                style={{ width: '100%', maxWidth: '66%', height: 'auto', margin: '0 auto' }}
+                style={{ width: '100%', maxWidth: '66%', height: 'auto', margin: '0 auto', borderRadius: '8px' }}
               />
-            </Card>
+            </CustomCard>
           </Grid>
           <Grid item xs={12}>
-            <Card variant='outlined'>
+            <CustomCard variant='outlined'>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Image Previews
-                </Typography>
+                </CustomTypography>
                 {renderPreviewImages()}
               </CardContent>
-            </Card>
+            </CustomCard>
           </Grid>
           <Grid item xs={12}>
-            <Card variant='outlined'>
+            <CustomCard variant='outlined'>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Comments
-                </Typography>
+                </CustomTypography>
                 {comments.map((comment, index) => (
                   <Box key={index} sx={{ mb: 2 }}>
                     <Typography variant='body2'>
@@ -239,11 +260,11 @@ function ProjectDetails() {
                   onChange={handleCommentChange}
                   sx={{ mb: 2 }}
                 />
-                <Button variant='contained' color='primary' onClick={handleCommentSubmit}>
+                <CustomButton variant='contained' color='primary' onClick={handleCommentSubmit}>
                   Submit Comment
-                </Button>
+                </CustomButton>
               </CardContent>
-            </Card>
+            </CustomCard>
           </Grid>
         </Grid>
       )}

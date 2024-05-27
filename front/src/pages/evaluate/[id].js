@@ -12,8 +12,34 @@ import {
   TextField,
   Button,
   Divider,
-  Paper
+  Paper,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Link
 } from '@mui/material'
+import { styled } from '@mui/system'
+
+const CustomCard = styled(Card)(({ theme }) => ({
+  transition: 'transform 0.2s',
+  '&:hover': {
+    transform: 'scale(1.02)',
+    boxShadow: theme.shadows[10]
+  }
+}))
+
+const CustomButton = styled(Button)(({ theme }) => ({
+  transition: 'background-color 0.3s',
+  '&:hover': {
+    backgroundColor: theme.palette.primary.dark
+  }
+}))
+
+const CustomTypography = styled(Typography)(({ theme }) => ({
+  color: theme.palette.primary.main,
+  fontWeight: 'bold'
+}))
 
 function ProjectDetails() {
   const router = useRouter()
@@ -30,8 +56,9 @@ function ProjectDetails() {
   const [otherCategoryName, setOtherCategoryName] = useState('')
   const [isSummaryLoading, setIsSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState('')
+  const [scores, setScores] = useState({})
 
-  const categories = ['기술', '활용방안', '기대효과', '필요성', '기타']
+  const categories = ['기술', '활용방안', '기대효과', '필요성', '기타', '번호점수']
 
   useEffect(() => {
     if (id) {
@@ -99,7 +126,7 @@ function ProjectDetails() {
 
     return imageUrls.map((url, index) => (
       <Box key={index} sx={{ marginRight: '10px', marginBottom: '10px' }}>
-        <img src={url} alt={`Preview ${index}`} style={{ maxWidth: '100%', height: 'auto' }} />
+        <img src={url} alt={`Preview ${index}`} style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }} />
       </Box>
     ))
   }
@@ -113,6 +140,9 @@ function ProjectDetails() {
       const newSummaries = { ...summaries }
       delete newSummaries[category]
       setSummaries(newSummaries)
+      const newScores = { ...scores }
+      delete newScores[category]
+      setScores(newScores)
     } else {
       setSelectedCategories([...selectedCategories, category])
       setInputs({ ...inputs, [category]: '' })
@@ -128,6 +158,10 @@ function ProjectDetails() {
 
   const handleOtherCategoryNameChange = value => {
     setOtherCategoryName(value)
+  }
+
+  const handleScoreChange = (category, value) => {
+    setScores({ ...scores, [category]: value })
   }
 
   const handleSubmit = async category => {
@@ -178,11 +212,11 @@ function ProjectDetails() {
       {project && (
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
-            <Card variant='outlined'>
+            <CustomCard variant='outlined'>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Repository Information
-                </Typography>
+                </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   <strong>Student ID:</strong> {project.student_id}
                 </Typography>
@@ -224,48 +258,48 @@ function ProjectDetails() {
                 </Typography>
                 <Typography variant='body1' gutterBottom>
                   <strong>Repository URL:</strong>{' '}
-                  <a href={project.repository_url} target='_blank' rel='noopener noreferrer'>
+                  <Link href={project.repository_url} target='_blank' rel='noopener noreferrer'>
                     {project.repository_url}
-                  </a>
+                  </Link>
                 </Typography>
                 <Typography variant='body1' gutterBottom>
                   <strong>Views:</strong> {project.views ?? 0} {/* 기본값 설정 */}
                 </Typography>
               </CardContent>
-            </Card>
-            <Card variant='outlined' sx={{ mt: 4 }}>
+            </CustomCard>
+            <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Summary Information
-                </Typography>
+                </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   {project.summary}
                 </Typography>
               </CardContent>
-            </Card>
-            <Card variant='outlined' sx={{ mt: 4 }}>
+            </CustomCard>
+            <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Text Extracted
-                </Typography>
+                </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   {project.text_extracted}
                 </Typography>
               </CardContent>
-            </Card>
-            <Card variant='outlined' sx={{ mt: 4 }}>
+            </CustomCard>
+            <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardMedia
                 component='img'
                 image={project.generated_image_url}
                 alt='Generated'
-                style={{ width: '100%', maxWidth: '66%', height: 'auto', margin: '0 auto' }}
+                style={{ width: '100%', maxWidth: '66%', height: 'auto', margin: '0 auto', borderRadius: '8px' }}
               />
-            </Card>
-            <Card variant='outlined' sx={{ mt: 4 }}>
+            </CustomCard>
+            <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardContent>
-                <Typography variant='h6' gutterBottom>
+                <CustomTypography variant='h6' gutterBottom>
                   Comments
-                </Typography>
+                </CustomTypography>
                 {comments.map((comment, index) => (
                   <Box key={index} sx={{ mb: 2 }}>
                     <Typography variant='body2'>
@@ -284,11 +318,11 @@ function ProjectDetails() {
                   onChange={handleCommentChange}
                   sx={{ mb: 2 }}
                 />
-                <Button variant='contained' color='primary' onClick={handleCommentSubmit}>
+                <CustomButton variant='contained' color='primary' onClick={handleCommentSubmit}>
                   Submit Comment
-                </Button>
+                </CustomButton>
               </CardContent>
-            </Card>
+            </CustomCard>
           </Grid>
           <Grid item xs={12} md={4}>
             <Paper elevation={3} sx={{ position: 'sticky', top: 16, p: 2 }}>
@@ -297,14 +331,14 @@ function ProjectDetails() {
               </Typography>
               <Box display='flex' flexDirection='row' flexWrap='wrap' mb={2}>
                 {categories.map(category => (
-                  <Button
+                  <CustomButton
                     key={category}
                     onClick={() => handleSelectCategory(category)}
                     variant={selectedCategories.includes(category) ? 'contained' : 'outlined'}
                     sx={{ marginRight: 1, marginBottom: 1 }}
                   >
                     {category}
-                  </Button>
+                  </CustomButton>
                 ))}
               </Box>
               {selectedCategories.includes('기타') && (
@@ -319,31 +353,50 @@ function ProjectDetails() {
               )}
               {selectedCategories.map(category => (
                 <Box key={category} mb={2}>
-                  <TextField
-                    fullWidth
-                    label={`Enter text for ${category}`}
-                    value={inputs[category]}
-                    onChange={e => handleChange(category, e.target.value)}
-                    variant='outlined'
-                    multiline
-                    rows={4}
-                    sx={{ mb: 2 }}
-                  />
-                  <Button
-                    onClick={() => handleSubmit(category)}
-                    variant='contained'
-                    color='primary'
-                    disabled={isSummaryLoading}
-                    sx={{ mb: 2 }}
-                  >
-                    {isSummaryLoading ? <CircularProgress size={24} /> : 'Submit'}
-                  </Button>
-                  {summaryError && (
-                    <Typography color='error' sx={{ mb: 2 }}>
-                      {summaryError}
-                    </Typography>
+                  {category === '번호점수' ? (
+                    <FormControl fullWidth variant='outlined' sx={{ mb: 2 }}>
+                      <InputLabel>Choose Score</InputLabel>
+                      <Select
+                        label='Choose Score'
+                        value={scores[category] || ''}
+                        onChange={e => handleScoreChange(category, e.target.value)}
+                      >
+                        {[1, 2, 3, 4, 5].map(score => (
+                          <MenuItem key={score} value={score}>
+                            {score}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  ) : (
+                    <>
+                      <TextField
+                        fullWidth
+                        label={`Enter text for ${category}`}
+                        value={inputs[category]}
+                        onChange={e => handleChange(category, e.target.value)}
+                        variant='outlined'
+                        multiline
+                        rows={4}
+                        sx={{ mb: 2 }}
+                      />
+                      <CustomButton
+                        onClick={() => handleSubmit(category)}
+                        variant='contained'
+                        color='primary'
+                        disabled={isSummaryLoading}
+                        sx={{ mb: 2 }}
+                      >
+                        {isSummaryLoading ? <CircularProgress size={24} /> : 'Submit'}
+                      </CustomButton>
+                      {summaryError && (
+                        <Typography color='error' sx={{ mb: 2 }}>
+                          {summaryError}
+                        </Typography>
+                      )}
+                      <Typography variant='body1'>{summaries[category] || '결과를 기다리는 중입니다...'}</Typography>
+                    </>
                   )}
-                  <Typography variant='body1'>{summaries[category] || '결과를 기다리는 중입니다...'}</Typography>
                 </Box>
               ))}
             </Paper>

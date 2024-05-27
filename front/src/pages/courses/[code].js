@@ -12,11 +12,26 @@ import {
   CardMedia,
   Avatar,
   Paper,
-  Divider
+  Divider,
+  Button
 } from '@mui/material'
+import { styled } from '@mui/system'
 import { useRouter } from 'next/router'
 import axios from 'axios'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'
+
+const CustomCard = styled(Card)(({ theme }) => ({
+  transition: 'transform 0.2s',
+  '&:hover': {
+    transform: 'scale(1.05)',
+    boxShadow: theme.shadows[10]
+  }
+}))
+
+const CustomAvatar = styled(Avatar)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.common.white
+}))
 
 const CourseDetail = () => {
   const router = useRouter()
@@ -116,7 +131,7 @@ const CourseDetail = () => {
             <List>
               {courseData.students.map((student, index) => (
                 <ListItem key={index} sx={{ padding: 1 }}>
-                  <Avatar sx={{ marginRight: 2 }}>{student.name.charAt(0)}</Avatar>
+                  <CustomAvatar sx={{ marginRight: 2 }}>{student.name.charAt(0)}</CustomAvatar>
                   <Typography variant='body1'>{student.name}</Typography>
                 </ListItem>
               ))}
@@ -145,7 +160,7 @@ const CourseDetail = () => {
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                               >
-                                <Card
+                                <CustomCard
                                   sx={{
                                     height: '100%',
                                     display: 'flex',
@@ -173,7 +188,7 @@ const CourseDetail = () => {
                                       Views: {project.views ?? 0}
                                     </Typography>
                                   </CardContent>
-                                </Card>
+                                </CustomCard>
                               </Grid>
                             )}
                           </Draggable>
@@ -189,12 +204,14 @@ const CourseDetail = () => {
                   mt: 4,
                   p: 2,
                   border: '2px dashed #ccc',
-                  borderRadius: 2
+                  borderRadius: 2,
+                  textAlign: 'center',
+                  backgroundColor: '#f9f9f9'
                 }}
               >
                 <Droppable droppableId='evaluationZone'>
                   {provided => (
-                    <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ p: 2, textAlign: 'center' }}>
+                    <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ p: 2 }}>
                       <Typography variant='h6' color='textSecondary'>
                         Drag projects here to evaluate
                       </Typography>
