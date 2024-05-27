@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Box, TextField, Button, Typography, Container, Grid, Card, CardContent } from '@mui/material'
 import { useRouter } from 'next/router'
+import { GithubAuthProvider, signInWithPopup } from 'firebase/auth'
+import { auth } from '../../../../lib/firebase' // Firebase 설정 가져오기
 
 // ** Layout Import
 import BlankLayout from 'src/@core/layouts/BlankLayout'
@@ -9,7 +11,7 @@ const AddInfoPage = () => {
   const [userInfo, setUserInfo] = useState({
     name: '',
     schoolEmail: '',
-    studentId: '', // 학번 입력 필드 추가
+    studentId: '',
     age: '',
     contact: ''
   })
@@ -23,20 +25,22 @@ const AddInfoPage = () => {
   const router = useRouter()
 
   useEffect(() => {
-    const fetchGithubInfo = async () => {
-      const response = await fetch('http://localhost:8000/api/session/github-info', {
-        credentials: 'include'
-      })
-      if (response.ok) {
-        const data = await response.json()
+    const provider = new GithubAuthProvider()
+
+    signInWithPopup(auth, provider)
+      .then(result => {
+        const user = result.user
+        console.log('GitHub login successful', user)
+
         setGithubInfo({
-          githubUsername: data.github_username,
-          githubName: data.github_name,
-          githubId: data.github_id
+          githubUsername: user.reloadUserInfo.screenName || '',
+          githubName: user.displayName || '',
+          githubId: user.reloadUserInfo.localId || ''
         })
-      }
-    }
-    fetchGithubInfo()
+      })
+      .catch(error => {
+        console.error('GitHub login error', error)
+      })
   }, [])
 
   const handleChange = e => {
@@ -49,11 +53,13 @@ const AddInfoPage = () => {
 
   const handleSubmit = async e => {
     e.preventDefault()
+
     const completeInfo = {
       ...userInfo,
       ...githubInfo
     }
-    console.log(completeInfo)
+    console.log('Complete Info:', completeInfo) // 로그 출력
+
     try {
       const response = await fetch('http://localhost:8000/api/user/additional-info', {
         method: 'POST',
@@ -65,7 +71,7 @@ const AddInfoPage = () => {
 
       if (response.ok) {
         alert('추가 정보가 성공적으로 저장되었습니다.')
-        router.push('http://localhost:3000/pages/login/')
+        router.push('/pages/login/') // 홈 페이지로 리디렉션
       } else {
         const errorData = await response.json()
         alert(`추가 정보 저장에 실패했습니다: ${errorData.detail}`)

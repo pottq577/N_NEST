@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 import httpx
 from dotenv import load_dotenv
 import os
@@ -56,13 +56,13 @@ REDIRECT_URI = 'http://localhost:8000/auth/callback'
 # 데이터 모델 정의
 class UserInfo(BaseModel):
     name: str
-    schoolEmail: str
+    schoolEmail: EmailStr
     studentId: str
     age: int
     contact: str
     githubUsername: str
     githubName: str
-    githubId: int
+    githubId: str
 
 class Comment(BaseModel):
     username: str
