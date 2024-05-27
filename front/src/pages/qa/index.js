@@ -5,6 +5,7 @@ export default function QuestionListPage() {
   const [questions, setQuestions] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
   const questionsPerPage = 10;
   const categories = ['All', 'CSS', 'Android', 'JavaScript', 'React'];
 
@@ -18,6 +19,8 @@ export default function QuestionListPage() {
         setQuestions(data);
       } catch (error) {
         console.error('Error fetching questions:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -37,6 +40,14 @@ export default function QuestionListPage() {
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
   };
+
+  if (loading) {
+    return <p>Loading...</p>;
+  }
+
+  if (!questions || questions.length === 0) {
+    return <p>No questions found.</p>;
+  }
 
   return (
     <div className='container'>
@@ -60,7 +71,7 @@ export default function QuestionListPage() {
       </header>
 
       <main className='main'>
-      {currentQuestions.map(question => (
+        {currentQuestions.map(question => (
           <article key={question.id} className='questionCard'>
             <Link href={`/questions/${question.id}`} passHref>
               <a className='questionTitle'>
@@ -69,7 +80,7 @@ export default function QuestionListPage() {
             </Link>
             <div className='questionStats'>
               <span>{question.votes} votes</span>
-              <span>{question.answers.length} answers</span> {/* If answers is an array */}
+              <span>{question.answers ? question.answers.length : 0} answers</span>
               <span>{question.views} views</span>
               <span className='categoryTag'>{question.category}</span>
             </div>

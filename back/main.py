@@ -13,7 +13,8 @@ import jwt
 import asyncio
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List,Tuple
+
 import random
 import json
 from bson import ObjectId
@@ -68,6 +69,8 @@ course_collection = db["Course"]
 student_collection = db["Student"]
 team_collection = db["Team"]
 evaluation_collection = db["Evaluation"]
+scores_collection = db["scores"]
+
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -1014,11 +1017,99 @@ class Question(BaseModel):
     codeAnswers: Dict[str, List[CodeAnswer]] = {}
     generalAnswers: List[GeneralAnswer] = []
 
-class QuestionInDB(Question):
+class QuestionInDB(BaseModel):
     id: str
-    votes: int = 0
-    answers: List[Answer] = []
-    views: int = 0
+    title: str
+    description: str
+    category: str
+    code: str
+    userId: str
+    createdAt: datetime
+    codeAnswers: Dict[str, List[Dict]] = {}
+    generalAnswers: List[Dict] = []
+
+class Score(BaseModel):
+    studentId: str
+    scores: Dict[str, float]
+    titles: Dict[str, str]  # 각 카테고리별 칭호를 저장하는 필드
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+titles = {
+    "backend": {
+        0: "Novice Backend Developer",
+        10: "Intermediate Backend Developer",
+        20: "Advanced Backend Developer",
+        50: "Expert Backend Developer"
+    },
+    "frontend": {
+        0: "Novice Frontend Developer",
+        10: "Intermediate Frontend Developer",
+        20: "Advanced Frontend Developer",
+        50: "Expert Frontend Developer"
+    },
+    "security": {
+        0: "Novice Security Specialist",
+        10: "Intermediate Security Specialist",
+        20: "Advanced Security Specialist",
+        50: "Expert Security Specialist"
+    },
+    "network": {
+        0: "Novice Network Engineer",
+        10: "Intermediate Network Engineer",
+        20: "Advanced Network Engineer",
+        50: "Expert Network Engineer"
+    },
+    "cloud": {
+        0: "Novice Cloud Engineer",
+        10: "Intermediate Cloud Engineer",
+        20: "Advanced Cloud Engineer",
+        50: "Expert Cloud Engineer"
+    },
+    "others": {
+        0: "Novice IT Specialist",
+        10: "Intermediate IT Specialist",
+        20: "Advanced IT Specialist",
+        50: "Expert IT Specialist"
+    }
+}
+
+
+def get_title(category: str, points: float) -> str:
+    thresholds = sorted(titles[category].keys(), reverse=True)
+    for threshold in thresholds:
+        if points >= threshold:
+            return titles[category][threshold]
+    return "Undefined Title"
+
+async def update_scores(student_id: str, category: str, points: float) -> Tuple[Dict[str, float], str]:
+    score_doc = await scores_collection.find_one({"studentId": student_id})
+    new_title = ""
+    if score_doc:
+        new_scores = score_doc["scores"]
+        new_titles = score_doc.get("titles", {})
+        if category in new_scores:
+            new_scores[category] = max(0, new_scores[category] + points)
+        else:
+            new_scores[category] = max(0, points)
+        new_title = get_title(category, new_scores[category])
+        new_titles[category] = new_title
+        await scores_collection.update_one(
+            {"_id": score_doc["_id"]},
+            {"$set": {"scores": new_scores, "titles": new_titles}}
+        )
+    else:
+        new_scores = {category: max(0, points)}
+        new_title = get_title(category, new_scores[category])
+        new_titles = {category: new_title}
+        new_score = Score(studentId=student_id, scores=new_scores, titles=new_titles)
+        await scores_collection.insert_one(new_score.dict())
+    
+    return new_scores, new_title
+
+
 
 @app.post("/questions", response_model=QuestionInDB)
 async def save_question(question: Question):
@@ -1084,7 +1175,10 @@ async def save_general_answer(id: str, answer: GeneralAnswer):
         if question is None:
             raise HTTPException(status_code=404, detail="Question not found")
 
-        question["generalAnswers"].append(answer.dict())
+        general_answer_dict = answer.dict()
+        general_answer_dict["createdAt"] = datetime.now()
+
+        question["generalAnswers"].append(general_answer_dict)
 
         result = await questions_collection.update_one(
             {"_id": ObjectId(id)},
@@ -1109,7 +1203,26 @@ async def toggle_resolve_code_answer(id: str, lineNumber: int, answerIndex: int)
         if answerIndex < 0 or answerIndex >= len(line_answers):
             raise HTTPException(status_code=404, detail="Answer not found")
 
-        line_answers[answerIndex]["resolved"] = 'true' if line_answers[answerIndex]["resolved"] == 'false' else 'false'
+        answer = line_answers[answerIndex]
+
+        # Check if the user has already received a resolve for this question
+        for answers in question["codeAnswers"].values():
+            for ans in answers:
+                if ans["userId"] == answer["userId"] and ans["resolved"] == 'true':
+                    return {"message": "This user has already received a resolve for this question"}
+
+        # Mark answer as resolved
+        answer["resolved"] = 'true'
+
+        # Update points only if the answer is being resolved for the first time
+        category = question["category"]
+        question_user = await user_collection.find_one({"githubId": question["userId"]})
+        answer_user = await user_collection.find_one({"githubId": answer["userId"]})
+        if not question_user or not answer_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        answer_scores, answer_title = await update_scores(answer_user["studentId"], category, 1)
+        question_scores, question_title = await update_scores(question_user["studentId"], category, 0.5)
 
         result = await questions_collection.update_one(
             {"_id": ObjectId(id)},
@@ -1117,11 +1230,21 @@ async def toggle_resolve_code_answer(id: str, lineNumber: int, answerIndex: int)
         )
 
         if result.modified_count == 1:
-            return {"message": "Answer resolve status toggled"}
+            return {
+                "message": "Answer resolve status toggled",
+                "answer_user_new_title": answer_title,
+                "question_user_new_title": question_title
+            }
         else:
             raise HTTPException(status_code=500, detail="Error toggling resolve status")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
+
+
+
+
+
+
 
 if __name__ == "__main__":
     import uvicorn
