@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
+import { Container, TextField, Button, CircularProgress, Typography, Box } from '@mui/material'
 
-export default function Component() {
+export default function DynamicPromptingComponent() {
   const [selectedCategories, setSelectedCategories] = useState([])
   const [inputs, setInputs] = useState({})
   const [summaries, setSummaries] = useState({})
@@ -56,47 +57,64 @@ export default function Component() {
   }
 
   return (
-    <div className='container'>
-      <div className='form-container'>
-        <h1 className='title'>Text Summary Generator</h1>
-        <div className='category-buttons'>
+    <Container>
+      <Box my={4}>
+        <Typography variant='h4' gutterBottom>
+          Text Summary Generator
+        </Typography>
+        <Box display='flex' flexDirection='row' flexWrap='wrap' mb={2}>
           {categories.map(category => (
-            <button
+            <Button
               key={category}
               onClick={() => handleSelectCategory(category)}
-              className={`category-button ${selectedCategories.includes(category) ? 'selected' : ''}`}
+              variant={selectedCategories.includes(category) ? 'contained' : 'outlined'}
+              sx={{ marginRight: 1, marginBottom: 1 }}
             >
               {category}
-            </button>
+            </Button>
           ))}
-        </div>
+        </Box>
         {selectedCategories.includes('기타') && (
-          <input
-            type='text'
-            placeholder='Specify the "Other" category name'
+          <TextField
+            fullWidth
+            label='Specify the "Other" category name'
             value={otherCategoryName}
             onChange={e => handleOtherCategoryNameChange(e.target.value)}
-            className='category-input'
+            variant='outlined'
+            sx={{ mb: 2 }}
           />
         )}
         {selectedCategories.map(category => (
-          <div key={category} className='category-form'>
-            <input
-              type='text'
-              placeholder={`Enter text for ${category}`}
+          <Box key={category} mb={2}>
+            <TextField
+              fullWidth
+              label={`Enter text for ${category}`}
               value={inputs[category]}
               onChange={e => handleChange(category, e.target.value)}
-              className='text-input'
+              variant='outlined'
+              multiline
+              rows={4}
+              sx={{ mb: 2 }}
             />
-            <button onClick={() => handleSubmit(category)} disabled={isLoading} className='submit-button'>
-              Submit
-            </button>
-            {isLoading && <div className='loader'></div>}
-            {error && <p className='error-text'>{error}</p>}
-            <p className='summary-text'>{summaries[category] || '결과를 기다리는 중입니다...'}</p>
-          </div>
+            <Button
+              onClick={() => handleSubmit(category)}
+              variant='contained'
+              color='primary'
+              disabled={isLoading}
+              sx={{ mb: 2 }}
+            >
+              {isLoading ? <CircularProgress size={24} /> : 'Submit'}
+            </Button>
+            {isLoading && <CircularProgress />}
+            {error && (
+              <Typography color='error' sx={{ mb: 2 }}>
+                {error}
+              </Typography>
+            )}
+            <Typography variant='body1'>{summaries[category] || '결과를 기다리는 중입니다...'}</Typography>
+          </Box>
         ))}
-      </div>
-    </div>
+      </Box>
+    </Container>
   )
 }

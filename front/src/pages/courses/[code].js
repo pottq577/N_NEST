@@ -151,13 +151,13 @@ const CourseDetail = () => {
                                     display: 'flex',
                                     flexDirection: 'column'
                                   }}
-                                  onClick={() => router.push(`/project/${project._id}`)}
                                 >
                                   <CardMedia
                                     component='img'
                                     height='140'
                                     image={project.generated_image_url}
                                     alt='Project Image'
+                                    onClick={() => router.push(`/project/${project._id}`)}
                                   />
                                   <CardContent>
                                     <Typography gutterBottom variant='h5' component='div'>
