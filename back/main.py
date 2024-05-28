@@ -8,13 +8,15 @@ from pydantic import BaseModel, Field, HttpUrl, EmailStr
 import httpx
 from dotenv import load_dotenv
 from collections import Counter
+import asyncio
+import aiohttp
+import subprocess
 import os
 import jwt
 import asyncio
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from typing import Dict, Optional, List,Tuple
-
 import random
 import json
 from bson import ObjectId
@@ -70,7 +72,10 @@ student_collection = db["Student"]
 team_collection = db["Team"]
 evaluation_collection = db["Evaluation"]
 scores_collection = db["scores"]
-
+problems_collection = db['problems']
+submissions_collection = db['submissions']
+teams_collection = db['teams']
+evaluations_collection = db['evaluations']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -147,10 +152,17 @@ class DeleteStudent(BaseModel):
     course_code: str
 
 
-# 학생 정보 모델
-class UserCourses(BaseModel):
-    user_info: UserInfo
-    courses: List[Course]
+class UserInfo(BaseModel):
+    student_id: str
+    name: str
+    department: str
+
+class Course(BaseModel):
+    code: str
+    name: str
+    professor: str
+    day: str
+    time: str
 
 class Team(BaseModel):
     course_code: str
@@ -160,15 +172,18 @@ class Team(BaseModel):
 class EvaluationCriteria(BaseModel):
     course_code: str
     criteria: List[str]
-
-class MaxTeams(BaseModel):
-    course_code: str
     max_teams: int
 
 class StudentRegistration(BaseModel):
     course_code: str
     student_id: str
     team_name: str
+
+class Evaluation(BaseModel):
+    course_code: str
+    evaluator_id: str
+    team_name: str
+    scores: Dict[str, int]
 
 # ObjectId를 문자열로 변환하는 헬퍼 함수
 def course_helper(course) -> dict:
@@ -210,15 +225,19 @@ def convert_objectid_to_str(doc):
                 doc[key] = convert_objectid_to_str(value)
     return doc
 
-@app.post("/api/teams/max")
-async def set_max_teams(max_teams: MaxTeams):
-    course_code = max_teams.course_code
-    max_teams_count = max_teams.max_teams
-    await course_collection.update_one({"code": course_code}, {"$set": {"max_teams": max_teams_count}})
-    return {"message": "Max teams set successfully"}
 
 @app.post("/api/teams/register")
 async def register_student(student_registration: StudentRegistration):
+    evaluation = await evaluation_collection.find_one({"course_code": student_registration.course_code})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation criteria not found")
+
+    max_teams = evaluation.get("max_teams")
+    if max_teams is not None:
+        current_team_count = await team_collection.count_documents({"course_code": student_registration.course_code})
+        if current_team_count >= max_teams:
+            raise HTTPException(status_code=400, detail="Maximum number of teams reached for this course")
+
     team = await team_collection.find_one({"course_code": student_registration.course_code, "team_name": student_registration.team_name})
     if not team:
         team = Team(course_code=student_registration.course_code, team_name=student_registration.team_name, students=[student_registration.student_id])
@@ -248,9 +267,9 @@ async def get_evaluation_criteria(course_code: str):
     return convert_objectid_to_str(evaluation)
 
 @app.post("/api/evaluate")
-async def submit_evaluation(data: Dict):
-    # 데이터 저장 로직을 여기에 추가하세요
-    pass
+async def submit_evaluation(evaluation: Evaluation):
+    await evaluation_collection.insert_one(evaluation.dict())
+    return {"message": "Evaluation submitted successfully"}
 
 @app.post("/api/teams/assign")
 async def assign_evaluations(course_code: str):
@@ -262,90 +281,60 @@ async def assign_evaluations(course_code: str):
     random.shuffle(students)
     evaluations = {}
     for student in students:
-        evaluations[student] = random.sample([team["team_name"] for team in teams], min(5, len(teams)))
+        evaluations[student] = random.sample([team["team_name"] for team in teams], min(3, len(teams)))
 
     return evaluations
 
-
-@app.post("/api/teams")
-async def create_teams(team: Team):
-    team_dict = team.dict()
-    result = await team_collection.insert_one(team_dict)
-    return {"id": str(result.inserted_id)}
-
-@app.get("/api/courses", response_model=List[Course])
-async def get_courses():
-    try:
-        courses = []
-        async for course in course_collection.find():
-            courses.append(Course(**course))
-        return courses
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/courses/{course_code}/students", response_model=List[Student])
-async def get_students_by_course(course_code: str):
-    try:
-        students = []
-        async for student in student_collection.find({"course_codes": course_code}):
-            students.append(Student(**student))
-        return students
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/teams", response_model=Team)
-async def create_team(team: Team):
-    try:
-        team_dict = team.dict()
-        result = await team_collection.insert_one(team_dict)
-        team_dict["_id"] = str(result.inserted_id)
-        return Team(**team_dict)
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/courses/{course_code}/teams", response_model=List[Team])
-async def get_teams_by_course(course_code: str):
-    try:
-        teams = []
-        async for team in team_collection.find({"course_code": course_code}):
-            teams.append(Team(**team))
-        return teams
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/evaluate", response_model=List[Evaluation])
-async def evaluate_teams(evaluations: List[Evaluation]):
-    try:
-        # Save evaluations to the database or process them as needed
-        return evaluations
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/api/start-evaluation/{course_code}")
 async def start_evaluation(course_code: str):
-    try:
-        students = []
-        async for student in student_collection.find({"course_codes": course_code}):
-            students.append(student["student_id"])
+    students = []
+    async for student in student_collection.find({"course_codes": course_code}):
+        students.append(student["student_id"])
 
-        teams = []
-        async for team in team_collection.find({"course_code": course_code}):
-            teams.append(str(team["_id"]))
+    teams = []
+    async for team in team_collection.find({"course_code": course_code}):
+        teams.append(team["team_name"])
 
-        if not students or not teams:
-            raise HTTPException(status_code=404, detail="No students or teams found")
+    if not students or not teams:
+        raise HTTPException(status_code=404, detail="No students or teams found")
 
-        evaluations = {student: random.sample(teams, min(5, len(teams))) for student in students}
+    evaluations = {student: random.sample(teams, min(3, len(teams))) for student in students}
 
-        return evaluations
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return evaluations
+
+@app.post("/api/courses")
+async def create_course(course: Course):
+    course_dict = course.dict()
+    result = await course_collection.insert_one(course_dict)
+    return {"id": str(result.inserted_id)}
+
+@app.get("/api/courses")
+async def get_courses():
+    courses = []
+    async for course in course_collection.find():
+        courses.append(convert_objectid_to_str(course))
+    return courses
+
+@app.get("/api/courses/{course_code}/students")
+async def get_students_by_course(course_code: str):
+    students = []
+    async for student in student_collection.find({"course_codes": course_code}):
+        students.append(convert_objectid_to_str(student))
+    return students
+
+@app.get("/api/courses/{course_code}/teams")
+async def get_teams_by_course(course_code: str):
+    teams = []
+    async for team in team_collection.find({"course_code": course_code}):
+        teams.append(convert_objectid_to_str(team))
+    return teams
+
+@app.get("/api/courses/{course_code}/max_teams")
+async def get_max_teams(course_code: str):
+    evaluation = await evaluation_collection.find_one({"course_code": course_code})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation criteria not found")
+    return {"max_teams": evaluation.get("max_teams", 0)}
 
 # 학생 추가 엔드포인트
 @app.post("/save-students/")
@@ -1106,7 +1095,7 @@ async def update_scores(student_id: str, category: str, points: float) -> Tuple[
         new_titles = {category: new_title}
         new_score = Score(studentId=student_id, scores=new_scores, titles=new_titles)
         await scores_collection.insert_one(new_score.dict())
-    
+
     return new_scores, new_title
 
 
@@ -1240,10 +1229,119 @@ async def toggle_resolve_code_answer(id: str, lineNumber: int, answerIndex: int)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
 
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class Problem(BaseModel):
+    title: str
+    description: str
+    input_description: str
+    output_description: str
+    sample_input: str
+    sample_output: str
+
+class CodeSubmission(BaseModel):
+    problem_id: str
+    user_id: str
+    code: str
+    language: str
+
+# Judge0 API 설정
+JUDGE0_API_URL = "https://judge0-ce.p.rapidapi.com/submissions/"
+JUDGE0_API_KEY = "bace70d956msh6b9a2ff9d6e6c4ep1522c0jsn3ef11ed8217a"  # 필요시 API 키를 추가하세요
 
 
+languages = {
+    "python": 71,
+    "javascript": 63,
+    # 필요한 다른 언어도 추가할 수 있습니다.
+}
 
+@app.post("/problems/")
+async def create_problem(problem: Problem):
+    problem_dict = problem.dict()
+    result = await problems_collection.insert_one(problem_dict)
+    return {"id": str(result.inserted_id)}
 
+@app.get("/problems/")
+async def get_problems():
+    problems = await problems_collection.find().to_list(1000)
+    for problem in problems:
+        problem["_id"] = str(problem["_id"])
+    return problems
+
+@app.get("/problems/{problem_id}")
+async def get_problem(problem_id: str):
+    problem = await problems_collection.find_one({"_id": ObjectId(problem_id)})
+    if problem:
+        problem["_id"] = str(problem["_id"])
+        return problem
+    raise HTTPException(status_code=404, detail="Problem not found")
+
+@app.post("/submissions/")
+async def submit_code(submission: CodeSubmission):
+    logger.info(f"Received submission: {submission}")
+    language_id = languages.get(submission.language.lower())
+    if not language_id:
+        raise HTTPException(status_code=400, detail="Language not supported.")
+
+    problem = await problems_collection.find_one({"_id": ObjectId(submission.problem_id)})
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    submission_data = {
+        "source_code": submission.code,
+        "language_id": language_id,
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+        "X-RapidAPI-Key": JUDGE0_API_KEY
+    }
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(JUDGE0_API_URL, json=submission_data, headers=headers) as response:
+                if response.status != 201:
+                    logger.error(f"Error submitting code: {response.status} {response.reason}")
+                    raise HTTPException(status_code=500, detail="Error submitting code.")
+                result = await response.json()
+                token = result['token']
+                logger.info(f"Code submitted successfully. Token: {token}")
+
+                result_url = f"{JUDGE0_API_URL}{token}"
+                while True:
+                    async with session.get(result_url, headers=headers) as result_response:
+                        result_data = await result_response.json()
+                        if result_response.status == 200 and result_data.get("status", {}).get("description") != "In Queue":
+                            # 제출된 코드의 출력과 문제의 예상 출력을 비교
+                            is_correct = result_data['stdout'].strip() == problem['sample_output'].strip()
+                            result_data['is_correct'] = is_correct
+
+                            submission_record = {
+                                "problem_id": submission.problem_id,
+                                "user_id": submission.user_id,
+                                "code": submission.code,
+                                "language": submission.language,
+                                "result": result_data,
+                            }
+                            await submissions_collection.insert_one(submission_record)
+                            logger.info(f"Submission result: {result_data}")
+                            return result_data
+                        await asyncio.sleep(1)
+        except Exception as e:
+            logger.error(f"Exception occurred: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error executing code: {e}")
+
+@app.get("/submissions/{submission_id}")
+async def get_submission(submission_id: str):
+    submission = await submissions_collection.find_one({"_id": ObjectId(submission_id)})
+    if submission:
+        submission["_id"] = str(submission["_id"])
+        return submission
+    raise HTTPException(status_code=404, detail="Submission not found")
 
 
 if __name__ == "__main__":

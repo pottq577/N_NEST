@@ -20,6 +20,17 @@ const navigation = () => {
     //   icon: HomeOutline,
     //   path: '/'
     // },
+
+    {
+      title: 'problemcreate',
+      icon: HomeOutline,
+      path: '/problemcreate'
+    },
+    {
+      title: 'problemlist',
+      icon: HomeOutline,
+      path: '/problemlist'
+    },
     {
       title: 'studentEvaluation',
       icon: HomeOutline,
@@ -101,6 +112,7 @@ const navigation = () => {
       path: '/pages/register',
       openInNewTab: true
     },
+
     // {
     //   title: 'Error',
     //   icon: AlertCircleOutline,
