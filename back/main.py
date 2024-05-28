@@ -7,7 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 import httpx
 from dotenv import load_dotenv
-from collections import Counter
+from collections import Counter, defaultdict
 import asyncio
 import aiohttp
 import subprocess
@@ -16,7 +16,7 @@ import jwt
 import asyncio
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-from typing import Dict, Optional, List,Tuple
+from typing import Dict, Optional, List,Tuple, Union
 import random
 import json
 from bson import ObjectId
@@ -34,6 +34,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 client2 = OpenAI(api_key=OPENAI_API_KEY)
 
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # 모델과 토크나이저 로드
 model_name = "lcw99/t5-large-korean-text-summary"
@@ -74,23 +77,14 @@ evaluation_collection = db["Evaluation"]
 scores_collection = db["scores"]
 problems_collection = db['problems']
 submissions_collection = db['submissions']
-teams_collection = db['teams']
-evaluations_collection = db['evaluations']
+evaluation_assignment_collection = db["evaluation_assignments"] 
+evaluation_result_collection = db['EvaluationResult']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = 'http://localhost:8000/auth/callback'
 
-# 데이터 모델 정의
-class UserInfo(BaseModel):
-    name: str
-    schoolEmail: EmailStr
-    studentId: str
-    age: int
-    contact: str
-    githubUsername: str
-    githubName: str
-    githubId: str
+
 
 class Comment(BaseModel):
     username: str
@@ -122,28 +116,12 @@ class Config:
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
-class Course(BaseModel):
-    name: str
-    professor: str
-    day: str
-    time: str
-    code: str
-
 class Student(BaseModel):
     name: str
     student_id: str
     department: str
     course_codes: List[str]
 
-class Team(BaseModel):
-    course_code: str
-    team_name: str
-    students: List[str]  # student IDs
-
-class Evaluation(BaseModel):
-    student_id: str
-    team_id: str
-    scores: Dict[str, int]  # Dictionary with criteria and score
 class DeleteCourse(BaseModel):
     code: str
 
@@ -152,38 +130,14 @@ class DeleteStudent(BaseModel):
     course_code: str
 
 
-class UserInfo(BaseModel):
-    student_id: str
-    name: str
-    department: str
+class UserQuery(BaseModel):
+    githubUsername: str
 
-class Course(BaseModel):
-    code: str
-    name: str
-    professor: str
-    day: str
-    time: str
-
-class Team(BaseModel):
+class EvaluationResult(BaseModel):
     course_code: str
     team_name: str
-    students: List[str]
-
-class EvaluationCriteria(BaseModel):
-    course_code: str
-    criteria: List[str]
-    max_teams: int
-
-class StudentRegistration(BaseModel):
-    course_code: str
-    student_id: str
-    team_name: str
-
-class Evaluation(BaseModel):
-    course_code: str
     evaluator_id: str
-    team_name: str
-    scores: Dict[str, int]
+    evaluations: List[Dict[str, Union[str, int]]]  # 평가 항목과 점수를 함께 저장
 
 # ObjectId를 문자열로 변환하는 헬퍼 함수
 def course_helper(course) -> dict:
@@ -211,8 +165,44 @@ def transform_id(document):
     document["_id"] = str(document["_id"])
     return document
 
-class UserQuery(BaseModel):
+# Models
+class UserInfo(BaseModel):
+    name: str
+    schoolEmail: EmailStr
+    studentId: str
+    age: int
+    contact: str
     githubUsername: str
+    githubName: str
+    githubId: str
+
+class Course(BaseModel):
+    code: str
+    name: str
+    professor: str
+    day: str
+    time: str
+
+class Team(BaseModel):
+    course_code: str
+    team_name: str
+    students: List[Dict[str, str]]  # 학번과 이름을 함께 저장
+
+class EvaluationCriteria(BaseModel):
+    course_code: str
+    criteria: List[str]
+    max_teams: int
+
+class StudentRegistration(BaseModel):
+    course_code: str
+    team_name: str
+    githubId: str  # 프론트엔드에서 전달받은 GitHub 아이디
+
+class Evaluation(BaseModel):
+    course_code: str
+    evaluator_id: str
+    team_name: str
+    scores: Dict[str, int]
 
 def convert_objectid_to_str(doc):
     if isinstance(doc, dict):
@@ -226,6 +216,7 @@ def convert_objectid_to_str(doc):
     return doc
 
 
+# 학생 등록 API
 @app.post("/api/teams/register")
 async def register_student(student_registration: StudentRegistration):
     evaluation = await evaluation_collection.find_one({"course_code": student_registration.course_code})
@@ -233,32 +224,63 @@ async def register_student(student_registration: StudentRegistration):
         raise HTTPException(status_code=404, detail="Evaluation criteria not found")
 
     max_teams = evaluation.get("max_teams")
-    if max_teams is not None:
-        current_team_count = await team_collection.count_documents({"course_code": student_registration.course_code})
-        if current_team_count >= max_teams:
-            raise HTTPException(status_code=400, detail="Maximum number of teams reached for this course")
+    student_info = await user_collection.find_one({"githubId": student_registration.githubId})
+    if not student_info:
+        raise HTTPException(status_code=404, detail="Student not found")
 
-    team = await team_collection.find_one({"course_code": student_registration.course_code, "team_name": student_registration.team_name})
+    student_data = {
+        "studentId": student_info["studentId"],
+        "name": student_info["name"]
+    }
+
+    team = await team_collection.find_one({"course_code": student_registration.course_code})
     if not team:
-        team = Team(course_code=student_registration.course_code, team_name=student_registration.team_name, students=[student_registration.student_id])
-        await team_collection.insert_one(team.dict())
+        team_data = {
+            "course_code": student_registration.course_code,
+            "teams": []
+        }
+        await team_collection.insert_one(team_data)
+        team = await team_collection.find_one({"course_code": student_registration.course_code})
+
+    specific_team = next((t for t in team["teams"] if t["team_name"] == student_registration.team_name), None)
+    if not specific_team:
+        if len(team["teams"]) >= max_teams:
+            raise HTTPException(status_code=400, detail="Maximum number of teams reached for this course")
+        specific_team = {
+            "team_name": student_registration.team_name,
+            "students": [student_data]
+        }
+        team["teams"].append(specific_team)
     else:
-        if student_registration.student_id in team["students"]:
+        if any(student["studentId"] == student_info["studentId"] for student in specific_team["students"]):
             raise HTTPException(status_code=400, detail="Student already registered in this team")
-        team["students"].append(student_registration.student_id)
-        await team_collection.update_one({"_id": team["_id"]}, {"$set": {"students": team["students"]}})
+        specific_team["students"].append(student_data)
+
+    await team_collection.update_one({"_id": team["_id"]}, {"$set": {"teams": team["teams"]}})
     return {"message": "Student registered successfully"}
 
-@app.post("/api/evaluations")
-async def save_evaluation_criteria(evaluation: EvaluationCriteria):
-    evaluation_dict = evaluation.dict()
-    existing_evaluation = await evaluation_collection.find_one({"course_code": evaluation.course_code})
-    if existing_evaluation:
-        await evaluation_collection.update_one({"course_code": evaluation.course_code}, {"$set": evaluation_dict})
-    else:
-        await evaluation_collection.insert_one(evaluation_dict)
-    return {"message": "Evaluation criteria saved"}
+# GitHub ID로 학생 정보 조회 API
+@app.get("/api/students/github/{githubId}")
+async def get_student_by_github(githubId: str):
+    student = await user_collection.find_one({"githubId": githubId})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return convert_objectid_to_str(student)
 
+# 평가 할당 조회 API
+@app.get("/api/evaluation_assignments/{studentId}")
+async def get_evaluation_assignments(studentId: str):
+    assignments = await evaluation_assignment_collection.find_one({"course_code": "CS105"})  # course_code는 동적으로 변경 가능
+    if not assignments:
+        raise HTTPException(status_code=404, detail="Evaluation assignments not found")
+
+    student_evaluations = assignments.get("evaluations", {}).get(studentId)
+    if not student_evaluations:
+        raise HTTPException(status_code=404, detail="Evaluations not found for the student")
+    
+    return {"evaluations": student_evaluations}
+
+# 평가 기준 조회 API
 @app.get("/api/evaluations/{course_code}")
 async def get_evaluation_criteria(course_code: str):
     evaluation = await evaluation_collection.find_one({"course_code": course_code})
@@ -268,46 +290,86 @@ async def get_evaluation_criteria(course_code: str):
 
 @app.post("/api/evaluate")
 async def submit_evaluation(evaluation: Evaluation):
-    await evaluation_collection.insert_one(evaluation.dict())
+    evaluation_result = {
+        "evaluator_id": evaluation.evaluator_id,  # GitHub 아이디 대신 학번을 저장
+        "scores": evaluation.scores
+    }
+
+    await evaluation_result_collection.update_one(
+        {"course_code": evaluation.course_code, "team_name": evaluation.team_name},
+        {"$push": {"evaluations": evaluation_result}},
+        upsert=True
+    )
     return {"message": "Evaluation submitted successfully"}
 
-@app.post("/api/teams/assign")
-async def assign_evaluations(course_code: str):
-    teams = await team_collection.find({"course_code": course_code}).to_list(None)
-    students = []
-    for team in teams:
-        students.extend(team["students"])
 
-    random.shuffle(students)
-    evaluations = {}
-    for student in students:
-        evaluations[student] = random.sample([team["team_name"] for team in teams], min(3, len(teams)))
+@app.get("/api/evaluation-results/{course_code}")
+async def get_evaluation_results(course_code: str):
+    results = []
+    async for result in evaluation_result_collection.find({"course_code": course_code}):
+        total_scores = {}
+        for evaluation in result["evaluations"]:
+            for criteria, score in evaluation["scores"].items():
+                if criteria not in total_scores:
+                    total_scores[criteria] = 0
+                total_scores[criteria] += score
+        
+        total_score = sum(total_scores.values())
+        results.append({
+            "team_name": result["team_name"],
+            "total_score": total_score
+        })
+    return results
 
-    return evaluations
+@app.get("/api/evaluation-progress/{course_code}")
+async def get_evaluation_progress(course_code: str):
+    progress = []
+    async for result in evaluation_result_collection.find({"course_code": course_code}):
+        total_scores = {}
+        for evaluation in result["evaluations"]:
+            for criteria, score in evaluation["scores"].items():
+                if criteria not in total_scores:
+                    total_scores[criteria] = 0
+                total_scores[criteria] += score
 
+        progress.append({
+            "team_name": result["team_name"],
+            "total_scores": total_scores,
+            "total_score": sum(total_scores.values())
+        })
+    return progress
+
+
+# 평가 시작 API
 @app.post("/api/start-evaluation/{course_code}")
 async def start_evaluation(course_code: str):
-    students = []
-    async for student in student_collection.find({"course_codes": course_code}):
-        students.append(student["student_id"])
+    teams = await team_collection.find_one({"course_code": course_code})
+    if not teams:
+        raise HTTPException(status_code=404, detail="No teams found for the course")
 
-    teams = []
-    async for team in team_collection.find({"course_code": course_code}):
-        teams.append(team["team_name"])
+    evaluations = defaultdict(list)
+    for team in teams["teams"]:
+        for student in team["students"]:
+            available_teams = [t["team_name"] for t in teams["teams"] if t["team_name"] != team["team_name"]]
+            evaluations[student["studentId"]] = random.sample(available_teams, min(3, len(available_teams)))
 
-    if not students or not teams:
-        raise HTTPException(status_code=404, detail="No students or teams found")
+    for student_id, assigned_teams in evaluations.items():
+        await evaluation_assignment_collection.update_one(
+            {"course_code": course_code},
+            {"$set": {f"evaluations.{student_id}": assigned_teams}},
+            upsert=True
+        )
 
-    evaluations = {student: random.sample(teams, min(3, len(teams))) for student in students}
+    return {"message": "Evaluation started successfully"}
 
-    return evaluations
-
+# 코스 생성 API
 @app.post("/api/courses")
 async def create_course(course: Course):
     course_dict = course.dict()
     result = await course_collection.insert_one(course_dict)
     return {"id": str(result.inserted_id)}
 
+# 코스 목록 조회 API
 @app.get("/api/courses")
 async def get_courses():
     courses = []
@@ -315,6 +377,7 @@ async def get_courses():
         courses.append(convert_objectid_to_str(course))
     return courses
 
+# 코스 학생 목록 조회 API
 @app.get("/api/courses/{course_code}/students")
 async def get_students_by_course(course_code: str):
     students = []
@@ -322,13 +385,15 @@ async def get_students_by_course(course_code: str):
         students.append(convert_objectid_to_str(student))
     return students
 
+# 코스 팀 목록 조회 API
 @app.get("/api/courses/{course_code}/teams")
 async def get_teams_by_course(course_code: str):
-    teams = []
-    async for team in team_collection.find({"course_code": course_code}):
-        teams.append(convert_objectid_to_str(team))
-    return teams
+    teams = await team_collection.find_one({"course_code": course_code})
+    if not teams:
+        raise HTTPException(status_code=404, detail="No teams found for the course")
+    return convert_objectid_to_str(teams)
 
+# 최대 팀 수 조회 API
 @app.get("/api/courses/{course_code}/max_teams")
 async def get_max_teams(course_code: str):
     evaluation = await evaluation_collection.find_one({"course_code": course_code})
@@ -1229,9 +1294,7 @@ async def toggle_resolve_code_answer(id: str, lineNumber: int, answerIndex: int)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
 
 class Problem(BaseModel):
     title: str
