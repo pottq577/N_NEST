@@ -826,6 +826,39 @@ async def get_user_logins():
 
 
 
+
+
+
+
+evaluate_collection = db["Evaluate_Professor"]  # 컬렉션 이름
+class EvaluationDetail(BaseModel):
+    category: str
+    summary: Optional[str]
+    score: float
+    description: Optional[str]
+
+class Evaluation(BaseModel):
+    project_id: str
+    username: str
+    student_id: str
+    course_code: str
+    evaluations: List[EvaluationDetail]
+
+@app.post("/api/projects/evaluate", response_description="Save project evaluation")
+async def save_evaluation(evaluation: Evaluation):
+    evaluation_data = jsonable_encoder(evaluation)
+    try:
+        result = await evaluate_collection.insert_one(evaluation_data)
+        if result.inserted_id:
+            return JSONResponse(status_code=201, content={"message": "Evaluation saved successfully"})
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save evaluation")
+    except Exception as e:
+        print(f"Error: {e}")  # 오류 메시지를 콘솔에 출력
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
