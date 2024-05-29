@@ -4,7 +4,9 @@ import { getAuth } from 'firebase/auth'
 import { getAnalytics } from 'firebase/analytics' // Analytics 모듈 임포트
 
 // cSpell:disable
-const firebaseConfig = {}
+const firebaseConfig = {
+  
+}
 
 const app = initializeApp(firebaseConfig)
 

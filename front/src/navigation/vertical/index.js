@@ -12,15 +12,10 @@ import GoogleCirclesExtended from 'mdi-material-ui/GoogleCirclesExtended'
 import ClipboardListOutline from 'mdi-material-ui/ClipboardListOutline'
 import HelpCircleOutline from 'mdi-material-ui/HelpCircleOutline'
 import ShieldAccountOutline from 'mdi-material-ui/ShieldAccountOutline'
+import GroupIcon from '@mui/icons-material/Group';
 
 const navigation = () => {
   return [
-    {
-      title: 'Dashboard',
-      icon: HomeOutline,
-      path: '/'
-    },
-
     // {
     //   title: 'summary',
     //   icon: HomeOutline,
@@ -47,20 +42,56 @@ const navigation = () => {
       path: '/project'
     },
     {
+      title: '마이페이지',
+      icon: AccountCogOutline,
+      path: '/mypage'
+    },
+    {
       title: 'Q&A',
       icon: HelpCircleOutline,
-      path: '/qa'
+      path: '/question-answer'
+    },
+    {
+      title: '상호평가 생성',
+      icon: HelpCircleOutline,
+      path: '/evaluation-professor'
+    },
+    {
+      title: '상호평가',
+      icon: HelpCircleOutline,
+      path: '/evaluation-student'
+    },
+    {
+      title: '코딩테스트 생성',
+      icon: HelpCircleOutline,
+      path: '/code-test-create'
+    },
+    {
+      title: '코딩테스트',
+      icon: HelpCircleOutline,
+      path: '/code-test-list'
+    },
+    {
+      title: '일정 생성',
+      icon: HelpCircleOutline,
+      path: '/schedule-professor'
+    },
+    {
+      title: '예약',
+      icon: HelpCircleOutline,
+      path: '/schedule-student'
+    },
+    {
+      title: '팀원 모집',
+      icon: GroupIcon,
+      path: '/teams'
     },
     {
       title: 'Account Settings',
       icon: AccountCogOutline,
       path: '/account-settings'
     },
-    {
-      title: '마이페이지',
-      icon: AccountCogOutline,
-      path: '/projects'
-    },
+   
     {
       sectionTitle: 'Pages'
     },
@@ -76,40 +107,7 @@ const navigation = () => {
       path: '/pages/register',
       openInNewTab: true
     },
-    {
-      title: 'Error',
-      icon: AlertCircleOutline,
-      path: '/pages/error',
-      openInNewTab: true
-    },
-    {
-      sectionTitle: 'User Interface'
-    },
-    {
-      title: 'Typography',
-      icon: FormatLetterCase,
-      path: '/typography'
-    },
-    {
-      title: 'Icons',
-      path: '/icons',
-      icon: GoogleCirclesExtended
-    },
-    {
-      title: 'Cards',
-      icon: CreditCardOutline,
-      path: '/cards'
-    },
-    {
-      title: 'Tables',
-      icon: Table,
-      path: '/tables'
-    },
-    {
-      icon: CubeOutline,
-      title: 'Form Layouts',
-      path: '/form-layouts'
-    },
+
     {
       sectionTitle: 'Administrator page'
     },

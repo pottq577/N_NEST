@@ -7,18 +7,41 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 import httpx
 from dotenv import load_dotenv
+from collections import Counter, defaultdict
+import asyncio
+import aiohttp
+import subprocess
 import os
 import jwt
 import asyncio
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List,Tuple, Union
+import random
 import json
 from bson import ObjectId
 import logging
 from fastapi.security import OAuth2PasswordBearer
-
+import google.generativeai as genai
+from openai import OpenAI
+import requests
+import re
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 load_dotenv()
+
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+
+client2 = OpenAI(api_key=OPENAI_API_KEY)
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+
+
 
 app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -45,15 +68,23 @@ MONGODB_URL = os.getenv("MONGODB_URL")
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client['N-Nest'] # 데이터베이스 선택
 user_collection = db['User']
+questions_collection = db["questions"]
 project_collection = db['Project']
 course_collection = db["Course"]
 student_collection = db["Student"]
+team_collection = db["Team"]
+evaluation_collection = db["Evaluation"]
+scores_collection = db["scores"]
+problems_collection = db['problems']
+submissions_collection = db['submissions']
+evaluation_assignment_collection = db["evaluation_assignments"] 
+evaluation_result_collection = db['EvaluationResult']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = 'http://localhost:8000/auth/callback'
 
-# 데이터 모델 정의
+# 데이터 모델 정의 
 class UserInfo(BaseModel):
     name: str
     schoolEmail: EmailStr
@@ -821,8 +852,865 @@ async def fetch_contributors(client: httpx.AsyncClient, contributors_url: str):
 async def get_user_logins():
     return JSONResponse(user_logins)
 
+class Team(BaseModel):
+    course_code: str
+    team_name: str
+    students: List[Dict[str, str]]  # 학번과 이름을 함께 저장
+
+class EvaluationCriteria(BaseModel):
+    course_code: str
+    criteria: List[str]
+    max_teams: int
+
+class StudentRegistration(BaseModel):
+    course_code: str
+    team_name: str
+    githubId: str  # 프론트엔드에서 전달받은 GitHub 아이디
+
+class Evaluation(BaseModel):
+    course_code: str
+    evaluator_id: str
+    team_name: str
+    scores: Dict[str, int]
+
+def convert_objectid_to_str(doc):
+    if isinstance(doc, dict):
+        for key, value in doc.items():
+            if isinstance(value, ObjectId):
+                doc[key] = str(value)
+            elif isinstance(value, list):
+                doc[key] = [convert_objectid_to_str(item) for item in value]
+            elif isinstance(value, dict):
+                doc[key] = convert_objectid_to_str(value)
+    return doc
 
 
+# 학생 등록 API
+@app.post("/api/teams/register")
+async def register_student(student_registration: StudentRegistration):
+    evaluation = await evaluation_collection.find_one({"course_code": student_registration.course_code})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation criteria not found")
+
+    max_teams = evaluation.get("max_teams")
+    student_info = await user_collection.find_one({"githubId": student_registration.githubId})
+    if not student_info:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    student_data = {
+        "studentId": student_info["studentId"],
+        "name": student_info["name"]
+    }
+
+    team = await team_collection.find_one({"course_code": student_registration.course_code})
+    if not team:
+        team_data = {
+            "course_code": student_registration.course_code,
+            "teams": []
+        }
+        await team_collection.insert_one(team_data)
+        team = await team_collection.find_one({"course_code": student_registration.course_code})
+
+    specific_team = next((t for t in team["teams"] if t["team_name"] == student_registration.team_name), None)
+    if not specific_team:
+        if len(team["teams"]) >= max_teams:
+            raise HTTPException(status_code=400, detail="Maximum number of teams reached for this course")
+        specific_team = {
+            "team_name": student_registration.team_name,
+            "students": [student_data]
+        }
+        team["teams"].append(specific_team)
+    else:
+        if any(student["studentId"] == student_info["studentId"] for student in specific_team["students"]):
+            raise HTTPException(status_code=400, detail="Student already registered in this team")
+        specific_team["students"].append(student_data)
+
+    await team_collection.update_one({"_id": team["_id"]}, {"$set": {"teams": team["teams"]}})
+    return {"message": "Student registered successfully"}
+
+# GitHub ID로 학생 정보 조회 API
+@app.get("/api/students/github/{githubId}")
+async def get_student_by_github(githubId: str):
+    student = await user_collection.find_one({"githubId": githubId})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return convert_objectid_to_str(student)
+
+# 평가 할당 조회 API
+@app.get("/api/evaluation_assignments/{studentId}")
+async def get_evaluation_assignments(studentId: str):
+    assignments = await evaluation_assignment_collection.find_one({"course_code": "CS105"})  # course_code는 동적으로 변경 가능
+    if not assignments:
+        raise HTTPException(status_code=404, detail="Evaluation assignments not found")
+
+    student_evaluations = assignments.get("evaluations", {}).get(studentId)
+    if not student_evaluations:
+        raise HTTPException(status_code=404, detail="Evaluations not found for the student")
+    
+    return {"evaluations": student_evaluations}
+
+# 평가 기준 조회 API
+@app.get("/api/evaluations/{course_code}")
+async def get_evaluation_criteria(course_code: str):
+    evaluation = await evaluation_collection.find_one({"course_code": course_code})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation criteria not found")
+    return convert_objectid_to_str(evaluation)
+
+@app.post("/api/evaluate")
+async def submit_evaluation(evaluation: Evaluation):
+    evaluation_result = {
+        "evaluator_id": evaluation.evaluator_id,  # GitHub 아이디 대신 학번을 저장
+        "scores": evaluation.scores
+    }
+
+    await evaluation_result_collection.update_one(
+        {"course_code": evaluation.course_code, "team_name": evaluation.team_name},
+        {"$push": {"evaluations": evaluation_result}},
+        upsert=True
+    )
+    return {"message": "Evaluation submitted successfully"}
+
+
+@app.get("/api/evaluation-results/{course_code}")
+async def get_evaluation_results(course_code: str):
+    results = []
+    async for result in evaluation_result_collection.find({"course_code": course_code}):
+        total_scores = {}
+        for evaluation in result["evaluations"]:
+            for criteria, score in evaluation["scores"].items():
+                if criteria not in total_scores:
+                    total_scores[criteria] = 0
+                total_scores[criteria] += score
+        
+        total_score = sum(total_scores.values())
+        results.append({
+            "team_name": result["team_name"],
+            "total_score": total_score
+        })
+    return results
+
+@app.get("/api/evaluation-progress/{course_code}")
+async def get_evaluation_progress(course_code: str):
+    progress = []
+    async for result in evaluation_result_collection.find({"course_code": course_code}):
+        total_scores = {}
+        for evaluation in result["evaluations"]:
+            for criteria, score in evaluation["scores"].items():
+                if criteria not in total_scores:
+                    total_scores[criteria] = 0
+                total_scores[criteria] += score
+
+        progress.append({
+            "team_name": result["team_name"],
+            "total_scores": total_scores,
+            "total_score": sum(total_scores.values())
+        })
+    return progress
+
+
+# 평가 시작 API
+@app.post("/api/start-evaluation/{course_code}")
+async def start_evaluation(course_code: str):
+    teams = await team_collection.find_one({"course_code": course_code})
+    if not teams:
+        raise HTTPException(status_code=404, detail="No teams found for the course")
+
+    evaluations = defaultdict(list)
+    for team in teams["teams"]:
+        for student in team["students"]:
+            available_teams = [t["team_name"] for t in teams["teams"] if t["team_name"] != team["team_name"]]
+            evaluations[student["studentId"]] = random.sample(available_teams, min(3, len(available_teams)))
+
+    for student_id, assigned_teams in evaluations.items():
+        await evaluation_assignment_collection.update_one(
+            {"course_code": course_code},
+            {"$set": {f"evaluations.{student_id}": assigned_teams}},
+            upsert=True
+        )
+
+    return {"message": "Evaluation started successfully"}
+
+# 코스 생성 API
+@app.post("/api/courses")
+async def create_course(course: Course):
+    course_dict = course.dict()
+    result = await course_collection.insert_one(course_dict)
+    return {"id": str(result.inserted_id)}
+
+# 코스 목록 조회 API
+@app.get("/api/courses")
+async def get_courses():
+    courses = []
+    async for course in course_collection.find():
+        courses.append(convert_objectid_to_str(course))
+    return courses
+
+# 코스 학생 목록 조회 API
+@app.get("/api/courses/{course_code}/students")
+async def get_students_by_course(course_code: str):
+    students = []
+    async for student in student_collection.find({"course_codes": course_code}):
+        students.append(convert_objectid_to_str(student))
+    return students
+
+# 코스 팀 목록 조회 API
+@app.get("/api/courses/{course_code}/teams")
+async def get_teams_by_course(course_code: str):
+    teams = await team_collection.find_one({"course_code": course_code})
+    if not teams:
+        raise HTTPException(status_code=404, detail="No teams found for the course")
+    return convert_objectid_to_str(teams)
+
+# 최대 팀 수 조회 API
+@app.get("/api/courses/{course_code}/max_teams")
+async def get_max_teams(course_code: str):
+    evaluation = await evaluation_collection.find_one({"course_code": course_code})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluation criteria not found")
+    return {"max_teams": evaluation.get("max_teams", 0)}
+
+@app.post("/api/evaluations")
+async def save_evaluation_criteria(evaluation_criteria: EvaluationCriteria):
+    try:
+        evaluation_dict = jsonable_encoder(evaluation_criteria)
+        result = await evaluation_collection.insert_one(evaluation_dict)
+        return {"message": "Evaluation criteria saved successfully", "id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class TimeSlot(BaseModel):
+    day: str
+    time: str
+
+class Schedule(BaseModel):
+    start: Optional[str] = None
+    end: Optional[str] = None
+    interval: int = 30
+    maxCapacity: int = 1
+
+class AvailabilityData(BaseModel):
+    userId: str
+    weeklySchedule: dict = Field(default_factory=dict)
+    unavailableTimes: List[TimeSlot] = Field(default_factory=list)
+
+class ReservationData(BaseModel):
+    studentName: str
+    userId: str
+    day: str
+    date: str
+    time: str
+
+@app.post("/availability/")
+async def save_availability(data: AvailabilityData):
+    try:
+        existing_data = await db.availability.find_one({"userId": data.userId})
+        if existing_data:
+            await db.availability.update_one({"userId": data.userId}, {"$set": data.dict()})
+        else:
+            await db.availability.insert_one(data.dict())
+        return {"message": "Availability settings saved successfully!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/availability/", response_model=List[AvailabilityData])
+async def get_all_availability():
+    try:
+        data = await db.availability.find().to_list(None)
+        if data:
+            return [AvailabilityData(**item) for item in data]
+        else:
+            raise HTTPException(status_code=404, detail="No availability settings found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/availability/user", response_model=AvailabilityData)
+async def get_availability(userId: str = Query(...)):
+    try:
+        data = await db.availability.find_one({"userId": userId})
+        if data:
+            return AvailabilityData(**data)
+        else:
+            raise HTTPException(status_code=404, detail="No availability settings found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/reservations/")
+async def get_reservations():
+    try:
+        reservations = await db.reservations.find().to_list(None)
+        for reservation in reservations:
+            reservation["_id"] = str(reservation["_id"])
+        return reservations
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/reservation/")
+async def make_reservation(data: ReservationData):
+    try:
+        availability = await db.availability.find_one({"userId": data.userId})
+        if not availability:
+            raise HTTPException(status_code=404, detail="No availability settings found.")
+
+        weekly_schedule = availability['weeklySchedule']
+        unavailable_times = availability['unavailableTimes']
+
+        if data.day not in weekly_schedule or not weekly_schedule[data.day]['start'] or not weekly_schedule[data.day]['end']:
+            raise HTTPException(status_code=400, detail="Invalid reservation time.")
+
+        if any(slot['day'] == data.day and slot['time'] == data.time for slot in unavailable_times):
+            raise HTTPException(status_code=400, detail="The selected time is unavailable.")
+
+        existing_reservations = await db.reservations.count_documents({"day": data.day, "time": data.time})
+        if existing_reservations >= weekly_schedule[data.day]['maxCapacity']:
+            raise HTTPException(status_code=400, detail="The selected time is fully booked.")
+
+        result = await db.reservations.insert_one(data.dict())
+        return {"message": "Reservation saved successfully!", "id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+# Pydantic 모델 정의
+class ClassificationRequest(BaseModel):
+    text: str
+
+@app.post("/classify")
+async def classify_text(request: ClassificationRequest):
+    if not request.text:
+        raise HTTPException(status_code=400, detail="No text provided")
+
+    # Set the text to classify
+    prompt_text = (
+        "Classify the following IT-related response into categories such as backend, frontend, security, network, cloud, and others. Only assign a category if the relevance is over 80%: \n\n"
+        f"'{request.text}'"
+    )
+
+    categories = ["backend", "frontend", "security", "network", "cloud", "others"]
+    it_terms = ["server", "api", "http", "frontend", "backend", "database", "network", "security", "encryption", "cloud", "storage", "virtualization"]
+    results: List[str] = []
+
+    # Query the OpenAI API three times
+    for _ in range(3):
+        response = client2.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an AI that classifies IT-related questions."},
+                {"role": "user", "content": prompt_text}
+            ],
+            max_tokens=60
+        )
+
+        # Analyze the model's response
+        raw_response = response.choices[0].message.content.strip().lower()
+
+        # Check if IT terms are present in the response
+        if any(term in raw_response for term in it_terms):
+            # Map response to category
+            found_categories = [category for category in categories if category in raw_response]
+            if found_categories:
+                results.extend(found_categories)
+            else:
+                results.append("others")
+        else:
+            results.append("others")
+
+    # Determine the most common category
+    if results:
+        most_common_category = Counter(results).most_common(1)[0][0]
+        return {"category": most_common_category}
+    else:
+        return {"category": "others"}
+
+class CodeAnswer(BaseModel):
+    lineNumber: int
+    text: str
+    userId: str
+    userTitle: str = "Beginner"  # Default title
+    resolved: str = "false"
+    createdAt: datetime = Field(default_factory=datetime.now)
+
+class GeneralAnswer(BaseModel):
+    text: str
+    userId: str
+    userTitle: str = "Beginner"  # Default title
+    resolved: str = "false"  # Add resolved field
+    createdAt: datetime = Field(default_factory=datetime.now)
+
+
+class Answer(BaseModel):
+    text: str
+    userId: str
+    createdAt: datetime = Field(default_factory=datetime.now)
+
+class Question(BaseModel):
+    title: str
+    description: str
+    category: str
+    customCategories: List[str]
+    code: str
+    userId: str
+    createdAt: datetime = Field(default_factory=datetime.now)
+    codeAnswers: Dict[str, List[CodeAnswer]] = {}
+    generalAnswers: List[GeneralAnswer] = []
+
+class QuestionInDB(BaseModel):
+    id: str
+    title: str
+    description: str
+    category: str
+    code: str
+    userId: str
+    createdAt: datetime
+    codeAnswers: Dict[str, List[Dict]] = {}
+    generalAnswers: List[Dict] = []
+
+class Score(BaseModel):
+    studentId: str
+    scores: Dict[str, float]
+    titles: Dict[str, str]  # 각 카테고리별 칭호를 저장하는 필드
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+titles = {
+    "backend": {
+        0: "Novice Backend Developer",
+        10: "Intermediate Backend Developer",
+        20: "Advanced Backend Developer",
+        50: "Expert Backend Developer"
+    },
+    "frontend": {
+        0: "Novice Frontend Developer",
+        10: "Intermediate Frontend Developer",
+        20: "Advanced Frontend Developer",
+        50: "Expert Frontend Developer"
+    },
+    "security": {
+        0: "Novice Security Specialist",
+        10: "Intermediate Security Specialist",
+        20: "Advanced Security Specialist",
+        50: "Expert Security Specialist"
+    },
+    "network": {
+        0: "Novice Network Engineer",
+        10: "Intermediate Network Engineer",
+        20: "Advanced Network Engineer",
+        50: "Expert Network Engineer"
+    },
+    "cloud": {
+        0: "Novice Cloud Engineer",
+        10: "Intermediate Cloud Engineer",
+        20: "Advanced Cloud Engineer",
+        50: "Expert Cloud Engineer"
+    },
+    "others": {
+        0: "Novice IT Specialist",
+        10: "Intermediate IT Specialist",
+        20: "Advanced IT Specialist",
+        50: "Expert IT Specialist"
+    }
+}
+
+
+def get_title(category: str, points: float) -> str:
+    thresholds = sorted(titles[category].keys(), reverse=True)
+    for threshold in thresholds:
+        if points >= threshold:
+            return titles[category][threshold]
+    return "Undefined Title"
+
+async def update_scores(student_id: str, category: str, points: float) -> Tuple[Dict[str, float], str]:
+    score_doc = await scores_collection.find_one({"studentId": student_id})
+    new_title = ""
+    if score_doc:
+        new_scores = score_doc["scores"]
+        new_titles = score_doc.get("titles", {})
+        if category in new_scores:
+            new_scores[category] = max(0, new_scores[category] + points)
+        else:
+            new_scores[category] = max(0, points)
+        new_title = get_title(category, new_scores[category])
+        new_titles[category] = new_title
+        await scores_collection.update_one(
+            {"_id": score_doc["_id"]},
+            {"$set": {"scores": new_scores, "titles": new_titles}}
+        )
+    else:
+        new_scores = {category: max(0, points)}
+        new_title = get_title(category, new_scores[category])
+        new_titles = {category: new_title}
+        new_score = Score(studentId=student_id, scores=new_scores, titles=new_titles)
+        await scores_collection.insert_one(new_score.dict())
+
+    return new_scores, new_title
+
+
+
+@app.post("/questions", response_model=QuestionInDB)
+async def save_question(question: Question):
+    try:
+        user = await user_collection.find_one({"githubId": question.userId})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        question_dict = question.dict()
+        if "codeAnswers" not in question_dict:
+            question_dict["codeAnswers"] = {}
+        if "generalAnswers" not in question_dict:
+            question_dict["generalAnswers"] = []
+
+        result = await questions_collection.insert_one(question_dict)
+        question_dict["_id"] = str(result.inserted_id)
+        return QuestionInDB(id=str(result.inserted_id), **question_dict)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error saving question")
+
+
+@app.get("/list/questions", response_model=List[QuestionInDB])
+async def list_questions():
+    try:
+        questions = await questions_collection.find().to_list(1000)
+        return [QuestionInDB(id=str(q["_id"]), **q) for q in questions]
+    except Exception as e:
+        print(f"Error fetching questions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching questions")
+
+@app.get("/questions/{id}", response_model=QuestionInDB)
+async def get_question(id: str):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+        return QuestionInDB(id=str(question["_id"]), **question)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error fetching question")
+
+@app.post("/questions/{id}/answers")
+async def save_code_answer(id: str, answer: CodeAnswer):
+    try:
+        user = await user_collection.find_one({"githubId": answer.userId})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # 기본 칭호 설정
+        user_title = "Beginner"
+
+        user_scores = await scores_collection.find_one({"studentId": user["studentId"]})
+        if user_scores:
+            for category, title in user_scores["titles"].items():
+                user_title = title
+                break
+
+        answer.userTitle = user_title  # Set the user title for the answer
+
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        if str(answer.lineNumber) not in question["codeAnswers"]:
+            question["codeAnswers"][str(answer.lineNumber)] = []
+
+        question["codeAnswers"][str(answer.lineNumber)].append(answer.dict())
+
+        result = await questions_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"codeAnswers": question["codeAnswers"]}}
+        )
+
+        if result.modified_count == 1:
+            return {"message": "Answer added successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Error adding answer")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding answer: {str(e)}")
+
+
+@app.get("/users/{user_id}/resolved-answers")
+async def check_user_resolved_answers(user_id: str, questionId: str):
+    question = await questions_collection.find_one({"_id": ObjectId(questionId)})
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    # 사용자 ID와 resolved 상태를 체크
+    has_resolved_answer = any(
+        any(answer["userId"] == user_id and answer["resolved"] == "true" for answer in answers)
+        for answers in question["codeAnswers"].values()
+    )
+
+    return {"hasResolvedAnswer": has_resolved_answer}
+
+
+
+@app.post("/questions/{id}/general-answers")
+async def save_general_answer(id: str, answer: GeneralAnswer):
+    try:
+        user = await user_collection.find_one({"githubId": answer.userId})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # 기본 칭호 설정
+        user_title = "Beginner"
+
+        user_scores = await scores_collection.find_one({"studentId": user["studentId"]})
+        if user_scores:
+            for category, title in user_scores["titles"].items():
+                user_title = title
+                break
+
+        answer.userTitle = user_title  # Set the user title for the general answer
+
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        general_answer_dict = answer.dict()
+        general_answer_dict["createdAt"] = datetime.now()
+
+        question["generalAnswers"].append(general_answer_dict)
+
+        result = await questions_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"generalAnswers": question["generalAnswers"]}}
+        )
+
+        if result.modified_count == 1:
+            return {"message": "General answer added successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Error adding general answer")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding general answer: {str(e)}")
+    
+@app.post("/questions/{id}/general-answers/{answerIndex}/resolve")
+async def toggle_resolve_general_answer(id: str, answerIndex: int):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        if answerIndex < 0 or answerIndex >= len(question["generalAnswers"]):
+            raise HTTPException(status_code=404, detail="Answer not found")
+
+        answer = question["generalAnswers"][answerIndex]
+
+        # Toggle resolved status
+        answer["resolved"] = 'true' if answer["resolved"] == 'false' else 'false'
+
+        category = question["category"]
+        question_user = await user_collection.find_one({"githubId": question["userId"]})
+        answer_user = await user_collection.find_one({"githubId": answer["userId"]})
+        if not question_user or not answer_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        points_change = 1 if answer["resolved"] == 'true' else -1
+        question_points_change = 0.5 if answer["resolved"] == 'true' else -0.5
+
+        answer_scores, answer_title = await update_scores(answer_user["studentId"], category, points_change)
+        question_scores, question_title = await update_scores(question_user["studentId"], category, question_points_change)
+
+        # Update answer with new title
+        answer["userTitle"] = answer_title
+
+        result = await questions_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"generalAnswers": question["generalAnswers"]}}
+        )
+
+        # Check if the user has any other resolved answers
+        other_resolved_answers = any(
+            ans["userId"] == answer["userId"] and ans["resolved"] == 'true'
+            for ans in question["generalAnswers"]
+        )
+
+        if result.modified_count == 1:
+            return {
+                "message": "Answer resolve status toggled",
+                "answer_user_new_title": answer_title,
+                "question_user_new_title": question_title,
+                "hasResolvedAnswer": other_resolved_answers
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Error toggling resolve status")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
+
+
+@app.post("/questions/{id}/answers/{lineNumber}/{answerIndex}/resolve")
+async def toggle_resolve_code_answer(id: str, lineNumber: int, answerIndex: int):
+    try:
+        question = await questions_collection.find_one({"_id": ObjectId(id)})
+        if question is None:
+            raise HTTPException(status_code=404, detail="Question not found")
+
+        line_answers = question["codeAnswers"].get(str(lineNumber), [])
+        if answerIndex < 0 or answerIndex >= len(line_answers):
+            raise HTTPException(status_code=404, detail="Answer not found")
+
+        answer = line_answers[answerIndex]
+
+        # Toggle resolved status
+        answer["resolved"] = 'true' if answer["resolved"] == 'false' else 'false'
+
+        category = question["category"]
+        question_user = await user_collection.find_one({"githubId": question["userId"]})
+        answer_user = await user_collection.find_one({"githubId": answer["userId"]})
+        if not question_user or not answer_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        points_change = 1 if answer["resolved"] == 'true' else -1
+        question_points_change = 0.5 if answer["resolved"] == 'true' else -0.5
+
+        answer_scores, answer_title = await update_scores(answer_user["studentId"], category, points_change)
+        question_scores, question_title = await update_scores(question_user["studentId"], category, question_points_change)
+
+        # Update answer with new title
+        answer["userTitle"] = answer_title
+
+        # Update all answers by the same user with the new title
+        for line_answers_list in question["codeAnswers"].values():
+            for ans in line_answers_list:
+                if ans["userId"] == answer["userId"]:
+                    ans["userTitle"] = answer_title
+
+        result = await questions_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"codeAnswers": question["codeAnswers"]}}
+        )
+
+        # Check if the user has any other resolved answers
+        other_resolved_answers = any(
+            any(ans["userId"] == answer["userId"] and ans["resolved"] == 'true' for ans in ans_list)
+            for ans_list in question["codeAnswers"].values()
+        )
+
+        if result.modified_count == 1:
+            return {
+                "message": "Answer resolve status toggled",
+                "answer_user_new_title": answer_title,
+                "question_user_new_title": question_title,
+                "hasResolvedAnswer": other_resolved_answers
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Error toggling resolve status")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error toggling resolve status: {str(e)}")
+
+
+
+
+class Problem(BaseModel):
+    title: str
+    description: str
+    input_description: str
+    output_description: str
+    sample_input: str
+    sample_output: str
+
+class CodeSubmission(BaseModel):
+    problem_id: str
+    user_id: str
+    code: str
+    language: str
+
+# Judge0 API 설정
+JUDGE0_API_URL = "https://judge0-ce.p.rapidapi.com/submissions/"
+JUDGE0_API_KEY = "bace70d956msh6b9a2ff9d6e6c4ep1522c0jsn3ef11ed8217a"  # 필요시 API 키를 추가하세요
+
+
+languages = {
+    "python": 71,
+    "javascript": 63,
+    # 필요한 다른 언어도 추가할 수 있습니다.
+}
+
+@app.post("/problems/")
+async def create_problem(problem: Problem):
+    problem_dict = problem.dict()
+    result = await problems_collection.insert_one(problem_dict)
+    return {"id": str(result.inserted_id)}
+
+@app.get("/problems/")
+async def get_problems():
+    problems = await problems_collection.find().to_list(1000)
+    for problem in problems:
+        problem["_id"] = str(problem["_id"])
+    return problems
+
+@app.get("/problems/{problem_id}")
+async def get_problem(problem_id: str):
+    problem = await problems_collection.find_one({"_id": ObjectId(problem_id)})
+    if problem:
+        problem["_id"] = str(problem["_id"])
+        return problem
+    raise HTTPException(status_code=404, detail="Problem not found")
+
+@app.post("/submissions/")
+async def submit_code(submission: CodeSubmission):
+    logger.info(f"Received submission: {submission}")
+    language_id = languages.get(submission.language.lower())
+    if not language_id:
+        raise HTTPException(status_code=400, detail="Language not supported.")
+
+    problem = await problems_collection.find_one({"_id": ObjectId(submission.problem_id)})
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found")
+
+    submission_data = {
+        "source_code": submission.code,
+        "language_id": language_id,
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+        "X-RapidAPI-Key": JUDGE0_API_KEY
+    }
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(JUDGE0_API_URL, json=submission_data, headers=headers) as response:
+                if response.status != 201:
+                    logger.error(f"Error submitting code: {response.status} {response.reason}")
+                    raise HTTPException(status_code=500, detail="Error submitting code.")
+                result = await response.json()
+                token = result['token']
+                logger.info(f"Code submitted successfully. Token: {token}")
+
+                result_url = f"{JUDGE0_API_URL}{token}"
+                while True:
+                    async with session.get(result_url, headers=headers) as result_response:
+                        result_data = await result_response.json()
+                        if result_response.status == 200 and result_data.get("status", {}).get("description") != "In Queue":
+                            # 제출된 코드의 출력과 문제의 예상 출력을 비교
+                            is_correct = result_data['stdout'].strip() == problem['sample_output'].strip()
+                            result_data['is_correct'] = is_correct
+
+                            submission_record = {
+                                "problem_id": submission.problem_id,
+                                "user_id": submission.user_id,
+                                "code": submission.code,
+                                "language": submission.language,
+                                "result": result_data,
+                            }
+                            await submissions_collection.insert_one(submission_record)
+                            logger.info(f"Submission result: {result_data}")
+                            return result_data
+                        await asyncio.sleep(1)
+        except Exception as e:
+            logger.error(f"Exception occurred: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error executing code: {e}")
+
+@app.get("/submissions/{submission_id}")
+async def get_submission(submission_id: str):
+    submission = await submissions_collection.find_one({"_id": ObjectId(submission_id)})
+    if submission:
+        submission["_id"] = str(submission["_id"])
+        return submission
+    raise HTTPException(status_code=404, detail="Submission not found")
 
 
 
