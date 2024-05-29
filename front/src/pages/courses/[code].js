@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
 import {
   Container,
   Typography,
@@ -13,12 +13,24 @@ import {
   Avatar,
   Paper,
   Divider,
-  Button
-} from '@mui/material'
-import { styled } from '@mui/system'
-import { useRouter } from 'next/router'
-import axios from 'axios'
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'
+  Button,
+  TextField,
+  IconButton,
+  Select,
+  MenuItem,
+  FormControl,
+  ListItemText,
+  InputLabel,
+  Tabs,
+  Tab
+} from '@mui/material';
+import { styled } from '@mui/system';
+import { useRouter } from 'next/router';
+import axios from 'axios';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import AddIcon from '@mui/icons-material/Add';
+import { auth } from '../../../lib/firebase'; // 사용자의 Firebase 인증 정보 가져오기
+import { onAuthStateChanged } from 'firebase/auth';
 
 const CustomCard = styled(Card)(({ theme }) => ({
   transition: 'transform 0.2s',
@@ -26,72 +38,190 @@ const CustomCard = styled(Card)(({ theme }) => ({
     transform: 'scale(1.05)',
     boxShadow: theme.shadows[10]
   }
-}))
+}));
 
 const CustomAvatar = styled(Avatar)(({ theme }) => ({
   backgroundColor: theme.palette.primary.main,
   color: theme.palette.common.white
-}))
+}));
 
 const CourseDetail = () => {
-  const router = useRouter()
-  const { code } = router.query
-  const [courseData, setCourseData] = useState(null)
-  const [projects, setProjects] = useState([])
-  const [filteredProjects, setFilteredProjects] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const router = useRouter();
+  const { code } = router.query;
+  const [courseData, setCourseData] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [filteredProjects, setFilteredProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [maxTeams, setMaxTeams] = useState(5);
+  const [criteria, setCriteria] = useState([]);
+  const [newCriteria, setNewCriteria] = useState('');
+  const [teams, setTeams] = useState([]);
+  const [assignedEvaluations, setAssignedEvaluations] = useState({});
+  const [evaluationResults, setEvaluationResults] = useState([]);
+  const [evaluationProgress, setEvaluationProgress] = useState([]);
+  const [tabIndex, setTabIndex] = useState(0);
+  const [userId, setUserId] = useState('');
+  const [githubId, setGithubId] = useState('');
+  const [studentId, setStudentId] = useState('');
 
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/courses/${code}`)
-        setCourseData(response.data)
+        const response = await axios.get(`http://localhost:8000/courses/${code}`);
+        setCourseData(response.data);
+        setMaxTeams(response.data.max_teams || 5); // 팀 수 설정
+        setCriteria(response.data.criteria || []); // 평가 기준 설정
+        fetchTeams(response.data.course.code);
       } catch (error) {
-        console.error('Error fetching course data:', error)
-        setError('Failed to load course data')
+        console.error('Error fetching course data:', error);
+        setError('Failed to load course data');
       }
-    }
+    };
 
     const fetchProjects = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/projects')
-        setProjects(response.data)
+        const response = await axios.get('http://localhost:8000/api/projects');
+        setProjects(response.data);
       } catch (error) {
-        console.error('Error fetching projects:', error)
-        setError('Failed to load projects')
+        console.error('Error fetching projects:', error);
+        setError('Failed to load projects');
       }
-    }
+    };
 
     if (code) {
-      fetchCourseData()
-      fetchProjects()
+      fetchCourseData();
+      fetchProjects();
     }
-  }, [code])
+  }, [code]);
 
   useEffect(() => {
     if (projects && courseData) {
-      const filtered = projects.filter(project => project.course_code === code)
-      setFilteredProjects(filtered)
-      setIsLoading(false)
+      const filtered = projects.filter(project => project.course_code === code);
+      setFilteredProjects(filtered);
+      setIsLoading(false);
     }
-  }, [projects, courseData, code])
+  }, [projects, courseData, code]);
 
   const handleDragEnd = result => {
-    if (!result.destination) return
+    if (!result.destination) return;
 
     if (result.destination.droppableId === 'evaluationZone') {
-      const projectId = result.draggableId
-      router.push(`/evaluate/${projectId}`)
+      const projectId = result.draggableId;
+      router.push(`/evaluate/${projectId}`);
     }
-  }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        try {
+          const githubResponse = await axios.get(`http://localhost:8000/api/students/github/${user.uid}`);
+          const studentInfo = githubResponse.data;
+          setGithubId(studentInfo.githubId);
+          setStudentId(studentInfo.studentId);
+        } catch (error) {
+          console.error('Error fetching GitHub ID:', error);
+        }
+      } else {
+        setUserId('');
+        console.error('No user is signed in');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleTabChange = (event, newValue) => {
+    setTabIndex(newValue);
+  };
+
+  const fetchTeams = async (courseCode) => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/courses/${courseCode}/teams`);
+      setTeams(response.data.teams || []);
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+      setTeams([]);
+    }
+  };
+
+  const fetchEvaluationProgress = async (courseCode) => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/evaluation-progress/${courseCode}`);
+      setEvaluationProgress(response.data);
+    } catch (error) {
+      console.error('Error fetching evaluation progress:', error);
+    }
+  };
+
+  const saveEvaluationCriteria = async () => {
+    try {
+      await axios.post('http://localhost:8000/api/evaluations', {
+        course_code: code,
+        criteria: criteria,
+        max_teams: maxTeams
+      });
+      alert('Evaluation criteria saved successfully');
+    } catch (error) {
+      console.error('Error saving evaluation criteria:', error);
+    }
+  };
+
+  const addCriteria = () => {
+    if (newCriteria && !criteria.includes(newCriteria)) {
+      setCriteria([...criteria, newCriteria]);
+      setNewCriteria('');
+    }
+  };
+
+  const removeCriteria = (crit) => {
+    const updatedCriteria = criteria.filter(c => c !== crit);
+    setCriteria(updatedCriteria);
+  };
+
+  const startEvaluation = async () => {
+    try {
+      const response = await axios.post(`http://localhost:8000/api/start-evaluation/${code}`);
+      alert('Evaluation started successfully and teams assigned');
+      setAssignedEvaluations(response.data);
+      console.log('Assigned evaluations:', response.data);
+    } catch (error) {
+      console.error('Error starting evaluation:', error);
+    }
+  };
+
+  const fetchEvaluationResults = async () => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/evaluation-results/${code}`);
+      setEvaluationResults(response.data);
+    } catch (error) {
+      console.error('Error fetching evaluation results:', error);
+    }
+  };
+
+  const registerTeam = async (teamName) => {
+    try {
+      await axios.post('http://localhost:8000/api/teams/register', {
+        course_code: code,
+        team_name: teamName,
+        githubId: userId
+      });
+      alert(`Joined ${teamName} successfully`);
+      fetchTeams(code);
+    } catch (error) {
+      console.error(`Error joining ${teamName}:`, error);
+    }
+  };
 
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
       </Box>
-    )
+    );
   }
 
   if (error) {
@@ -99,7 +229,7 @@ const CourseDetail = () => {
       <Container>
         <Typography color='error'>{error}</Typography>
       </Container>
-    )
+    );
   }
 
   return (
@@ -137,6 +267,146 @@ const CourseDetail = () => {
               ))}
             </List>
           </Box>
+          <Divider />
+
+          <Box sx={{ mt: 4 }}>
+            <Tabs value={tabIndex} onChange={handleTabChange}>
+              <Tab label="Evaluation Criteria" />
+              <Tab label="Team Status" />
+              <Tab label="Evaluation Progress" />
+              <Tab label="Final Results" />
+            </Tabs>
+
+            {tabIndex === 0 && (
+              <>
+                <Box mt={2}>
+                  <TextField
+                    label="Max Teams"
+                    variant="outlined"
+                    type="number"
+                    value={maxTeams}
+                    onChange={(e) => setMaxTeams(e.target.value)}
+                    style={{ marginRight: '16px' }}
+                  />
+                </Box>
+
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Evaluation Criteria</Typography>
+                  <Box display="flex" alignItems="center">
+                    <TextField
+                      label="New Criteria"
+                      variant="outlined"
+                      value={newCriteria}
+                      onChange={(e) => setNewCriteria(e.target.value)}
+                      style={{ marginRight: '16px' }}
+                    />
+                    <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={addCriteria}>
+                      Add Criteria
+                    </Button>
+                  </Box>
+                  <List>
+                    {criteria.map((crit, index) => (
+                      <ListItem key={index}>
+                        <ListItemText primary={crit} />
+                        <IconButton edge="end" aria-label="delete" onClick={() => removeCriteria(crit)}>
+                          {/* Remove Icon */}
+                        </IconButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+
+                <Button variant="contained" color="secondary" onClick={saveEvaluationCriteria}>
+                  Save Evaluation Criteria
+                </Button>
+              </>
+            )}
+
+            {tabIndex === 1 && (
+              <>
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Team Status</Typography>
+                  <List>
+                    {teams && teams.length > 0 ? (
+                      teams.map((team, index) => (
+                        <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <ListItemText primary={`Team: ${team.team_name}`} />
+                          <IconButton edge="end" aria-label="add" onClick={() => registerTeam(team.team_name)}>
+                            <AddIcon />
+                          </IconButton>
+                        </ListItem>
+                      ))
+                    ) : (
+                      <Typography>No teams available</Typography>
+                    )}
+                  </List>
+                </Box>
+
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Assigned Evaluations</Typography>
+                  <List>
+                    {Object.entries(assignedEvaluations).map(([studentId, teamNames], index) => (
+                      <ListItem key={index}>
+                        <ListItemText 
+                          primary={`Student ID: ${studentId}, Assigned Teams: ${Array.isArray(teamNames) ? teamNames.join(', ') : ''}`} 
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+
+                <Button variant="contained" color="primary" onClick={startEvaluation}>
+                  Start Evaluation
+                </Button>
+              </>
+            )}
+
+            {tabIndex === 2 && (
+              <>
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Evaluation Progress</Typography>
+                  <List>
+                    {evaluationProgress && evaluationProgress.length > 0 ? (
+                      evaluationProgress.map((progress, index) => (
+                        <ListItem key={index}>
+                          <ListItemText 
+                            primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`} 
+                          />
+                        </ListItem>
+                      ))
+                    ) : (
+                      <Typography>No evaluation progress available</Typography>
+                    )}
+                  </List>
+                </Box>
+              </>
+            )}
+
+            {tabIndex === 3 && (
+              <>
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Final Results</Typography>
+                  <Button variant="contained" color="primary" onClick={fetchEvaluationResults}>
+                    Fetch Final Results
+                  </Button>
+                  <List>
+                    {evaluationResults && evaluationResults.length > 0 ? (
+                      evaluationResults.map((result, index) => (
+                        <ListItem key={index}>
+                          <ListItemText 
+                            primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`} 
+                          />
+                        </ListItem>
+                      ))
+                    ) : (
+                      <Typography>No final results available</Typography>
+                    )}
+                  </List>
+                </Box>
+              </>
+            )}
+          </Box>
+          
           <Divider />
           <Box sx={{ mt: 4 }}>
             <Typography variant='h5' component='h2' gutterBottom>
@@ -225,7 +495,7 @@ const CourseDetail = () => {
         </Paper>
       )}
     </Container>
-  )
-}
+  );
+};
 
-export default CourseDetail
+export default CourseDetail;

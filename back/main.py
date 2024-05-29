@@ -928,6 +928,9 @@ async def register_student(student_registration: StudentRegistration):
     await team_collection.update_one({"_id": team["_id"]}, {"$set": {"teams": team["teams"]}})
     return {"message": "Student registered successfully"}
 
+
+
+
 # GitHub ID로 학생 정보 조회 API
 @app.get("/api/students/github/{githubId}")
 async def get_student_by_github(githubId: str):
