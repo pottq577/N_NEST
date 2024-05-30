@@ -76,6 +76,7 @@
     "react-dropzone": "^14.2.3",
     "react-perfect-scrollbar": "^1.5.8",
     "react-popper": "^2.2.5",
+    "react-query": "^3.39.3",
     "react-swipeable-views": "^0.14.0",
     "swr": "^2.2.5",
     "xlsx": "^0.18.5"

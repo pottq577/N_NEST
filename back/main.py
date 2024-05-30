@@ -72,7 +72,7 @@ questions_collection = db["questions"]
 project_collection = db['Project']
 course_collection = db["Course"]
 student_collection = db["Student"]
-team_collection = db["Team"]
+course_team_collection = db["Course_team"]
 evaluation_collection = db["Evaluation"]
 scores_collection = db["scores"]
 problems_collection = db['problems']
@@ -902,14 +902,14 @@ async def register_student(student_registration: StudentRegistration):
         "name": student_info["name"]
     }
 
-    team = await team_collection.find_one({"course_code": student_registration.course_code})
+    team = await course_team_collection.find_one({"course_code": student_registration.course_code})
     if not team:
         team_data = {
             "course_code": student_registration.course_code,
             "teams": []
         }
-        await team_collection.insert_one(team_data)
-        team = await team_collection.find_one({"course_code": student_registration.course_code})
+        await course_team_collection.insert_one(team_data)
+        team = await course_team_collection.find_one({"course_code": student_registration.course_code})
 
     specific_team = next((t for t in team["teams"] if t["team_name"] == student_registration.team_name), None)
     if not specific_team:
@@ -925,7 +925,7 @@ async def register_student(student_registration: StudentRegistration):
             raise HTTPException(status_code=400, detail="Student already registered in this team")
         specific_team["students"].append(student_data)
 
-    await team_collection.update_one({"_id": team["_id"]}, {"$set": {"teams": team["teams"]}})
+    await course_team_collection.update_one({"_id": team["_id"]}, {"$set": {"teams": team["teams"]}})
     return {"message": "Student registered successfully"}
 
 
@@ -1015,7 +1015,7 @@ async def get_evaluation_progress(course_code: str):
 # 평가 시작 API
 @app.post("/api/start-evaluation/{course_code}")
 async def start_evaluation(course_code: str):
-    teams = await team_collection.find_one({"course_code": course_code})
+    teams = await course_team_collection.find_one({"course_code": course_code})
     if not teams:
         raise HTTPException(status_code=404, detail="No teams found for the course")
 
@@ -1060,7 +1060,7 @@ async def get_students_by_course(course_code: str):
 # 코스 팀 목록 조회 API
 @app.get("/api/courses/{course_code}/teams")
 async def get_teams_by_course(course_code: str):
-    teams = await team_collection.find_one({"course_code": course_code})
+    teams = await course_team_collection.find_one({"course_code": course_code})
     if not teams:
         raise HTTPException(status_code=404, detail="No teams found for the course")
     return convert_objectid_to_str(teams)
