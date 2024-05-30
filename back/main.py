@@ -244,7 +244,7 @@ async def get_user_courses(student_id: str):
         courses=courses
     )
 
-
+#
 @app.get("/api/courses/{course_code}", response_model=Course)
 async def get_course(course_code: str):
     # Course 콜렉션에서 수업 정보 조회
@@ -252,13 +252,6 @@ async def get_course(course_code: str):
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     return Course(**course)
-
-
-
-
-
-
-
 
 
 
@@ -441,25 +434,6 @@ async def read_projects():
 
 
 
-
-
-
-
-
-
-
-
-# @app.get("/api/projects/{project_id}")
-# async def read_project(project_id: str):
-#     try:
-#         project = await db["Project"].find_one({"_id": ObjectId(project_id)})
-#         if project is None:
-#             raise HTTPException(status_code=404, detail="Project not found")
-#         # 조회수 증가
-#         await db["Project"].update_one({"_id": ObjectId(project_id)}, {"$inc": {"views": 1}})
-#         return transform_id(project)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/projects/{project_id}/comments")
 async def add_comment(project_id: str, comment: Comment):

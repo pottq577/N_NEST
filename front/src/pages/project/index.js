@@ -90,15 +90,17 @@ function Projects() {
                 </Typography>
               </CardContent>
               <Box sx={{ px: 2, pb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-                  <Avatar alt={project.username} src={userProfilePic} sx={{ mr: 2 }} />
-                  <Typography variant='body2' color='text.secondary'>
-                    By: {project.username}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar alt={project.username} src={userProfilePic} sx={{ mr: 2 }} />
+                    <Typography variant='body2' color='text.secondary'>
+                      By: {project.username}
+                    </Typography>
+                  </Box>
+                  <Typography variant='body2' color='text.secondary' sx={{ mr: 2 }}>
+                    Views: {project.views ?? 0}
                   </Typography>
                 </Box>
-                <Typography variant='body2' color='text.secondary' sx={{ mt: 1, ml: 4 }}>
-                  Views: {project.views ?? 0}
-                </Typography>
               </Box>
               <CardActions sx={{ justifyContent: 'flex-start', pl: 2 }}>
                 <Button size='small' color='primary' onClick={() => handleCardClick(project)}>
