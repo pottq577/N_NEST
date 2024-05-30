@@ -33,6 +33,7 @@
   "npm.packageManager": "yarn",
   // Extension: cSpell
   "cSpell.words": [
+    "aiohttp",
     "bson",
     "Customizer",
     "dotenv",

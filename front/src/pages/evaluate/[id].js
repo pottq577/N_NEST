@@ -13,13 +13,10 @@ import {
   Button,
   Divider,
   Paper,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
   Link
 } from '@mui/material'
 import { styled } from '@mui/system'
+import Rating from 'react-rating-stars-component'
 
 const CustomCard = styled(Card)(({ theme }) => ({
   transition: 'transform 0.2s',
@@ -54,11 +51,12 @@ function ProjectDetails() {
   const [inputs, setInputs] = useState({})
   const [summaries, setSummaries] = useState({})
   const [otherCategoryName, setOtherCategoryName] = useState('')
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false)
+  const [isSummaryLoading, setIsSummaryLoading] = useState({})
   const [summaryError, setSummaryError] = useState('')
   const [scores, setScores] = useState({})
+  const [scoreDescriptions, setScoreDescriptions] = useState({})
 
-  const categories = ['기술', '활용방안', '기대효과', '필요성', '기타', '번호점수']
+  const categories = ['기술', '활용방안', '기대효과', '필요성', '기타']
 
   useEffect(() => {
     if (id) {
@@ -143,6 +141,9 @@ function ProjectDetails() {
       const newScores = { ...scores }
       delete newScores[category]
       setScores(newScores)
+      const newScoreDescriptions = { ...scoreDescriptions }
+      delete newScoreDescriptions[category]
+      setScoreDescriptions(newScoreDescriptions)
     } else {
       setSelectedCategories([...selectedCategories, category])
       setInputs({ ...inputs, [category]: '' })
@@ -164,9 +165,13 @@ function ProjectDetails() {
     setScores({ ...scores, [category]: value })
   }
 
+  const handleScoreDescriptionChange = (category, value) => {
+    setScoreDescriptions({ ...scoreDescriptions, [category]: value })
+  }
+
   const handleSubmit = async category => {
     let finalCategory = category === '기타' ? otherCategoryName : category
-    setIsSummaryLoading(true)
+    setIsSummaryLoading(prevState => ({ ...prevState, [category]: true }))
     setSummaryError('')
     try {
       const response = await fetch(
@@ -183,11 +188,47 @@ function ProjectDetails() {
       }
       const data = await response.json()
       setSummaries(prevSummaries => ({ ...prevSummaries, [category]: data.text || '결과가 없습니다' }))
-      setIsSummaryLoading(false)
+      setIsSummaryLoading(prevState => ({ ...prevState, [category]: false }))
     } catch (error) {
       console.error('Error:', error)
       setSummaryError('Failed to fetch summary, please try again.')
-      setIsSummaryLoading(false)
+      setIsSummaryLoading(prevState => ({ ...prevState, [category]: false }))
+    }
+  }
+
+  const handleSaveEvaluation = async () => {
+    const evaluationData = {
+      project_id: project._id,
+      username: 'current_user', // 현재 사용자의 이름을 여기에 설정
+      student_id: project.student_id,
+      course_code: project.course_code,
+      evaluations: selectedCategories.map(category => ({
+        category: category === '기타' ? otherCategoryName : category,
+        summary: summaries[category] || '',
+        score: scores[category],
+        description: scoreDescriptions[category] || ''
+      }))
+    }
+
+    try {
+      const response = await fetch('http://localhost:8000/api/projects/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(evaluationData)
+      })
+
+      if (response.ok) {
+        alert('Evaluation saved successfully')
+        router.push(`/courses/${project.course_code}`)
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to save evaluation: ${errorData.detail}`)
+      }
+    } catch (error) {
+      console.error('Error saving evaluation:', error)
+      alert('Failed to save evaluation')
     }
   }
 
@@ -353,52 +394,75 @@ function ProjectDetails() {
               )}
               {selectedCategories.map(category => (
                 <Box key={category} mb={2}>
-                  {category === '번호점수' ? (
-                    <FormControl fullWidth variant='outlined' sx={{ mb: 2 }}>
-                      <InputLabel>Choose Score</InputLabel>
-                      <Select
-                        label='Choose Score'
-                        value={scores[category] || ''}
-                        onChange={e => handleScoreChange(category, e.target.value)}
-                      >
-                        {[1, 2, 3, 4, 5].map(score => (
-                          <MenuItem key={score} value={score}>
-                            {score}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  ) : (
-                    <>
-                      <TextField
-                        fullWidth
-                        label={`Enter text for ${category}`}
-                        value={inputs[category]}
-                        onChange={e => handleChange(category, e.target.value)}
-                        variant='outlined'
-                        multiline
-                        rows={4}
-                        sx={{ mb: 2 }}
-                      />
-                      <CustomButton
-                        onClick={() => handleSubmit(category)}
-                        variant='contained'
-                        color='primary'
-                        disabled={isSummaryLoading}
-                        sx={{ mb: 2 }}
-                      >
-                        {isSummaryLoading ? <CircularProgress size={24} /> : 'Submit'}
-                      </CustomButton>
-                      {summaryError && (
-                        <Typography color='error' sx={{ mb: 2 }}>
-                          {summaryError}
-                        </Typography>
-                      )}
-                      <Typography variant='body1'>{summaries[category] || '결과를 기다리는 중입니다...'}</Typography>
-                    </>
+                  <Divider sx={{ my: 2 }} />
+                  {category === '기타' && (
+                    <TextField
+                      fullWidth
+                      label={`Enter text for ${otherCategoryName}`}
+                      value={inputs[category]}
+                      onChange={e => handleChange(category, e.target.value)}
+                      variant='outlined'
+                      multiline
+                      rows={4}
+                      sx={{ mb: 2 }}
+                    />
                   )}
+                  {category !== '기타' && (
+                    <TextField
+                      fullWidth
+                      label={`Enter text for ${category}`}
+                      value={inputs[category]}
+                      onChange={e => handleChange(category, e.target.value)}
+                      variant='outlined'
+                      multiline
+                      rows={4}
+                      sx={{ mb: 2 }}
+                    />
+                  )}
+                  <CustomButton
+                    onClick={() => handleSubmit(category)}
+                    variant='contained'
+                    color='primary'
+                    disabled={isSummaryLoading[category]}
+                    sx={{ mb: 2 }}
+                  >
+                    {isSummaryLoading[category] ? <CircularProgress size={24} /> : 'Submit'}
+                  </CustomButton>
+                  {summaryError && (
+                    <Typography color='error' sx={{ mb: 2 }}>
+                      {summaryError}
+                    </Typography>
+                  )}
+                  <Typography variant='body1'>{summaries[category]}</Typography>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant='h6' gutterBottom>
+                    {category === '기타' ? otherCategoryName : category}에 대한 평가 및 설명
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    label='Score Description'
+                    value={scoreDescriptions[category] || ''}
+                    onChange={e => handleScoreDescriptionChange(category, e.target.value)}
+                    variant='outlined'
+                    multiline
+                    rows={2}
+                    sx={{ mb: 2 }}
+                  />
+                  <Typography gutterBottom>Choose Score</Typography>
+                  <Rating
+                    count={5}
+                    value={scores[category] || 0}
+                    onChange={newValue => handleScoreChange(category, newValue)}
+                    size={30}
+                    activeColor='#ffd700'
+                  />
                 </Box>
               ))}
+              {selectedCategories.length > 0 && (
+                <CustomButton variant='contained' color='secondary' onClick={handleSaveEvaluation} sx={{ mt: 4 }}>
+                  평가 저장하기
+                </CustomButton>
+              )}
             </Paper>
           </Grid>
         </Grid>

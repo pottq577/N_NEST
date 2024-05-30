@@ -77,14 +77,14 @@ evaluation_collection = db["Evaluation"]
 scores_collection = db["scores"]
 problems_collection = db['problems']
 submissions_collection = db['submissions']
-evaluation_assignment_collection = db["evaluation_assignments"] 
+evaluation_assignment_collection = db["evaluation_assignments"]
 evaluation_result_collection = db['EvaluationResult']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = 'http://localhost:8000/auth/callback'
 
-# 데이터 모델 정의 
+# 데이터 모델 정의
 class UserInfo(BaseModel):
     name: str
     schoolEmail: EmailStr
@@ -949,7 +949,7 @@ async def get_evaluation_assignments(studentId: str):
     student_evaluations = assignments.get("evaluations", {}).get(studentId)
     if not student_evaluations:
         raise HTTPException(status_code=404, detail="Evaluations not found for the student")
-    
+
     return {"evaluations": student_evaluations}
 
 # 평가 기준 조회 API
@@ -985,7 +985,7 @@ async def get_evaluation_results(course_code: str):
                 if criteria not in total_scores:
                     total_scores[criteria] = 0
                 total_scores[criteria] += score
-        
+
         total_score = sum(total_scores.values())
         results.append({
             "team_name": result["team_name"],
@@ -1438,7 +1438,7 @@ async def check_user_resolved_answers(user_id: str, questionId: str):
     question = await questions_collection.find_one({"_id": ObjectId(questionId)})
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
-    
+
     # 사용자 ID와 resolved 상태를 체크
     has_resolved_answer = any(
         any(answer["userId"] == user_id and answer["resolved"] == "true" for answer in answers)
@@ -1487,7 +1487,7 @@ async def save_general_answer(id: str, answer: GeneralAnswer):
             raise HTTPException(status_code=500, detail="Error adding general answer")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding general answer: {str(e)}")
-    
+
 @app.post("/questions/{id}/general-answers/{answerIndex}/resolve")
 async def toggle_resolve_general_answer(id: str, answerIndex: int):
     try:
@@ -1715,6 +1715,33 @@ async def get_submission(submission_id: str):
         return submission
     raise HTTPException(status_code=404, detail="Submission not found")
 
+
+evaluate_collection = db["Evaluate_Professor"]  # 컬렉션 이름
+class EvaluationDetail(BaseModel):
+    category: str
+    summary: Optional[str]
+    score: float
+    description: Optional[str]
+
+class Evaluation(BaseModel):
+    project_id: str
+    username: str
+    student_id: str
+    course_code: str
+    evaluations: List[EvaluationDetail]
+
+@app.post("/api/projects/evaluate", response_description="Save project evaluation")
+async def save_evaluation(evaluation: Evaluation):
+    evaluation_data = jsonable_encoder(evaluation)
+    try:
+        result = await evaluate_collection.insert_one(evaluation_data)
+        if result.inserted_id:
+            return JSONResponse(status_code=201, content={"message": "Evaluation saved successfully"})
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save evaluation")
+    except Exception as e:
+        print(f"Error: {e}")  # 오류 메시지를 콘솔에 출력
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
