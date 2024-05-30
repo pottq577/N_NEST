@@ -72,7 +72,7 @@ questions_collection = db["questions"]
 project_collection = db['Project']
 course_collection = db["Course"]
 student_collection = db["Student"]
-team_collection = db["Team"]
+course_team_collection = db["Course_team"]
 evaluation_collection = db["Evaluation"]
 scores_collection = db["scores"]
 problems_collection = db['problems']
@@ -885,9 +885,8 @@ def convert_objectid_to_str(doc):
     return doc
 
 
-# 학생 등록 API
 @app.post("/api/teams/register")
-async def register_student(student_registration: StudentRegistration):
+async def register_student(student_registration: StudentRegistration, update: Optional[bool] = Query(False)):
     evaluation = await evaluation_collection.find_one({"course_code": student_registration.course_code})
     if not evaluation:
         raise HTTPException(status_code=404, detail="Evaluation criteria not found")
@@ -902,31 +901,36 @@ async def register_student(student_registration: StudentRegistration):
         "name": student_info["name"]
     }
 
-    team = await team_collection.find_one({"course_code": student_registration.course_code})
+    team = await course_team_collection.find_one({"course_code": student_registration.course_code})
     if not team:
         team_data = {
             "course_code": student_registration.course_code,
             "teams": []
         }
-        await team_collection.insert_one(team_data)
-        team = await team_collection.find_one({"course_code": student_registration.course_code})
+        await course_team_collection.insert_one(team_data)
+        team = await course_team_collection.find_one({"course_code": student_registration.course_code})
 
-    specific_team = next((t for t in team["teams"] if t["team_name"] == student_registration.team_name), None)
-    if not specific_team:
+    # 학생이 이미 다른 팀에 속해 있는지 확인하고 제거
+    for team_item in team["teams"]:
+        if any(s["studentId"] == student_info["studentId"] for s in team_item["students"]):
+            team_item["students"] = [s for s in team_item["students"] if s["studentId"] != student_info["studentId"]]
+
+    # 팀에 학생 추가 또는 팀 생성
+    existing_team = next((t for t in team["teams"] if t["team_name"] == student_registration.team_name), None)
+    if existing_team:
+        existing_team["students"].append(student_data)
+    else:
         if len(team["teams"]) >= max_teams:
             raise HTTPException(status_code=400, detail="Maximum number of teams reached for this course")
-        specific_team = {
+        new_team = {
             "team_name": student_registration.team_name,
             "students": [student_data]
         }
-        team["teams"].append(specific_team)
-    else:
-        if any(student["studentId"] == student_info["studentId"] for student in specific_team["students"]):
-            raise HTTPException(status_code=400, detail="Student already registered in this team")
-        specific_team["students"].append(student_data)
+        team["teams"].append(new_team)
 
-    await team_collection.update_one({"_id": team["_id"]}, {"$set": {"teams": team["teams"]}})
+    await course_team_collection.update_one({"_id": team["_id"]}, {"$set": {"teams": team["teams"]}})
     return {"message": "Student registered successfully"}
+
 
 
 
@@ -1015,7 +1019,7 @@ async def get_evaluation_progress(course_code: str):
 # 평가 시작 API
 @app.post("/api/start-evaluation/{course_code}")
 async def start_evaluation(course_code: str):
-    teams = await team_collection.find_one({"course_code": course_code})
+    teams = await course_team_collection.find_one({"course_code": course_code})
     if not teams:
         raise HTTPException(status_code=404, detail="No teams found for the course")
 
@@ -1060,7 +1064,7 @@ async def get_students_by_course(course_code: str):
 # 코스 팀 목록 조회 API
 @app.get("/api/courses/{course_code}/teams")
 async def get_teams_by_course(course_code: str):
-    teams = await team_collection.find_one({"course_code": course_code})
+    teams = await course_team_collection.find_one({"course_code": course_code})
     if not teams:
         raise HTTPException(status_code=404, detail="No teams found for the course")
     return convert_objectid_to_str(teams)
@@ -1076,11 +1080,29 @@ async def get_max_teams(course_code: str):
 @app.post("/api/evaluations")
 async def save_evaluation_criteria(evaluation_criteria: EvaluationCriteria):
     try:
+        existing_evaluation = await evaluation_collection.find_one({"course_code": evaluation_criteria.course_code})
+        if existing_evaluation:
+            return JSONResponse(status_code=400, content={"message": "Evaluation criteria already exists. Do you want to update it?"})
+        
         evaluation_dict = jsonable_encoder(evaluation_criteria)
         result = await evaluation_collection.insert_one(evaluation_dict)
         return {"message": "Evaluation criteria saved successfully", "id": str(result.inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/evaluations")
+async def update_evaluation_criteria(evaluation_criteria: EvaluationCriteria):
+    try:
+        existing_evaluation = await evaluation_collection.find_one({"course_code": evaluation_criteria.course_code})
+        if not existing_evaluation:
+            raise HTTPException(status_code=404, detail="Evaluation criteria not found")
+        
+        evaluation_dict = jsonable_encoder(evaluation_criteria)
+        await evaluation_collection.update_one({"course_code": evaluation_criteria.course_code}, {"$set": evaluation_dict})
+        return {"message": "Evaluation criteria updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 
 class TimeSlot(BaseModel):

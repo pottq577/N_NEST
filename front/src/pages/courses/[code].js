@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect,useState } from 'react';
 import {
   Container,
   Typography,
@@ -22,7 +22,12 @@ import {
   ListItemText,
   InputLabel,
   Tabs,
-  Tab
+  Tab,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
 } from '@mui/material';
 import { styled } from '@mui/system';
 import { useRouter } from 'next/router';
@@ -65,6 +70,7 @@ const CourseDetail = () => {
   const [userId, setUserId] = useState('');
   const [githubId, setGithubId] = useState('');
   const [studentId, setStudentId] = useState('');
+  const [openDialog, setOpenDialog] = useState(false);
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -93,6 +99,7 @@ const CourseDetail = () => {
     if (code) {
       fetchCourseData();
       fetchProjects();
+      fetchEvaluationCriteria(code);  // 평가 기준 데이터 가져오기
     }
   }, [code]);
 
@@ -157,17 +164,46 @@ const CourseDetail = () => {
     }
   };
 
+  const fetchEvaluationCriteria = async (courseCode) => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/evaluations/${courseCode}`);
+      setMaxTeams(response.data.max_teams || 5);
+    } catch (error) {
+      console.error('Error fetching evaluation criteria:', error);
+    }
+  };
+
   const saveEvaluationCriteria = async () => {
     try {
-      await axios.post('http://localhost:8000/api/evaluations', {
+      const response = await axios.post('http://localhost:8000/api/evaluations', {
         course_code: code,
         criteria: criteria,
         max_teams: maxTeams
       });
       alert('Evaluation criteria saved successfully');
     } catch (error) {
-      console.error('Error saving evaluation criteria:', error);
+      if (error.response && error.response.status === 400 && error.response.data.message === 'Evaluation criteria already exists. Do you want to update it?') {
+        // 이미 존재하는 경우 업데이트 다이얼로그 열기
+        setOpenDialog(true);
+      } else {
+        console.error('Error saving evaluation criteria:', error);
+        console.error('Response data:', error.response?.data);
+      }
     }
+  };
+
+  const updateEvaluationCriteria = async () => {
+    try {
+      const response = await axios.put('http://localhost:8000/api/evaluations', {
+        course_code: code,
+        criteria: criteria,
+        max_teams: maxTeams
+      });
+      alert('Evaluation criteria updated successfully');
+    } catch (error) {
+      console.error('Error updating evaluation criteria:', error);
+    }
+    setOpenDialog(false);
   };
 
   const addCriteria = () => {
@@ -327,18 +363,14 @@ const CourseDetail = () => {
                 <Box mt={4}>
                   <Typography variant="h5" gutterBottom>Team Status</Typography>
                   <List>
-                    {teams && teams.length > 0 ? (
-                      teams.map((team, index) => (
-                        <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <ListItemText primary={`Team: ${team.team_name}`} />
-                          <IconButton edge="end" aria-label="add" onClick={() => registerTeam(team.team_name)}>
-                            <AddIcon />
-                          </IconButton>
-                        </ListItem>
-                      ))
-                    ) : (
-                      <Typography>No teams available</Typography>
-                    )}
+                    {Array.from({ length: maxTeams }, (_, i) => (
+                      <ListItem key={i} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <ListItemText primary={`Team ${i + 1}`} />
+                        <IconButton edge="end" aria-label="add" onClick={() => registerTeam(`Team ${i + 1}`)}>
+                          <AddIcon />
+                        </IconButton>
+                      </ListItem>
+                    ))}
                   </List>
                 </Box>
 
@@ -494,6 +526,23 @@ const CourseDetail = () => {
           </Box>
         </Paper>
       )}
+      
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Update Evaluation Criteria</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Evaluation criteria already exists. Do you want to update it?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)} color="primary">
+            No
+          </Button>
+          <Button onClick={updateEvaluationCriteria} color="primary" autoFocus>
+            Yes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
