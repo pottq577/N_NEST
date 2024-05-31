@@ -1,10 +1,47 @@
 import React, { useState, useEffect } from 'react'
-import { Container, Tab, Tabs, Box, Typography, TextField, Button, CircularProgress, Paper } from '@mui/material'
+import {
+  Container,
+  Tab,
+  Tabs,
+  Box,
+  Typography,
+  TextField,
+  Button,
+  CircularProgress,
+  Link,
+  Card,
+  CardContent,
+  Avatar
+} from '@mui/material'
 import { useRouter } from 'next/router'
 import axios from 'axios'
+import { Star, ForkRight, Visibility } from '@mui/icons-material'
+import styled from '@emotion/styled'
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: theme.spacing(2),
+  marginBottom: theme.spacing(2),
+  backgroundColor: '#f5f5f5',
+  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+  borderRadius: theme.shape.borderRadius,
+  '&:hover': {
+    backgroundColor: '#e0e0e0'
+  }
+}))
+
+const languageColors = {
+  JavaScript: '#f1e05a',
+  Python: '#3572A5',
+  Java: '#b07219',
+  HTML: '#e34c26',
+  CSS: '#563d7c'
+}
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props
+
   return (
     <div
       role='tabpanel'
@@ -20,88 +57,121 @@ function TabPanel(props) {
 
 function RepositoryInfo({ courseInfo, studentId }) {
   const router = useRouter()
-  const {
-    name,
-    description,
-    language,
-    stars,
-    updatedAt,
-    license,
-    forks,
-    watchers,
-    contributors,
-    private: isPrivate,
-    html_url: htmlUrl,
-    defaultBranch,
-    userId,
-    username
-  } = router.query
+  const query = router.query
+
+  const InfoRow = ({ label, value }) => (
+    <Typography>
+      <strong>{label}:</strong> {value}
+    </Typography>
+  )
+
+  const RenderUserInfo = props => (
+    <StyledCard>
+      <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{props.username.charAt(0).toUpperCase()}</Avatar>
+      <CardContent>
+        <Typography variant='h6'>{props.username}</Typography>
+        <Typography variant='body2' color='textSecondary'>
+          <strong>User ID:</strong> {props.userId}
+        </Typography>
+        <Typography variant='body2' color='textSecondary'>
+          <strong>Student ID:</strong> {props.studentId}
+        </Typography>
+      </CardContent>
+    </StyledCard>
+  )
+
+  const RenderCourseInfo = () => (
+    <StyledCard>
+      <CardContent>
+        {/* <Typography variant='h6' gutterBottom>
+          강의 정보
+        </Typography> */}
+
+        <InfoRow
+          label='과목'
+          value={`${courseInfo.name}-${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`}
+        />
+        <InfoRow label='과목코드' value={courseInfo.code} />
+      </CardContent>
+    </StyledCard>
+  )
+
+  const renderRepoDetailIcons = (icon, value) =>
+    value > 0 && (
+      <>
+        <Box sx={{ mx: 1 }} />
+        {icon}
+        <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
+          {value}
+        </Typography>
+      </>
+    )
+
+  const RenderRepoInfo = props => (
+    <StyledCard>
+      <CardContent>
+        {/* <Typography variant='h6' gutterBottom>
+          원격 저장소 정보
+        </Typography> */}
+
+        <Typography variant='h6' component='div' sx={{ mb: 2, fontWeight: '600', color: '#0072E5' }}>
+          {props.name}
+        </Typography>
+        <Typography variant='body2' color='textSecondary' component='p' sx={{ mb: 2 }}>
+          {props.description || 'No description'}
+        </Typography>
+        <Typography
+          variant='body2'
+          color='textSecondary'
+          component='p'
+          sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', mb: 2 }}
+        >
+          <Box
+            sx={{
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              backgroundColor: languageColors[props.language] || '#000',
+              display: 'inline-block',
+              mr: 1
+            }}
+          />
+          <Typography variant='subtitle2' component='span'>
+            {props.language || 'No info'}
+          </Typography>
+          {renderRepoDetailIcons(<Star sx={{ verticalAlign: 'middle' }} />, props.stars)}
+          {renderRepoDetailIcons(<ForkRight sx={{ verticalAlign: 'middle' }} />, props.forks)}
+          {renderRepoDetailIcons(<Visibility sx={{ verticalAlign: 'middle' }} />, props.watchers)}
+          <Box sx={{ mx: 1 }}> | </Box>
+          <Typography variant='subtitle2' component='span'>
+            Updated
+          </Typography>
+          <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
+            {new Date(props.updatedAt).toLocaleDateString()}
+          </Typography>
+          {props.license && (
+            <>
+              <Box sx={{ mx: 1 }} />
+              <Typography variant='subtitle2' component='span'>
+                {props.license}
+              </Typography>
+            </>
+          )}
+        </Typography>
+        <Typography variant='body2' sx={{ mb: 2 }}>
+          <Link href={props.htmlUrl} target='_blank' rel='noopener noreferrer' color='primary'>
+            GitHub로 이동
+          </Link>
+        </Typography>
+      </CardContent>
+    </StyledCard>
+  )
 
   return (
     <Box>
-      <Typography variant='h6' gutterBottom>
-        User Information
-      </Typography>
-      <Typography>
-        <strong>User ID:</strong> {userId}
-      </Typography>
-      <Typography>
-        <strong>Username:</strong> {username}
-      </Typography>
-      <Typography>
-        <strong>Student ID:</strong> {studentId}
-      </Typography>
-      <Typography variant='h6' gutterBottom>
-        Course Information
-      </Typography>
-      <Typography>
-        <strong>Course:</strong> {courseInfo.name}-{courseInfo.professor} ({courseInfo.day} {courseInfo.time})
-      </Typography>
-      <Typography>
-        <strong>Course Code:</strong> {courseInfo.code}
-      </Typography>
-      <Typography variant='h6' gutterBottom>
-        Repository Information
-      </Typography>
-      <Typography>
-        <strong>Name:</strong> {name}
-      </Typography>
-      <Typography>
-        <strong>Description:</strong> {description || 'No description'}
-      </Typography>
-      <Typography>
-        <strong>Language:</strong> {language || 'No info'}
-      </Typography>
-      <Typography>
-        <strong>Stars:</strong> {stars}
-      </Typography>
-      <Typography>
-        <strong>Last Updated:</strong> {new Date(updatedAt).toLocaleDateString()}
-      </Typography>
-      <Typography>
-        <strong>License:</strong> {license || 'No license'}
-      </Typography>
-      <Typography>
-        <strong>Forks:</strong> {forks}
-      </Typography>
-      <Typography>
-        <strong>Watchers:</strong> {watchers}
-      </Typography>
-      <Typography>
-        <strong>Contributors:</strong> {contributors}
-      </Typography>
-      <Typography>
-        <strong>Private:</strong> {isPrivate}
-      </Typography>
-      <Typography>
-        <strong>Default Branch:</strong> {defaultBranch}
-      </Typography>
-      <Typography>
-        <strong>Repository URL:</strong>{' '}
-        <a href={htmlUrl} target='_blank' rel='noopener noreferrer'>
-          {htmlUrl}
-        </a>
-      </Typography>
+      <RenderUserInfo {...query} />
+      <RenderCourseInfo />
+      <RenderRepoInfo {...query} />
     </Box>
   )
 }
@@ -276,6 +346,7 @@ function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombine
 
 export default function ProjectGenerator() {
   const [tabIndex, setTabIndex] = useState(0)
+
   const [projectInfo, setProjectInfo] = useState({
     projectTitle: '',
     technologiesUsed: '',

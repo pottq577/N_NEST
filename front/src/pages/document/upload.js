@@ -65,6 +65,7 @@ export default function UploadDocument() {
   const handleTextFile = async file => {
     if (!file) {
       console.error('No file selected.')
+
       return
     }
 
@@ -83,6 +84,7 @@ export default function UploadDocument() {
   const handleImageFile = async file => {
     if (!file) {
       console.error('No file selected.')
+
       return
     }
 
@@ -110,6 +112,7 @@ export default function UploadDocument() {
 
   const extractTextFromDocx = async fileContent => {
     const result = await mammoth.extractRawText({ arrayBuffer: fileContent })
+
     return { text: result.value }
   }
 
