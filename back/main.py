@@ -77,14 +77,14 @@ evaluation_collection = db["Evaluation"]
 scores_collection = db["scores"]
 problems_collection = db['problems']
 submissions_collection = db['submissions']
-evaluation_assignment_collection = db["evaluation_assignments"] 
+evaluation_assignment_collection = db["evaluation_assignments"]
 evaluation_result_collection = db['EvaluationResult']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = 'http://localhost:8000/auth/callback'
 
-# 데이터 모델 정의 
+# 데이터 모델 정의
 class UserInfo(BaseModel):
     name: str
     schoolEmail: EmailStr
@@ -944,16 +944,16 @@ async def get_student_by_github(githubId: str):
     return convert_objectid_to_str(student)
 
 # 평가 할당 조회 API
-@app.get("/api/evaluation_assignments/{studentId}")
-async def get_evaluation_assignments(studentId: str):
-    assignments = await evaluation_assignment_collection.find_one({"course_code": "CS105"})  # course_code는 동적으로 변경 가능
+@app.get("/api/evaluation-assignments/{course_code}/{studentId}")
+async def get_evaluation_assignments(course_code: str, studentId: str):
+    assignments = await evaluation_assignment_collection.find_one({"course_code": course_code})
     if not assignments:
         raise HTTPException(status_code=404, detail="Evaluation assignments not found")
 
     student_evaluations = assignments.get("evaluations", {}).get(studentId)
     if not student_evaluations:
         raise HTTPException(status_code=404, detail="Evaluations not found for the student")
-    
+
     return {"evaluations": student_evaluations}
 
 # 평가 기준 조회 API
@@ -966,6 +966,13 @@ async def get_evaluation_criteria(course_code: str):
 
 @app.post("/api/evaluate")
 async def submit_evaluation(evaluation: Evaluation):
+    existing_evaluation = await evaluation_result_collection.find_one(
+        {"course_code": evaluation.course_code, "team_name": evaluation.team_name, "evaluations.evaluator_id": evaluation.evaluator_id}
+    )
+
+    if existing_evaluation:
+        raise HTTPException(status_code=400, detail="You have already submitted an evaluation for this team.")
+
     evaluation_result = {
         "evaluator_id": evaluation.evaluator_id,  # GitHub 아이디 대신 학번을 저장
         "scores": evaluation.scores
@@ -979,6 +986,7 @@ async def submit_evaluation(evaluation: Evaluation):
     return {"message": "Evaluation submitted successfully"}
 
 
+
 @app.get("/api/evaluation-results/{course_code}")
 async def get_evaluation_results(course_code: str):
     results = []
@@ -989,7 +997,7 @@ async def get_evaluation_results(course_code: str):
                 if criteria not in total_scores:
                     total_scores[criteria] = 0
                 total_scores[criteria] += score
-        
+
         total_score = sum(total_scores.values())
         results.append({
             "team_name": result["team_name"],
@@ -1083,7 +1091,7 @@ async def save_evaluation_criteria(evaluation_criteria: EvaluationCriteria):
         existing_evaluation = await evaluation_collection.find_one({"course_code": evaluation_criteria.course_code})
         if existing_evaluation:
             return JSONResponse(status_code=400, content={"message": "Evaluation criteria already exists. Do you want to update it?"})
-        
+
         evaluation_dict = jsonable_encoder(evaluation_criteria)
         result = await evaluation_collection.insert_one(evaluation_dict)
         return {"message": "Evaluation criteria saved successfully", "id": str(result.inserted_id)}
@@ -1096,13 +1104,13 @@ async def update_evaluation_criteria(evaluation_criteria: EvaluationCriteria):
         existing_evaluation = await evaluation_collection.find_one({"course_code": evaluation_criteria.course_code})
         if not existing_evaluation:
             raise HTTPException(status_code=404, detail="Evaluation criteria not found")
-        
+
         evaluation_dict = jsonable_encoder(evaluation_criteria)
         await evaluation_collection.update_one({"course_code": evaluation_criteria.course_code}, {"$set": evaluation_dict})
         return {"message": "Evaluation criteria updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 
 
 class TimeSlot(BaseModel):
@@ -1460,7 +1468,7 @@ async def check_user_resolved_answers(user_id: str, questionId: str):
     question = await questions_collection.find_one({"_id": ObjectId(questionId)})
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
-    
+
     # 사용자 ID와 resolved 상태를 체크
     has_resolved_answer = any(
         any(answer["userId"] == user_id and answer["resolved"] == "true" for answer in answers)
@@ -1509,7 +1517,7 @@ async def save_general_answer(id: str, answer: GeneralAnswer):
             raise HTTPException(status_code=500, detail="Error adding general answer")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding general answer: {str(e)}")
-    
+
 @app.post("/questions/{id}/general-answers/{answerIndex}/resolve")
 async def toggle_resolve_general_answer(id: str, answerIndex: int):
     try:
