@@ -79,6 +79,7 @@ problems_collection = db['problems']
 submissions_collection = db['submissions']
 evaluation_assignment_collection = db["evaluation_assignments"]
 evaluation_result_collection = db['EvaluationResult']
+professor_collection = db['Professor']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -131,6 +132,7 @@ class Config:
 class Course(BaseModel):
     name: str
     professor: str
+    professor_id: int
     day: str
     time: str
     code: str
@@ -176,6 +178,7 @@ def student_helper(student) -> dict:
     }
 
 
+# ObjectId를 문자열로 변환하는 함수
 def object_id_to_str(document):
     """
     BSON ObjectId를 문자열로 변환합니다.
@@ -201,12 +204,17 @@ async def get_course_with_students(course_code: str):
         "students": students
     }
 
-@app.post("/courses", response_model=dict)
-async def create_course(course: Course):
-    course_data = jsonable_encoder(course)
-    new_course = await course_collection.insert_one(course_data)
-    created_course = await course_collection.find_one({"_id": new_course.inserted_id})
-    return JSONResponse(status_code=201, content=object_id_to_str(created_course))
+# Get courses endpoint
+@app.get("/courses/")
+async def get_courses():
+    try:
+        courses = []
+        async for course in course_collection.find():
+            courses.append(object_id_to_str(course))
+        return courses
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/students", response_model=dict)
 async def create_student(student: Student):
@@ -245,9 +253,9 @@ async def get_user_courses(student_id: str):
     )
 
 
+# Get course by code endpoint
 @app.get("/api/courses/{course_code}", response_model=Course)
 async def get_course(course_code: str):
-    # Course 콜렉션에서 수업 정보 조회
     course = await course_collection.find_one({"code": course_code})
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -310,30 +318,33 @@ async def get_user_courses(query: UserQuery):
 
 
 
-# 데이터 저장 엔드포인트
+# Save courses endpoint
+# 수업 정보를 저장하는 엔드포인트
 @app.post("/save-courses/")
 async def save_courses(courses: List[Course]):
     try:
-        # 데이터를 딕셔너리 형식으로 변환
+        # 입력된 데이터를 로그에 출력
+        logger.info("Received courses: %s", courses)
+        
         course_data = [course.dict() for course in courses]
+        logger.info("Course data to insert: %s", course_data)
 
-        # 중복된 수업 코드 확인 및 필터링
+        # Check for duplicate course codes
         existing_codes = set()
         async for doc in course_collection.find({"code": {"$in": [course["code"] for course in course_data]}}):
             existing_codes.add(doc["code"])
 
         if existing_codes:
-            # 중복된 수업 코드가 있는 경우 400 에러 반환
-            raise HTTPException(status_code=400, detail="중복된 수업 코드가 있습니다.")
+            logger.info("Duplicate course codes found: %s", existing_codes)
+            raise HTTPException(status_code=400, detail="Duplicate course codes found.")
 
-        # 새로운 데이터만 삽입
         await course_collection.insert_many(course_data)
-
+        logger.info("Courses saved successfully.")
         return {"message": f"{len(course_data)} courses saved successfully."}
     except HTTPException as e:
-        raise e  # 이미 처리된 HTTPException을 그대로 다시 raise
+        raise e
     except Exception as e:
-        print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
+        logger.error("Error: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 # 수업 목록 가져오는 엔드포인트
@@ -1745,7 +1756,43 @@ async def get_submission(submission_id: str):
         return submission
     raise HTTPException(status_code=404, detail="Submission not found")
 
+# Data models
+class Professor(BaseModel):
+    name: str
+    email: EmailStr
+    professor_id: str
+    
 
+# Helper function to convert ObjectId to string
+def object_id_to_str(document):
+    if document:
+        document['_id'] = str(document['_id'])
+    return document
+
+# 교수 정보를 저장하는 엔드포인트
+@app.post("/professors/", response_model=dict)
+async def register_professor(professor: Professor):
+    professor_data = jsonable_encoder(professor)
+    existing_professor = await professor_collection.find_one({"email": professor.email})
+    if existing_professor:
+        raise HTTPException(status_code=400, detail="Professor with this email already exists.")
+    new_professor = await professor_collection.insert_one(professor_data)
+    created_professor = await professor_collection.find_one({"_id": new_professor.inserted_id})
+    return JSONResponse(status_code=201, content={"message": "Professor registered successfully", "professor_id": str(new_professor.inserted_id)})
+
+@app.get("/professors/{professor_id}", response_model=Professor)
+async def get_professor(professor_id: str):
+    professor = await professor_collection.find_one({"_id": ObjectId(professor_id)})
+    if not professor:
+        raise HTTPException(status_code=404, detail="Professor not found")
+    return Professor(**professor)
+
+@app.get("/professors/", response_model=List[Professor])
+async def list_professors():
+    professors = []
+    async for professor in professor_collection.find():
+        professors.append(Professor(**professor))
+    return professors
 
 if __name__ == "__main__":
     import uvicorn
