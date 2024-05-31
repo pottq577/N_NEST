@@ -5,7 +5,13 @@ import { getAnalytics } from 'firebase/analytics' // Analytics 모듈 임포트
 
 // cSpell:disable
 const firebaseConfig = {
-  
+  apiKey: 'AIzaSyDdAfzQydfo7HhMWW7OQispuYRweORG9kU',
+  authDomain: 'n-nest.firebaseapp.com',
+  projectId: 'n-nest',
+  storageBucket: 'n-nest.appspot.com',
+  messagingSenderId: '1092378318533',
+  appId: '1:1092378318533:web:3ebb6207aa0f046cb902ac',
+  measurementId: 'G-P6CTDD0V1K'
 }
 
 const app = initializeApp(firebaseConfig)
