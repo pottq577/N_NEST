@@ -128,7 +128,11 @@ const UserProjectsPage = () => {
           )
         )
       })
-      .then(reposWithContributors => setUserRepos(reposWithContributors))
+      .then(reposWithContributors => {
+        // 날짜순으로 정렬
+        const sortedRepos = reposWithContributors.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        setUserRepos(sortedRepos)
+      })
       .catch(error => console.error('Error processing repos:', error))
   }
 
@@ -300,7 +304,7 @@ const UserProjectsPage = () => {
   const renderRepoDetailIcons = (label, icon, value) =>
     value > 0 && (
       <>
-        <Box sx={{ mx: 1 }}> | </Box>
+        <Box sx={{ mx: 1 }} />
         {icon}
         <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
           {value}
@@ -308,12 +312,78 @@ const UserProjectsPage = () => {
       </>
     )
 
+  const ModalContents = ({
+    selectedRepo,
+    selectedCourse,
+    setSelectedCourse,
+    userCourses,
+    handleNavigateToDocumentGeneration
+  }) => (
+    <Box
+      sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '80%',
+        maxWidth: 600,
+        bgcolor: 'background.paper',
+        borderRadius: '8px',
+        boxShadow: 24,
+        p: 4
+      }}
+    >
+      <Typography variant='h5' gutterBottom align='center'>
+        Repository: {selectedRepo?.name} Web Registration
+        <br />
+        <Typography variant='body2' component='span' color='error'>
+          등록한 해당 정보는 모든 웹 사용자에게 보여집니다.
+        </Typography>
+      </Typography>
+      <FormControl fullWidth sx={{ my: 2 }}>
+        <InputLabel id='course-select-label'>Select Course</InputLabel>
+        <Select
+          labelId='course-select-label'
+          value={selectedCourse}
+          label='Select Course'
+          onChange={e => setSelectedCourse(e.target.value)}
+        >
+          {userCourses && userCourses.length > 0 ? (
+            userCourses.map(course => (
+              <MenuItem key={course.code} value={course.code}>
+                {course.name} - {course.professor} ({course.day}, {course.time})
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem disabled>No courses available</MenuItem>
+          )}
+        </Select>
+      </FormControl>
+      <Grid container spacing={2} justifyContent='center'>
+        <Grid item>
+          <Button
+            variant='contained'
+            onClick={handleNavigateToDocumentGeneration}
+            sx={{ mr: 2 }}
+            disabled={!selectedCourse}
+          >
+            문서 생성
+          </Button>
+        </Grid>
+        <Grid item>
+          <Button variant='contained' onClick={handleNavigateToDocumentUpload} disabled={!selectedCourse}>
+            기존 문서 등록
+          </Button>
+        </Grid>
+      </Grid>
+    </Box>
+  )
+
   return (
-    <div>
-      <h1>사용자 정보</h1>
+    <Box>
       <RenderUserInfo />
 
-      <h2>사용자 레포지토리 목록</h2>
+      <h2>원격 저장소 목록</h2>
       {userRepos.map(repo => (
         <Card key={repo.id} sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
           <Avatar
@@ -332,66 +402,15 @@ const UserProjectsPage = () => {
       ))}
 
       <Modal open={openModal} onClose={handleCloseModal}>
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '80%',
-            maxWidth: 600,
-            bgcolor: 'background.paper',
-            borderRadius: '8px',
-            boxShadow: 24,
-            p: 4
-          }}
-        >
-          <Typography variant='h5' gutterBottom align='center'>
-            Repository: {selectedRepo?.name} Web Registration
-            <br />
-            <Typography variant='body2' component='span' color='error'>
-              등록한 해당 정보는 모든 웹 사용자에게 보여집니다.
-            </Typography>
-          </Typography>
-          <FormControl fullWidth sx={{ my: 2 }}>
-            <InputLabel id='course-select-label'>Select Course</InputLabel>
-            <Select
-              labelId='course-select-label'
-              value={selectedCourse}
-              label='Select Course'
-              onChange={e => setSelectedCourse(e.target.value)}
-            >
-              {userCourses && userCourses.length > 0 ? (
-                userCourses.map(course => (
-                  <MenuItem key={course.code} value={course.code}>
-                    {course.name} - {course.professor} ({course.day}, {course.time})
-                  </MenuItem>
-                ))
-              ) : (
-                <MenuItem disabled>No courses available</MenuItem>
-              )}
-            </Select>
-          </FormControl>
-          <Grid container spacing={2} justifyContent='center'>
-            <Grid item>
-              <Button
-                variant='contained'
-                onClick={handleNavigateToDocumentGeneration}
-                sx={{ mr: 2 }}
-                disabled={!selectedCourse}
-              >
-                문서 생성
-              </Button>
-            </Grid>
-            <Grid item>
-              <Button variant='contained' onClick={handleNavigateToDocumentUpload} disabled={!selectedCourse}>
-                기존 문서 등록
-              </Button>
-            </Grid>
-          </Grid>
-        </Box>
+        <ModalContents
+          selectedRepo={selectedRepo}
+          selectedCourse={selectedCourse}
+          setSelectedCourse={setSelectedCourse}
+          userCourses={userCourses}
+          handleNavigateToDocumentGeneration={handleNavigateToDocumentGeneration}
+        />
       </Modal>
-    </div>
+    </Box>
   )
 }
 
