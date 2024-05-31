@@ -1,8 +1,38 @@
-import React, { useEffect, useState } from 'react'
-import { Box, Typography, Paper, Container, Button, TextField } from '@mui/material'
+import React, { useEffect, useState, useRef } from 'react'
+import { Box, Typography, Paper, Container, Button, TextField, IconButton } from '@mui/material'
 import { useRouter } from 'next/router'
 import mammoth from 'mammoth'
 import axios from 'axios'
+import { styled } from '@mui/system'
+import DeleteIcon from '@mui/icons-material/Delete'
+
+const DropZone = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  textAlign: 'center',
+  border: `2px dashed ${theme.palette.primary.main}`,
+  cursor: 'pointer',
+  backgroundColor: theme.palette.background.default,
+  height: '200px',
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: theme.spacing(3),
+  transition: 'background-color 0.3s',
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover
+  }
+}))
+
+const ImagePreview = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  marginRight: theme.spacing(2),
+  marginBottom: theme.spacing(2),
+  img: {
+    maxWidth: '200px',
+    maxHeight: '200px',
+    borderRadius: theme.shape.borderRadius
+  }
+}))
 
 export default function UploadDocument() {
   const [text, setText] = useState('')
@@ -15,9 +45,12 @@ export default function UploadDocument() {
   const [username, setUsername] = useState('')
   const [studentId, setStudentId] = useState('')
   const [course, setCourse] = useState('')
-  const [courseInfo, setCourseInfo] = useState({}) // 수업 정보를 저장할 상태 추가
+  const [courseInfo, setCourseInfo] = useState({})
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+
+  const textFileInputRef = useRef(null)
+  const imageFileInputRef = useRef(null)
 
   useEffect(() => {
     if (router.query && router.query.course) {
@@ -26,7 +59,7 @@ export default function UploadDocument() {
       setUsername(router.query.username)
       setStudentId(router.query.studentId)
       setCourse(router.query.course)
-      fetchCourseInfo(router.query.course) // 수업 정보 가져오기
+      fetchCourseInfo(router.query.course)
     }
   }, [router.query])
 
@@ -125,12 +158,29 @@ export default function UploadDocument() {
     setText(editedText)
   }
 
+  const handleFileInputChange = event => {
+    const file = event.target.files[0]
+    handleTextFile(file)
+  }
+
+  const handleImageInputChange = event => {
+    const file = event.target.files[0]
+    handleImageFile(file)
+  }
+
   const handleSaveDocument = async () => {
+    if (!text) {
+      alert('Extracted text is required to save the document.')
+      return
+    }
+
     const projectData = {
       username: username,
       student_id: studentId,
-      course: `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`, // 수업 정보 저장
-      course_code: courseInfo.code, // 수업 코드 저장
+      course: courseInfo.name
+        ? `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`
+        : 'None',
+      course_code: courseInfo.code || 'None',
       project_name: repoInfo.name,
 
       description: repoInfo.description || 'No description available',
@@ -155,7 +205,7 @@ export default function UploadDocument() {
       comments: []
     }
 
-    console.log('Project Data:', projectData) // 디버깅을 위해 추가
+    console.log('Project Data:', projectData)
 
     try {
       const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {
@@ -175,17 +225,21 @@ export default function UploadDocument() {
   return (
     <Container maxWidth='sm'>
       <Box my={4}>
-        <Typography variant='h5' gutterBottom>
-          User Information
+        <Typography variant='h4' gutterBottom>
+          Upload and Save Document
         </Typography>
+        <Typography variant='h6'>User Information</Typography>
         <Typography variant='subtitle1'>User ID: {userId}</Typography>
         <Typography variant='subtitle1'>Username: {username}</Typography>
-        <Typography variant='subtitle1'>Student ID: {studentId}</Typography> {/* 추가된 항목 */}
+        <Typography variant='subtitle1'>Student ID: {studentId}</Typography>
         <Typography variant='subtitle1'>
-          Course: {courseInfo.name}-{courseInfo.professor} ({courseInfo.day} {courseInfo.time})
+          Course:{' '}
+          {courseInfo.name
+            ? `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`
+            : 'None'}
         </Typography>
-        <Typography variant='subtitle1'>Course Code: {courseInfo.code}</Typography> {/* 수업 이름과 교수 정보 */}
-        <Typography variant='h5' gutterBottom>
+        <Typography variant='subtitle1'>Course Code: {courseInfo.code || 'None'}</Typography>
+        <Typography variant='h6' gutterBottom>
           Repository Information
         </Typography>
         <Typography variant='subtitle1'>Name: {repoInfo.name}</Typography>
@@ -205,46 +259,23 @@ export default function UploadDocument() {
             {repoInfo.html_url}
           </a>
         </Typography>
-        <Paper
-          onDrop={handleTextDrop}
-          onDragOver={e => e.preventDefault()}
-          sx={{
-            padding: '20px',
-            textAlign: 'center',
-            border: '2px dashed #ccc',
-            cursor: 'pointer',
-            backgroundColor: '#f0f0f0',
-            height: '200px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: '20px'
-          }}
-        >
-          <Typography variant='h5' sx={{ marginBottom: '10px' }}>
-            Drag & Drop to Upload Document
-          </Typography>
-        </Paper>
-        <Paper
-          onDrop={handleImageDrop}
-          onDragOver={e => e.preventDefault()}
-          sx={{
-            padding: '20px',
-            textAlign: 'center',
-            border: '2px dashed #ccc',
-            cursor: 'pointer',
-            backgroundColor: '#f0f0f0',
-            height: '200px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginBottom: '20px'
-          }}
-        >
-          <Typography variant='h5' sx={{ marginBottom: '10px' }}>
-            Drag & Drop to Upload Image
-          </Typography>
-        </Paper>
+
+        <Button variant='contained' component='label' sx={{ mb: 2 }}>
+          Select Document File
+          <input type='file' hidden onChange={handleFileInputChange} />
+        </Button>
+        <DropZone onDrop={handleTextDrop} onDragOver={e => e.preventDefault()}>
+          <Typography variant='h5'>Drag & Drop to Upload Document</Typography>
+        </DropZone>
+
+        <Button variant='contained' component='label' sx={{ mb: 2 }}>
+          Select Image File
+          <input type='file' accept='image/*' hidden onChange={handleImageInputChange} />
+        </Button>
+        <DropZone onDrop={handleImageDrop} onDragOver={e => e.preventDefault()}>
+          <Typography variant='h5'>Drag & Drop to Upload Image</Typography>
+        </DropZone>
+
         <Box>
           <Typography variant='body1' sx={{ marginTop: '20px' }}>
             Extracted Text:
@@ -266,26 +297,20 @@ export default function UploadDocument() {
           </Typography>
           <Box display='flex' flexDirection='row' flexWrap='wrap'>
             {images.map((base64Image, index) => (
-              <Box key={index} sx={{ position: 'relative', marginRight: '10px', marginBottom: '10px' }}>
-                <img src={base64Image} alt={`Image ${index}`} style={{ maxWidth: '200px', maxHeight: '200px' }} />
-                <Button
-                  variant='contained'
+              <ImagePreview key={index}>
+                <img src={base64Image} alt={`Image ${index}`} />
+                <IconButton
                   color='error'
                   onClick={() => handleDeleteImage(index)}
                   sx={{ position: 'absolute', top: 0, right: 0 }}
                 >
-                  Delete
-                </Button>
-              </Box>
+                  <DeleteIcon />
+                </IconButton>
+              </ImagePreview>
             ))}
           </Box>
         </Box>
-        <Button
-          variant='contained'
-          color='primary'
-          onClick={handleGenerateSummaryAndImage}
-          sx={{ marginBottom: '20px' }}
-        >
+        <Button variant='contained' color='primary' onClick={handleGenerateSummaryAndImage} sx={{ color: 'yellow' }}>
           Generate Summary and Image
         </Button>
         <Typography variant='h6' gutterBottom>
@@ -296,7 +321,7 @@ export default function UploadDocument() {
           Generated Image
         </Typography>
         {generatedImage && <img src={generatedImage} alt='Generated' style={{ width: '100%', height: 'auto' }} />}
-        <Button variant='contained' color='primary' onClick={handleSaveDocument} sx={{ marginTop: '20px' }}>
+        <Button variant='contained' color='primary' onClick={handleSaveDocument}>
           Save Document
         </Button>
       </Box>

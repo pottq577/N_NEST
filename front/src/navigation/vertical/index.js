@@ -12,8 +12,9 @@ import GoogleCirclesExtended from 'mdi-material-ui/GoogleCirclesExtended'
 import ClipboardListOutline from 'mdi-material-ui/ClipboardListOutline'
 import HelpCircleOutline from 'mdi-material-ui/HelpCircleOutline'
 import ShieldAccountOutline from 'mdi-material-ui/ShieldAccountOutline'
-import GroupIcon from '@mui/icons-material/Group';
-
+import GroupIcon from '@mui/icons-material/Group'
+import QuestionMarkCircleOutline from '@mui/icons-material/HelpOutline'
+import CalendarToday from '@mui/icons-material/CalendarToday'
 const navigation = () => {
   return [
     // {
@@ -21,21 +22,21 @@ const navigation = () => {
     //   icon: HomeOutline,
     //   path: '/summary'
     // },
-    /* {
-      title: 'generate',
-      icon: HomeOutline,
-      path: '/generate'
-    },
-    {
-      title: 'Product',
-      icon: HomeOutline,
-      path: '/summary2'
-    }, */
-    {
-      title: 'Professor',
-      icon: HomeOutline,
-      path: '/summaryprofessor'
-    },
+    // {
+    //   title: 'generate',
+    //   icon: HomeOutline,
+    //   path: '/generate'
+    // },
+    // {
+    //   title: 'Product',
+    //   icon: HomeOutline,
+    //   path: '/summary2'
+    // },
+    // {
+    //   title: 'Professor',
+    //   icon: HomeOutline,
+    //   path: '/summaryprofessor'
+    // },
     {
       title: 'Project List',
       icon: ClipboardListOutline,
@@ -48,7 +49,7 @@ const navigation = () => {
     },
     {
       title: 'Q&A',
-      icon: HelpCircleOutline,
+      icon: QuestionMarkCircleOutline,
       path: '/question-answer'
     },
     {
@@ -78,7 +79,7 @@ const navigation = () => {
     },
     {
       title: '예약',
-      icon: HelpCircleOutline,
+      icon: CalendarToday,
       path: '/schedule-student'
     },
     {
@@ -91,7 +92,7 @@ const navigation = () => {
       icon: AccountCogOutline,
       path: '/account-settings'
     },
-   
+
     {
       sectionTitle: 'Pages'
     },

@@ -3,44 +3,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { auth } from '../../../lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import {
-  Container,
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Paper,
-  Grid,
-  Chip,
-  InputAdornment,
-  IconButton,
-  FormControl,
-  Select,
-  MenuItem
-} from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import CancelIcon from '@mui/icons-material/Cancel'
-
-const popularCategories = [
-  'JavaScript',
-  'Python',
-  'Java',
-  'CSS',
-  'HTML',
-  'React',
-  'Node.js',
-  'Angular',
-  'Vue.js',
-  'SQL',
-  '직접 입력'
-]
+import { Container, TextField, Button, Typography, Box, Paper, Grid } from '@mui/material'
 
 export default function AskQuestionPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState(popularCategories[0])
-  const [customCategories, setCustomCategories] = useState([])
-  const [customCategoryInput, setCustomCategoryInput] = useState('')
   const [code, setCode] = useState('')
   const [userId, setUserId] = useState('')
   const router = useRouter()
@@ -80,7 +47,6 @@ export default function AskQuestionPage() {
         title,
         description,
         category,
-        customCategories,
         code,
         userId,
         createdAt: currentDate
@@ -103,26 +69,8 @@ export default function AskQuestionPage() {
     }
   }
 
-  const handleCategoryChange = e => {
-    setCategory(e.target.value)
-    if (e.target.value !== '직접 입력') {
-      setCustomCategoryInput('')
-    }
-  }
-
-  const handleAddCustomCategory = e => {
-    if (e.key === 'Enter' && e.target.value) {
-      setCustomCategories(prev => [...prev, e.target.value])
-      e.target.value = ''
-    }
-  }
-
   const handleCodeChange = e => {
     setCode(e.target.value)
-  }
-
-  const handleDeleteCustomCategory = categoryToDelete => () => {
-    setCustomCategories(prev => prev.filter(category => category !== categoryToDelete))
   }
 
   return (
@@ -161,45 +109,6 @@ export default function AskQuestionPage() {
             onChange={handleCodeChange}
             placeholder='Insert code here if any...'
           />
-          <FormControl fullWidth margin='normal'>
-            <Select value={category} onChange={handleCategoryChange}>
-              {popularCategories.map(cat => (
-                <MenuItem key={cat} value={cat}>
-                  {cat}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {category === '직접 입력' && (
-            <TextField
-              label='Custom Category'
-              fullWidth
-              margin='normal'
-              value={customCategoryInput}
-              onChange={e => setCustomCategoryInput(e.target.value)}
-              onKeyPress={handleAddCustomCategory}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position='start'>
-                    <IconButton edge='start' color='primary'>
-                      <AddIcon />
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-          )}
-          <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {customCategories.map(category => (
-              <Chip
-                key={category}
-                label={category}
-                onDelete={handleDeleteCustomCategory(category)}
-                deleteIcon={<CancelIcon />}
-                color='primary'
-              />
-            ))}
-          </Box>
           <Grid container spacing={2} sx={{ mt: 2 }}>
             <Grid item xs={6}>
               <Button type='submit' variant='contained' color='primary' fullWidth>

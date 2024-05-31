@@ -13,20 +13,7 @@ import {
   Pagination
 } from '@mui/material'
 
-const categories = [
-  'All',
-  'JavaScript',
-  'Python',
-  'Java',
-  'CSS',
-  'HTML',
-  'React',
-  'Node.js',
-  'Angular',
-  'Vue.js',
-  'SQL',
-  '기타'
-]
+const categories = ['All', 'backend', 'frontend', 'security', 'network', 'cloud', 'others']
 
 export default function QuestionListPage() {
   const [questions, setQuestions] = useState([])

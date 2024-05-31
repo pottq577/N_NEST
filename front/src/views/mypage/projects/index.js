@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import {
   List,
   ListItem,
-  ListItemText,
   Card,
   CardContent,
   Typography,
@@ -19,7 +18,7 @@ import {
   Avatar
 } from '@mui/material'
 import { Add } from '@mui/icons-material'
-import { useRouter } from 'next/router' // Next.js Router import
+import { useRouter } from 'next/router'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../../../lib/firebase'
 
@@ -28,20 +27,19 @@ const UserProjectsPage = () => {
   const [userRepos, setUserRepos] = useState([])
   const [openModal, setOpenModal] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState(null)
-  const [currentUsername, setCurrentUsername] = useState('') // 현재 선택된 사용자 이름 저장
-  const [currentUserId, setCurrentUserId] = useState('') // 현재 선택된 사용자 ID 저장
-  const [currentStudentId, setCurrentStudentId] = useState('') // 현재 선택된 사용자 학번 저장
+  const [currentUsername, setCurrentUsername] = useState('')
+  const [currentUserId, setCurrentUserId] = useState('')
+  const [currentStudentId, setCurrentStudentId] = useState('')
   const [currentUser, setCurrentUser] = useState(null)
-  const [userCourses, setUserCourses] = useState([]) // 사용자의 수업 목록
-  const [selectedCourse, setSelectedCourse] = useState('') // 선택된 수업
-  const router = useRouter() // Next.js Router instance
+  const [userCourses, setUserCourses] = useState([])
+  const [selectedCourse, setSelectedCourse] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async user => {
       if (user) {
-        const githubUsername = user.reloadUserInfo.screenName // 예를 들어 GitHub username
+        const githubUsername = user.reloadUserInfo.screenName
         if (githubUsername) {
-          // GitHub 사용자 이름으로 MongoDB에서 사용자의 실제 이름을 조회
           try {
             const response = await fetch(`http://localhost:8000/get-user-name/`, {
               method: 'POST',
@@ -52,12 +50,12 @@ const UserProjectsPage = () => {
             })
             if (response.ok) {
               const { name, githubId, studentId } = await response.json()
-              setCurrentUsername(name) // 응답으로 받은 이름을 상태에 설정
-              setCurrentUserId(githubId) // 응답으로 받은 githubId를 상태에 설정
-              setCurrentStudentId(studentId) // 응답으로 받은 학번을 상태에 설정
+              setCurrentUsername(name)
+              setCurrentUserId(githubId)
+              setCurrentStudentId(studentId)
               setUserLogins(prev => ({ ...prev, [githubId]: { name, studentId } }))
-              fetchUserRepos(user.reloadUserInfo.screenName)
-              fetchUserCourses(studentId) // 수업 목록 가져오기
+              fetchUserRepos(githubUsername)
+              fetchUserCourses(studentId)
             } else {
               throw new Error('Failed to fetch user name')
             }
@@ -79,7 +77,7 @@ const UserProjectsPage = () => {
       }
     })
 
-    return () => unsubscribe() // 클린업 함수
+    return () => unsubscribe()
   }, [auth])
 
   const fetchUserRepos = username => {
@@ -93,8 +91,7 @@ const UserProjectsPage = () => {
               .then(contributors => ({ ...repo, contributors }))
               .catch(error => {
                 console.error('Error fetching contributors:', error)
-
-                return { ...repo, contributors: [] } // Handle errors by setting contributors to an empty array
+                return { ...repo, contributors: [] }
               })
           )
         )
@@ -143,10 +140,10 @@ const UserProjectsPage = () => {
         private: selectedRepo.private ? 'Yes' : 'No',
         html_url: selectedRepo.html_url,
         defaultBranch: selectedRepo.default_branch,
-        userId: currentUserId, // 사용자 ID
-        username: currentUsername, // 사용자 이름
-        studentId: currentStudentId, // 사용자 학번
-        course: selectedCourse // 선택된 수업
+        userId: currentUserId,
+        username: currentUsername,
+        studentId: currentStudentId,
+        course: selectedCourse
       }
     })
   }
@@ -170,10 +167,10 @@ const UserProjectsPage = () => {
         private: selectedRepo.private ? 'Yes' : 'No',
         html_url: selectedRepo.html_url,
         defaultBranch: selectedRepo.default_branch,
-        userId: currentUserId, // 사용자 ID
-        username: currentUsername, // 사용자 이름
-        studentId: currentStudentId, // 사용자 학번
-        course: selectedCourse // 선택된 수업
+        userId: currentUserId,
+        username: currentUsername,
+        studentId: currentStudentId,
+        course: selectedCourse
       }
     })
   }
@@ -291,6 +288,7 @@ const UserProjectsPage = () => {
               ) : (
                 <MenuItem disabled>No courses available</MenuItem>
               )}
+              <MenuItem value='none'>선택 안함</MenuItem>
             </Select>
           </FormControl>
           <Grid container spacing={2} justifyContent='center'>

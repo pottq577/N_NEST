@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react'
-import { Container, Tab, Tabs, Box, Typography, TextField, Button, CircularProgress, Paper } from '@mui/material'
+import {
+  Container,
+  Tab,
+  Tabs,
+  Box,
+  Typography,
+  TextField,
+  Button,
+  CircularProgress,
+  Paper,
+  LinearProgress
+} from '@mui/material'
 import { useRouter } from 'next/router'
 import axios from 'axios'
 
@@ -55,10 +66,10 @@ function RepositoryInfo({ courseInfo, studentId }) {
         Course Information
       </Typography>
       <Typography>
-        <strong>Course:</strong> {courseInfo.name}-{courseInfo.professor} ({courseInfo.day} {courseInfo.time})
+        <strong>Course:</strong> {courseInfo.name}-{courseInfo.professor} ({courseInfo.day} {courseInfo.time} || 'None')
       </Typography>
       <Typography>
-        <strong>Course Code:</strong> {courseInfo.code}
+        <strong>Course Code:</strong> {courseInfo.code || 'None'}
       </Typography>
       <Typography variant='h6' gutterBottom>
         Repository Information
@@ -120,12 +131,8 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
     )}/${encodeURIComponent(projectInfo.technologiesUsed)}/${encodeURIComponent(projectInfo.problemToSolve)}`
 
     try {
-      const response = await fetch(url)
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
-      }
-      const data = await response.json()
-      setGenerate(data)
+      const response = await axios.get(url)
+      setGenerate(response.data)
       setIsLoading(false)
     } catch (error) {
       console.error('Error:', error)
@@ -190,13 +197,23 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
   )
 }
 
-function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombinedSummary, image, setImage }) {
+function SummaryAndImage({
+  generateDoc,
+  setGenerate,
+  combinedSummary,
+  setCombinedSummary,
+  image,
+  setImage,
+  handleSaveDocument
+}) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [progress, setProgress] = useState(0)
 
   const handleSummarizeAndGenerateImage = async () => {
     setIsLoading(true)
     setError('')
+    setProgress(0)
 
     const sections = {
       background: generateDoc.background,
@@ -205,31 +222,34 @@ function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombine
     }
 
     try {
-      const summaries = await Promise.all(
-        Object.entries(sections).map(([key, text]) =>
-          fetch('http://localhost:8001/summarize/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-          }).then(response => (response.ok ? response.json() : Promise.reject(`Failed to summarize ${key}`)))
+      const requests = [
+        axios.post('http://localhost:8001/summarize/', { text: sections.background }),
+        axios.post('http://localhost:8001/summarize/', { text: sections.development_content }),
+        axios.post('http://localhost:8001/summarize/', { text: sections.expected_effects }),
+        axios.post('http://localhost:8001/generate-image/', {
+          prompt: `${sections.background} ${sections.development_content} ${sections.expected_effects}`
+        })
+      ]
+
+      const totalRequests = requests.length
+      let completedRequests = 0
+
+      const responses = await Promise.all(
+        requests.map(request =>
+          request.then(response => {
+            completedRequests += 1
+            setProgress(Math.floor((completedRequests / totalRequests) * 100))
+            return response
+          })
         )
       )
 
-      const fullSummary = summaries.map(s => s.summary).join(' ')
+      const [backgroundSummary, developmentSummary, effectsSummary, imageResponse] = responses
+
+      const fullSummary = `${backgroundSummary.data.summary} ${developmentSummary.data.summary} ${effectsSummary.data.summary}`
       setCombinedSummary(fullSummary)
 
-      const imageResponse = await fetch('http://localhost:8001/generate-image/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: fullSummary })
-      })
-
-      if (!imageResponse.ok) {
-        throw new Error(`HTTP error! Status: ${imageResponse.status}`)
-      }
-
-      const imageData = await imageResponse.json()
-      setImage(`data:image/jpeg;base64,${imageData.base64_image}`) // Store as a single base64 string
+      setImage(`data:image/jpeg;base64,${imageResponse.data.base64_image}`)
 
       setIsLoading(false)
     } catch (error) {
@@ -257,6 +277,7 @@ function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombine
       <Button onClick={handleSummarizeAndGenerateImage} disabled={isLoading}>
         {isLoading ? <CircularProgress size={24} /> : 'Summarize and Generate Image'}
       </Button>
+      {isLoading && <LinearProgress variant='determinate' value={progress} />}
       {error && <Typography color='error'>{error}</Typography>}
       {combinedSummary && (
         <Box sx={{ mt: 2 }}>
@@ -270,6 +291,9 @@ function SummaryAndImage({ generateDoc, setGenerate, combinedSummary, setCombine
           <img src={image} alt='Generated' style={{ maxWidth: '100%', height: 'auto' }} />
         </Box>
       )}
+      <Button onClick={handleSaveDocument} sx={{ mt: 2 }}>
+        Save Document
+      </Button>
     </Box>
   )
 }
@@ -329,13 +353,23 @@ export default function ProjectGenerator() {
       username
     } = router.query
 
+    if (
+      !generateDoc.project_title ||
+      !generateDoc.background ||
+      !generateDoc.development_content ||
+      !generateDoc.expected_effects
+    ) {
+      alert('Extracted text is required to save the document.')
+      return
+    }
+
     const projectData = {
       username: username,
-      student_id: studentId, // 추가된 항목
+      student_id: studentId,
       course: courseInfo.name
         ? `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`
-        : 'Unknown', // 추가된 항목
-      course_code: courseInfo.code, // 추가된 항목
+        : 'None',
+      course_code: courseInfo.code || 'None',
       project_name: name,
 
       description: description || 'No description available',
@@ -351,7 +385,7 @@ export default function ProjectGenerator() {
       default_branch: defaultBranch || 'main',
 
       repository_url: htmlUrl,
-      text_extracted: combinedSummary,
+      text_extracted: `Project Title: ${generateDoc.project_title}, Background: ${generateDoc.background}, Development Content: ${generateDoc.development_content}, Expected Effects: ${generateDoc.expected_effects}`,
       summary: combinedSummary,
       image_preview_urls: [],
       generated_image_url: image,
@@ -366,6 +400,7 @@ export default function ProjectGenerator() {
           'Content-Type': 'application/json'
         }
       })
+      console.table(projectData)
       console.log('Document saved:', response.data)
       alert('Document saved successfully!')
       router.push('/')
@@ -401,11 +436,9 @@ export default function ProjectGenerator() {
           setCombinedSummary={setCombinedSummary}
           image={image}
           setImage={setImage}
+          handleSaveDocument={handleSaveDocument}
         />
       </TabPanel>
-      <Button onClick={handleSaveDocument} sx={{ mt: 2 }}>
-        Save Document
-      </Button>
     </Container>
   )
 }
