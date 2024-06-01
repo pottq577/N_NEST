@@ -13,7 +13,8 @@ import {
   Link,
   Card,
   CardContent,
-  Avatar
+  Avatar,
+  Divider
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import { useRouter } from 'next/router'
@@ -24,6 +25,10 @@ import ImageIcon from '@mui/icons-material/Image'
 import InfoIcon from '@mui/icons-material/Info'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import { Star, ForkRight, Visibility } from '@mui/icons-material'
+import AssignmentIcon from '@mui/icons-material/Assignment'
+import BackgroundIcon from '@mui/icons-material/Description'
+import TechnologyIcon from '@mui/icons-material/Build'
+import EffectIcon from '@mui/icons-material/EmojiEvents'
 
 const CustomPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -262,19 +267,39 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
       {error && <Typography color='error'>{error}</Typography>}
       {generateDoc.project_title && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant='h6'>Generated Summary:</Typography>
-          <Typography>
-            <strong>Project Title:</strong> {generateDoc.project_title}
-          </Typography>
-          <Typography>
-            <strong>Background:</strong> {generateDoc.background}
-          </Typography>
-          <Typography>
-            <strong>Development Content:</strong> {generateDoc.development_content}
-          </Typography>
-          <Typography>
-            <strong>Expected Effects:</strong> {generateDoc.expected_effects}
-          </Typography>
+          <Card variant='outlined'>
+            <CardContent>
+              <Typography variant='h6' gutterBottom>
+                <AssignmentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                자동 생성된 요약 정보
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <BackgroundIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>프로젝트 제목: </strong> {generateDoc.project_title}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <BackgroundIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>프로젝트 목적: </strong> {generateDoc.background}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <TechnologyIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>사용 기술: </strong> {generateDoc.development_content}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <EffectIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>기대 효과: </strong> {generateDoc.expected_effects}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
         </Box>
       )}
     </form>
@@ -365,19 +390,39 @@ function SummaryAndImage({
 
   return (
     <CustomPaper>
-      <Typography variant='h6'>Original Content and Summaries:</Typography>
-      <Typography>
-        <strong>Project Title:</strong> {generateDoc.project_title}
-      </Typography>
-      <Typography>
-        <strong>Background:</strong> {generateDoc.background}
-      </Typography>
-      <Typography>
-        <strong>Development Content:</strong> {generateDoc.development_content}
-      </Typography>
-      <Typography>
-        <strong>Expected Effects:</strong> {generateDoc.expected_effects}
-      </Typography>
+      <Card variant='outlined'>
+        <CardContent>
+          <Typography variant='h6' gutterBottom>
+            <AssignmentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+            생성된 요약 정보
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <AssignmentIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>프로젝트 제목: </strong> {generateDoc.project_title}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <BackgroundIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>프로젝트 목적: </strong> {generateDoc.background}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <TechnologyIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>사용 기술: </strong> {generateDoc.development_content}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <EffectIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>기대 효과: </strong> {generateDoc.expected_effects}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
       <CustomButton onClick={handleSummarizeAndGenerateImage} disabled={isLoading} startIcon={<ImageIcon />}>
         {isLoading ? <CircularProgress size={24} /> : 'Summarize and Generate Image'}
       </CustomButton>
@@ -534,6 +579,9 @@ export default function ProjectGenerator() {
       views: 0,
       comments: []
     }
+
+    // 전송할 데이터 구조 확인
+    console.log('Project data to be saved:', projectData)
 
     try {
       const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {

@@ -94,18 +94,27 @@ export default function SolveProblem() {
               {renderProblemDetail('출력 샘플', <pre>{problem.sample_output}</pre>)}
             </Grid>
           </Grid>
-          <Editor height='50vh' language={language} value={code} onChange={value => setCode(value)} />
+          <Editor
+            height='30vh'
+            language={language}
+            value={code}
+            onChange={value => setCode(value)}
+            options={{
+              scrollBeyondLastLine: false,
+              maxHeight: '30vh'
+            }}
+            style={{ maxHeight: '30vh' }}
+          />
           <Box sx={{ mt: 2 }}>
             <Select value={language} onChange={e => setLanguage(e.target.value)} fullWidth>
               <MenuItem value='python'>Python</MenuItem>
               <MenuItem value='javascript'>JavaScript</MenuItem>
-              {/* 필요한 다른 언어도 추가할 수 있습니다. */}
             </Select>
           </Box>
         </Box>
         <Box sx={{ mt: 2 }}>
           <Button variant='contained' color='primary' onClick={submitCode} fullWidth>
-            Submit
+            제출
           </Button>
         </Box>
         <Box sx={{ mt: 4 }}>

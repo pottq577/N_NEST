@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import {
   Container,
@@ -53,6 +53,9 @@ function ProjectDetails() {
   const [error, setError] = useState(null)
   const [comments, setComments] = useState([])
   const [comment, setComment] = useState('')
+  const summaryCardRef = useRef(null)
+  const textExtractedCardRef = useRef(null)
+  const [minHeight, setMinHeight] = useState(0)
 
   useEffect(() => {
     if (id) {
@@ -78,6 +81,14 @@ function ProjectDetails() {
         })
     }
   }, [id])
+
+  useEffect(() => {
+    if (summaryCardRef.current && textExtractedCardRef.current) {
+      const summaryHeight = summaryCardRef.current.offsetHeight
+      const textExtractedHeight = textExtractedCardRef.current.offsetHeight
+      setMinHeight(Math.max(summaryHeight, textExtractedHeight))
+    }
+  }, [project])
 
   const handleCommentChange = event => {
     setComment(event.target.value)
@@ -144,7 +155,7 @@ function ProjectDetails() {
   }
 
   const RenderRepoDetail = ({ repo }) => (
-    <Paper sx={{ p: 5 }}>
+    <Paper sx={{ p: 5, borderRadius: 3, borderWidth: 3, mr: 5, shadows: '#000' }}>
       <Typography variant='h6' component='div' sx={{ mb: 2, fontWeight: '600', color: '#0072E5' }}>
         {repo.name}
       </Typography>
@@ -216,29 +227,37 @@ function ProjectDetails() {
       {project && (
         <Grid container spacing={4}>
           {/* 저장소 정보 */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12}>
             <CustomCard variant='outlined'>
-              <CardContent>
-                <CustomTypography stomTypography variant='h6' gutterBottom>
-                  프로젝트 정보
-                </CustomTypography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>학번: </strong> {project.student_id}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>강의: </strong> {project.course}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>조회수: </strong> {project.views ?? 0}
-                </Typography>
+              <CardContent style={{ display: 'flex', alignItems: 'center' }}>
+                <Box style={{ flex: 1 }}>
+                  <CustomTypography variant='h6' gutterBottom>
+                    프로젝트 정보
+                  </CustomTypography>
+                  <Typography variant='body1' gutterBottom>
+                    <strong>학번: </strong> {project.student_id}
+                  </Typography>
+                  <Typography variant='body1' gutterBottom>
+                    <strong>강의: </strong> {project.course}
+                  </Typography>
+                  <Typography variant='body1' gutterBottom>
+                    <strong>조회수: </strong> {project.views ?? 0}
+                  </Typography>
+                  <RenderRepoDetail repo={project} />
+                </Box>
+                <CardMedia
+                  component='img'
+                  image={project.generated_image_url}
+                  alt='Generated'
+                  style={{ flexGrow: 1, maxWidth: '30%', height: 'auto', borderRadius: '8px' }}
+                />
               </CardContent>
-              <RenderRepoDetail repo={project} />
             </CustomCard>
           </Grid>
 
           {/* 요약 정보 */}
           <Grid item xs={12} md={6}>
-            <CustomCard variant='outlined'>
+            <CustomCard variant='outlined' ref={summaryCardRef} style={{ minHeight: minHeight }}>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
                   요약 정보
@@ -251,8 +270,8 @@ function ProjectDetails() {
           </Grid>
 
           {/* 텍스트 추출 */}
-          <Grid item xs={12}>
-            <CustomCard variant='outlined'>
+          <Grid item xs={6}>
+            <CustomCard variant='outlined' ref={textExtractedCardRef}>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
                   텍스트 추출
@@ -264,8 +283,17 @@ function ProjectDetails() {
             </CustomCard>
           </Grid>
 
-          {/* 프로젝트 이미지 */}
           <Grid item xs={12}>
+            <CustomCard variant='outlined'>
+              <CardContent>
+                <CustomTypography variant='h6' gutterBottom>
+                  Image Previews
+                </CustomTypography>
+                {renderPreviewImages()}
+              </CardContent>
+            </CustomCard>
+          </Grid>
+          {/* <Grid item xs={12}>
             <CustomCard variant='outlined'>
               <CardMedia
                 component='img'
@@ -284,7 +312,7 @@ function ProjectDetails() {
                 {renderPreviewImages()}
               </CardContent>
             </CustomCard>
-          </Grid>
+          </Grid> */}
 
           {/* 댓글 */}
           <Grid item xs={12}>

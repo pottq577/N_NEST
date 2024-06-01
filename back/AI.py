@@ -20,8 +20,11 @@ load_dotenv()
 # print(GOOGLE_API_KEY)
 # OPENAI_API_KEY = os.getenv("OpenAI_API")
 # print(OPENAI_API_KEY)
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = FastAPI()
 
@@ -44,6 +47,13 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 class SummarizeRequest(BaseModel):
     text: str
+
+
+def cleanup_text(text):
+    # 불필요한 문자를 제거하거나 대체하는 작업을 수행
+    # 예: * 문자를 제거
+    cleaned_text = text.replace('*', '').strip()
+    return cleaned_text
 
 # POST 요청을 처리하는 엔드포인트
 
@@ -142,12 +152,15 @@ async def generate_content(
     response = model.generate_content(prompt)
     generated_text = response.text
 
-    # 각 섹션 추출
-    project_title = extract_section(generated_text, "프로젝트 제목:", "추진 배경:")
-    background = extract_section(generated_text, "추진 배경:", "개발 내용:")
-    development_content = extract_section(generated_text, "개발 내용:", "기대 효과:")
-    expected_effects = extract_section(
-        generated_text, "기대 효과:", "$")  # $는 텍스트 끝을 의미
+    # 각 섹션 추출 및 클린업
+    project_title = cleanup_text(extract_section(
+        generated_text, "프로젝트 제목:", "추진 배경:"))
+    background = cleanup_text(extract_section(
+        generated_text, "추진 배경:", "개발 내용:"))
+    development_content = cleanup_text(
+        extract_section(generated_text, "개발 내용:", "기대 효과:"))
+    expected_effects = cleanup_text(extract_section(
+        generated_text, "기대 효과:", "$"))  # $는 텍스트 끝을 의미
 
     return {
         "project_title": project_title,
@@ -167,7 +180,7 @@ async def generate_image(request: ImageRequest):
         # 이미지 생성
         response = client.images.generate(
             model="dall-e-3",
-            prompt=request.prompt,
+            prompt=f"요약: {request.prompt}. 프로젝트의 핵심기술을 한눈에 알 수 있도록 시각적으로 강조한 이미지를 생성해 주세요. 예를 들어, AI 기술의 경우 로봇 아이콘과 'AI'라는 텍스트를 포함한 이미지처럼, 핵심기술을 대표하는 아이콘과 텍스트를 포함해 주세요. 핵심기술 하나만 명확하게 표현해 주세요.",
             size="1024x1024",
             quality="standard",
             n=1,
