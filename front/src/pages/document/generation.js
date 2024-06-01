@@ -8,14 +8,65 @@ import {
   TextField,
   Button,
   CircularProgress,
+  LinearProgress,
   Paper,
-  LinearProgress
+  Link,
+  Card,
+  CardContent,
+  Avatar,
+  IconButton
 } from '@mui/material'
+import { styled } from '@mui/material/styles'
 import { useRouter } from 'next/router'
 import axios from 'axios'
+import SaveIcon from '@mui/icons-material/Save'
+import SummarizeIcon from '@mui/icons-material/Summarize'
+import ImageIcon from '@mui/icons-material/Image'
+import InfoIcon from '@mui/icons-material/Info'
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import { Star, ForkRight, Visibility } from '@mui/icons-material'
+
+const CustomPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(3),
+  marginBottom: theme.spacing(3),
+  backgroundColor: '#fff',
+  boxShadow: theme.shadows[3]
+}))
+
+const CustomButton = styled(Button)(({ theme }) => ({
+  marginTop: theme.spacing(2),
+  marginBottom: theme.spacing(2)
+}))
+
+const CustomTextField = styled(TextField)(({ theme }) => ({
+  marginBottom: theme.spacing(2)
+}))
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: theme.spacing(2),
+  marginBottom: theme.spacing(2),
+  backgroundColor: '#f5f5f5',
+  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+  borderRadius: theme.shape.borderRadius,
+  '&:hover': {
+    backgroundColor: '#e0e0e0'
+  }
+}))
+
+const languageColors = {
+  JavaScript: '#f1e05a',
+  Python: '#3572A5',
+  Java: '#b07219',
+  HTML: '#e34c26',
+  CSS: '#563d7c'
+}
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props
+
   return (
     <div
       role='tabpanel'
@@ -30,89 +81,132 @@ function TabPanel(props) {
 }
 
 function RepositoryInfo({ courseInfo, studentId }) {
+  const [showMore, setShowMore] = useState(false)
   const router = useRouter()
-  const {
-    name,
-    description,
-    language,
-    stars,
-    updatedAt,
-    license,
-    forks,
-    watchers,
-    contributors,
-    private: isPrivate,
-    html_url: htmlUrl,
-    defaultBranch,
-    userId,
-    username
-  } = router.query
+  const query = router.query
+
+  const InfoRow = ({ label, value }) => (
+    <Typography>
+      <strong>{label}:</strong> {value}
+    </Typography>
+  )
+
+  const RenderUserInfo = props => (
+    <StyledCard>
+      <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{props.username?.charAt(0).toUpperCase()}</Avatar>
+      <CardContent>
+        <Typography variant='h6'>{props.username}</Typography>
+        <Typography variant='body2' color='textSecondary'>
+          <strong>User ID:</strong> {props.userId}
+        </Typography>
+        <Typography variant='body2' color='textSecondary'>
+          <strong>Student ID:</strong> {props.studentId}
+        </Typography>
+      </CardContent>
+    </StyledCard>
+  )
+
+  const RenderCourseInfo = () => (
+    <StyledCard>
+      <CardContent>
+        <InfoRow
+          label='과목'
+          value={`${courseInfo.name}-${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`}
+        />
+        <InfoRow label='과목코드' value={courseInfo.code} />
+      </CardContent>
+    </StyledCard>
+  )
+
+  const renderRepoDetailIcons = (icon, value) =>
+    value > 0 && (
+      <>
+        <Box sx={{ mx: 1 }} />
+        {icon}
+        <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
+          {value}
+        </Typography>
+      </>
+    )
+
+  const RenderRepoInfo = props => (
+    <StyledCard>
+      <CardContent>
+        <Typography variant='h6' component='div' sx={{ mb: 2, fontWeight: '600', color: '#0072E5' }}>
+          {props.name}
+        </Typography>
+        <Typography variant='body2' color='textSecondary' component='p' sx={{ mb: 2 }}>
+          {props.description || 'No description'}
+        </Typography>
+        <Typography
+          variant='body2'
+          color='textSecondary'
+          component='p'
+          sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', mb: 2 }}
+        >
+          <Box
+            sx={{
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              backgroundColor: languageColors[props.language] || '#000',
+              display: 'inline-block',
+              mr: 1
+            }}
+          />
+          <Typography variant='subtitle2' component='span'>
+            {props.language || 'No info'}
+          </Typography>
+          {renderRepoDetailIcons(<Star sx={{ verticalAlign: 'middle' }} />, props.stars)}
+          {renderRepoDetailIcons(<ForkRight sx={{ verticalAlign: 'middle' }} />, props.forks)}
+          {renderRepoDetailIcons(<Visibility sx={{ verticalAlign: 'middle' }} />, props.watchers)}
+          <Box sx={{ mx: 1 }} />
+          <Typography variant='subtitle2' component='span'>
+            Updated
+          </Typography>
+          <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
+            {new Date(props.updatedAt).toLocaleDateString()}
+          </Typography>
+        </Typography>
+        <Typography variant='body2' sx={{ mb: 2 }}>
+          <Link href={props.htmlUrl} target='_blank' rel='noopener noreferrer' color='primary'>
+            GitHub로 이동
+          </Link>
+        </Typography>
+        {showMore && (
+          <>
+            <Typography variant='body2' color='textSecondary' component='p'>
+              <strong>Contributors:</strong> {props.contributors || 'No contributors info'}
+            </Typography>
+            <Typography variant='body2' color='textSecondary' component='p'>
+              <strong>License:</strong> {props.license || 'No license'}
+            </Typography>
+            <Typography variant='body2' color='textSecondary' component='p'>
+              <strong>Forks:</strong> {props.forks}
+            </Typography>
+            <Typography variant='body2' color='textSecondary' component='p'>
+              <strong>Watchers:</strong> {props.watchers}
+            </Typography>
+            <Typography variant='body2' color='textSecondary' component='p'>
+              <strong>Default Branch:</strong> {props.defaultBranch}
+            </Typography>
+            <Typography variant='body2' color='textSecondary' component='p'>
+              <strong>Private:</strong> {props.isPrivate ? 'Yes' : 'No'}
+            </Typography>
+          </>
+        )}
+        <IconButton onClick={() => setShowMore(!showMore)}>
+          <ExpandMoreIcon />
+        </IconButton>
+      </CardContent>
+    </StyledCard>
+  )
 
   return (
     <Box>
-      <Typography variant='h6' gutterBottom>
-        User Information
-      </Typography>
-      <Typography>
-        <strong>User ID:</strong> {userId}
-      </Typography>
-      <Typography>
-        <strong>Username:</strong> {username}
-      </Typography>
-      <Typography>
-        <strong>Student ID:</strong> {studentId}
-      </Typography>
-      <Typography variant='h6' gutterBottom>
-        Course Information
-      </Typography>
-      <Typography>
-        <strong>Course:</strong> {courseInfo.name}-{courseInfo.professor} ({courseInfo.day} {courseInfo.time} || 'None')
-      </Typography>
-      <Typography>
-        <strong>Course Code:</strong> {courseInfo.code || 'None'}
-      </Typography>
-      <Typography variant='h6' gutterBottom>
-        Repository Information
-      </Typography>
-      <Typography>
-        <strong>Name:</strong> {name}
-      </Typography>
-      <Typography>
-        <strong>Description:</strong> {description || 'No description'}
-      </Typography>
-      <Typography>
-        <strong>Language:</strong> {language || 'No info'}
-      </Typography>
-      <Typography>
-        <strong>Stars:</strong> {stars}
-      </Typography>
-      <Typography>
-        <strong>Last Updated:</strong> {new Date(updatedAt).toLocaleDateString()}
-      </Typography>
-      <Typography>
-        <strong>License:</strong> {license || 'No license'}
-      </Typography>
-      <Typography>
-        <strong>Forks:</strong> {forks}
-      </Typography>
-      <Typography>
-        <strong>Watchers:</strong> {watchers}
-      </Typography>
-      <Typography>
-        <strong>Contributors:</strong> {contributors}
-      </Typography>
-      <Typography>
-        <strong>Private:</strong> {isPrivate}
-      </Typography>
-      <Typography>
-        <strong>Default Branch:</strong> {defaultBranch}
-      </Typography>
-      <Typography>
-        <strong>Repository URL:</strong>{' '}
-        <a href={htmlUrl} target='_blank' rel='noopener noreferrer'>
-          {htmlUrl}
-        </a>
-      </Typography>
+      <RenderUserInfo {...query} />
+      <RenderCourseInfo />
+      <RenderRepoInfo {...query} />
     </Box>
   )
 }
@@ -143,25 +237,23 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
 
   return (
     <form onSubmit={handleSubmit}>
-      <TextField
+      <CustomTextField
         label='Project Title'
         fullWidth
         variant='outlined'
         value={projectInfo.projectTitle}
         onChange={e => setProjectInfo({ ...projectInfo, projectTitle: e.target.value })}
         required
-        sx={{ mb: 2 }}
       />
-      <TextField
+      <CustomTextField
         label='Technologies Used'
         fullWidth
         variant='outlined'
         value={projectInfo.technologiesUsed}
         onChange={e => setProjectInfo({ ...projectInfo, technologiesUsed: e.target.value })}
         required
-        sx={{ mb: 2 }}
       />
-      <TextField
+      <CustomTextField
         label='Problem to Solve'
         fullWidth
         multiline
@@ -170,11 +262,15 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
         value={projectInfo.problemToSolve}
         onChange={e => setProjectInfo({ ...projectInfo, problemToSolve: e.target.value })}
         required
-        sx={{ mb: 2 }}
       />
-      <Button type='submit' variant='contained' color='primary' disabled={isLoading}>
-        {isLoading ? <CircularProgress size={24} /> : 'Generate Summary'}
-      </Button>
+      <CustomButton
+        type='submit'
+        variant='contained'
+        color='primary'
+        startIcon={isLoading ? <CircularProgress size={24} /> : <SummarizeIcon />}
+      >
+        {isLoading ? 'Generating...' : 'Generate Summary'}
+      </CustomButton>
       {error && <Typography color='error'>{error}</Typography>}
       {generateDoc.project_title && (
         <Box sx={{ mt: 2 }}>
@@ -209,6 +305,7 @@ function SummaryAndImage({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState(0)
+  const [previewImages, setPreviewImages] = useState([])
 
   const handleSummarizeAndGenerateImage = async () => {
     setIsLoading(true)
@@ -259,8 +356,26 @@ function SummaryAndImage({
     }
   }
 
+  const handleImageChange = async event => {
+    const files = event.target.files
+    if (files && files.length > 0) {
+      const file = files[0]
+      const base64Image = await convertToBase64(file)
+      setPreviewImages(prevImages => [...prevImages, base64Image])
+    }
+  }
+
+  const convertToBase64 = file => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   return (
-    <Box>
+    <CustomPaper>
       <Typography variant='h6'>Original Content and Summaries:</Typography>
       <Typography>
         <strong>Project Title:</strong> {generateDoc.project_title}
@@ -274,9 +389,9 @@ function SummaryAndImage({
       <Typography>
         <strong>Expected Effects:</strong> {generateDoc.expected_effects}
       </Typography>
-      <Button onClick={handleSummarizeAndGenerateImage} disabled={isLoading}>
+      <CustomButton onClick={handleSummarizeAndGenerateImage} disabled={isLoading} startIcon={<ImageIcon />}>
         {isLoading ? <CircularProgress size={24} /> : 'Summarize and Generate Image'}
-      </Button>
+      </CustomButton>
       {isLoading && <LinearProgress variant='determinate' value={progress} />}
       {error && <Typography color='error'>{error}</Typography>}
       {combinedSummary && (
@@ -291,10 +406,37 @@ function SummaryAndImage({
           <img src={image} alt='Generated' style={{ maxWidth: '100%', height: 'auto' }} />
         </Box>
       )}
-      <Button onClick={handleSaveDocument} sx={{ mt: 2 }}>
+      <Box sx={{ mt: 2 }}>
+        <input
+          accept='image/*'
+          id='image-upload'
+          type='file'
+          style={{ display: 'none' }}
+          onChange={handleImageChange}
+        />
+        <label htmlFor='image-upload'>
+          <CustomButton component='span' startIcon={<AddPhotoAlternateIcon />}>
+            Add Image
+          </CustomButton>
+        </label>
+      </Box>
+      {previewImages.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant='h6'>Additional Images:</Typography>
+          {previewImages.map((img, index) => (
+            <img
+              key={index}
+              src={img}
+              alt={`Preview ${index}`}
+              style={{ maxWidth: '100%', height: 'auto', marginTop: '10px' }}
+            />
+          ))}
+        </Box>
+      )}
+      <CustomButton onClick={handleSaveDocument} startIcon={<SaveIcon />}>
         Save Document
-      </Button>
-    </Box>
+      </CustomButton>
+    </CustomPaper>
   )
 }
 
@@ -310,19 +452,26 @@ export default function ProjectGenerator() {
   const [image, setImage] = useState('')
   const [courseInfo, setCourseInfo] = useState({})
   const [studentId, setStudentId] = useState('')
+  const [previewImages, setPreviewImages] = useState([])
 
   const router = useRouter()
 
   useEffect(() => {
     if (router.query && router.query.course) {
-      setCourseInfo(router.query)
+      if (router.query.course === 'None') {
+        setCourseInfo({})
+      } else {
+        fetchCourseInfo(router.query.course)
+      }
       setStudentId(router.query.studentId)
-      fetchCourseInfo(router.query.course)
     }
   }, [router.query])
 
   const fetchCourseInfo = async courseCode => {
-    if (!courseCode) return
+    if (!courseCode || courseCode === 'None') {
+      setCourseInfo({})
+      return
+    }
     try {
       const response = await axios.get(`http://127.0.0.1:8000/api/courses/${courseCode}`)
       setCourseInfo(response.data)
@@ -387,7 +536,7 @@ export default function ProjectGenerator() {
       repository_url: htmlUrl,
       text_extracted: `Project Title: ${generateDoc.project_title}, Background: ${generateDoc.background}, Development Content: ${generateDoc.development_content}, Expected Effects: ${generateDoc.expected_effects}`,
       summary: combinedSummary,
-      image_preview_urls: [],
+      image_preview_urls: previewImages,
       generated_image_url: image,
 
       views: 0,
@@ -413,9 +562,9 @@ export default function ProjectGenerator() {
   return (
     <Container maxWidth='md'>
       <Tabs value={tabIndex} onChange={handleTabChange} aria-label='project tabs'>
-        <Tab label='Repository Info' />
-        <Tab label='Create Document' />
-        <Tab label='Summary and Image' />
+        <Tab label='Repository Info' icon={<InfoIcon />} />
+        <Tab label='Create Document' icon={<SummarizeIcon />} />
+        <Tab label='Summary and Image' icon={<ImageIcon />} />
       </Tabs>
       <TabPanel value={tabIndex} index={0}>
         <RepositoryInfo courseInfo={courseInfo} studentId={studentId} />
