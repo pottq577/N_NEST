@@ -132,7 +132,7 @@ class Config:
 class Course(BaseModel):
     name: str
     professor: str
-    professor_id: int
+    professor_id: str
     day: str
     time: str
     code: str
@@ -282,39 +282,63 @@ class UserQuery(BaseModel):
 async def get_user_courses(query: UserQuery):
     try:
         # 1. User 콜렉션에서 studentId 조회
-        user_data = await db.User.find_one({"githubUsername": query.githubUsername})
-        if user_data is None:
-            raise HTTPException(status_code=404, detail="User not found")
+        user_data = await user_collection.find_one({"githubUsername": query.githubUsername})
+        if user_data:
+            student_id = user_data.get("studentId")
+            if not student_id:
+                raise HTTPException(status_code=404, detail="Student ID not found in user data")
 
-        student_id = user_data.get("studentId")
-        if not student_id:
-            raise HTTPException(status_code=404, detail="Student ID not found in user data")
+            # 2. Student 콜렉션에서 학생 정보 조회
+            student_data = await student_collection.find_one({"student_id": student_id})
+            if student_data is None:
+                raise HTTPException(status_code=404, detail="Student not found")
 
-        # 2. Student 콜렉션에서 학생 정보 조회
-        student_data = await db.Student.find_one({"student_id": student_id})
-        if student_data is None:
-            raise HTTPException(status_code=404, detail="Student not found")
+            # 3. Course 콜렉션에서 수업 정보 조회
+            course_codes = student_data.get("course_codes", [])
+            courses = []
+            for code in course_codes:
+                course_data = await course_collection.find_one({"code": code})
+                if course_data:
+                    courses.append(transform_id(course_data))
+
+            # 4. 반환할 데이터 구성
+            result = {
+                "name": user_data.get("name", "No Name Available"),
+                "githubUsername": user_data.get("githubUsername", "No GitHub Username Available"),
+                "studentId": student_data.get("student_id", "No Student ID Available"),
+                "department": student_data.get("department", "No Department Available"),
+                "courses": courses
+            }
+
+            return result
+
+        # GitHub 정보가 없으면 email 정보를 사용
+        email = query.githubUsername
+        professor_data = await professor_collection.find_one({"email": email})
+        if professor_data is None:
+            raise HTTPException(status_code=404, detail="Professor not found")
+
+        professor_id = professor_data.get("professor_id")
+        if not professor_id:
+            raise HTTPException(status_code=404, detail="Professor ID not found in professor data")
 
         # 3. Course 콜렉션에서 수업 정보 조회
-        course_codes = student_data.get("course_codes", [])
         courses = []
-        for code in course_codes:
-            course_data = await db.Course.find_one({"code": code})
-            if course_data:
-                courses.append(transform_id(course_data))
+        async for course_data in course_collection.find({"professor_id": professor_id}):
+            courses.append(transform_id(course_data))
 
         # 4. 반환할 데이터 구성
         result = {
-            "name": user_data.get("name", "No Name Available"),
-            "githubUsername": user_data.get("githubUsername", "No GitHub Username Available"),
-            "studentId": student_data.get("student_id", "No Student ID Available"),
-            "department": student_data.get("department", "No Department Available"),
+            "name": professor_data.get("name", "No Name Available"),
+            "email": professor_data.get("email", "No Email Available"),
+            "professorId": professor_data.get("professor_id", "No Professor ID Available"),
             "courses": courses
         }
 
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 
@@ -353,10 +377,10 @@ async def get_courses():
     try:
         courses = []
         async for course in course_collection.find():
-            courses.append(course_helper(course))
+            courses.append(object_id_to_str(course))
         return courses
     except Exception as e:
-        print(f"Error: {str(e)}")  # 디버깅을 위한 로그 출력
+        print(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # 학생 추가 엔드포인트
@@ -1758,7 +1782,6 @@ async def get_submission(submission_id: str):
 
 # Data models
 class Professor(BaseModel):
-    name: str
     email: EmailStr
     professor_id: str
     
@@ -1769,15 +1792,57 @@ def object_id_to_str(document):
         document['_id'] = str(document['_id'])
     return document
 
+class Config:
+    arbitrary_types_allowed = True
+    json_encoders = {ObjectId: str}
+
+# 데이터 모델 정의
+class ProfessorIDValidation(BaseModel):
+    professor_id: str
+
+def course_helper(course) -> dict:
+    return {
+        "id": str(course["_id"]),
+        "name": course["name"],
+        "professor": course["professor"],
+        "professor_id": course["professor_id"],
+        "day": course["day"],
+        "time": course["time"],
+        "code": course["code"]
+    }
+
+# 교수 ID 검증을 위한 엔드포인트
+@app.post("/validate-professor-id/")
+async def validate_professor_id(professor: ProfessorIDValidation):
+    logger.info(f"Received request to validate professor ID: {professor}")
+    existing_course = await course_collection.find_one({"professor_id": professor.professor_id})
+    if not existing_course:
+        logger.warning(f"Professor with ID {professor.professor_id} does not exist in any course.")
+        raise HTTPException(status_code=400, detail="Professor with this ID does not exist in any course.")
+    logger.info(f"Professor with ID {professor.professor_id} is valid.")
+    return {"message": "Professor ID is valid."}
+
 # 교수 정보를 저장하는 엔드포인트
 @app.post("/professors/", response_model=dict)
 async def register_professor(professor: Professor):
+    logger.info(f"Received request to register professor: {professor}")
     professor_data = jsonable_encoder(professor)
+    
+    # Check if the professor exists in the Course collection
+    existing_course = await course_collection.find_one({"professor_id": professor.professor_id})
+    if not existing_course:
+        logger.warning(f"Professor with ID {professor.professor_id} does not exist in any course.")
+        raise HTTPException(status_code=400, detail="Professor with this ID does not exist in any course.")
+    
+    # Check if the professor already exists in the Professor collection
     existing_professor = await professor_collection.find_one({"email": professor.email})
     if existing_professor:
+        logger.warning(f"Professor with email {professor.email} already exists.")
         raise HTTPException(status_code=400, detail="Professor with this email already exists.")
+    
     new_professor = await professor_collection.insert_one(professor_data)
     created_professor = await professor_collection.find_one({"_id": new_professor.inserted_id})
+    logger.info(f"Professor registered successfully with ID: {new_professor.inserted_id}")
     return JSONResponse(status_code=201, content={"message": "Professor registered successfully", "professor_id": str(new_professor.inserted_id)})
 
 @app.get("/professors/{professor_id}", response_model=Professor)
@@ -1787,12 +1852,34 @@ async def get_professor(professor_id: str):
         raise HTTPException(status_code=404, detail="Professor not found")
     return Professor(**professor)
 
-@app.get("/professors/", response_model=List[Professor])
-async def list_professors():
-    professors = []
-    async for professor in professor_collection.find():
-        professors.append(Professor(**professor))
-    return professors
+@app.get("/professors")
+async def get_professor_by_email(email: str):
+    try:
+        professor = await professor_collection.find_one({"email": email})
+        if not professor:
+            raise HTTPException(status_code=404, detail="Professor not found")
+        return object_id_to_str(professor)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching professor: {str(e)}")
+
+
+@app.get("/courses/by-professor/{professor_id}")
+async def get_courses_by_professor(professor_id: str):
+    try:
+        print(f"Searching for courses with professor_id: {professor_id}")  # 로그 추가
+        courses = []
+        async for course in course_collection.find({"professor_id": professor_id}):
+            print(f"Found course: {course}")  # 쿼리 결과를 로그에 출력
+            courses.append(course_helper(course))
+        if not courses:
+            print("No courses found for the given professor_id")  # 로그 추가
+            raise HTTPException(status_code=404, detail="No courses found for the professor")
+        return courses
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 if __name__ == "__main__":
     import uvicorn

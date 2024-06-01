@@ -67,13 +67,26 @@ const RegisterPage = () => {
   const theme = useTheme()
   const router = useRouter()
 
+  const validateProfessorId = async () => {
+    try {
+      console.log(`Validating professor ID: ${professorId}`)
+      const response = await axios.post('http://localhost:8000/validate-professor-id/', {
+        professor_id: professorId
+      })
+      console.log('Validation response:', response.data)
+      return response.data.message === "Professor ID is valid."
+    } catch (error) {
+      console.error('Error validating professor ID:', error)
+      return false
+    }
+  }
+
   const saveUserToDB = async (userId) => {
     try {
+      console.log(`Saving user to DB with email: ${email} and professor_id: ${professorId}`)
       await axios.post('http://localhost:8000/professors/', {
-        name,
         email,
         professor_id: professorId, // 교수 번호 추가
-        
       })
       console.log('Professor registered successfully')
     } catch (error) {
@@ -82,7 +95,14 @@ const RegisterPage = () => {
   }
 
   const handleSignUp = async () => {
+    const isValid = await validateProfessorId()
+    if (!isValid) {
+      alert('Invalid Professor ID.')
+      return
+    }
+    
     try {
+      console.log(`Creating user with email: ${email}`)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       console.log('User created:', userCredential.user)
       // 이메일 인증 메일 발송
@@ -100,8 +120,13 @@ const RegisterPage = () => {
   const handleGitHubLogin = () => {
     const provider = new GithubAuthProvider()
     signInWithPopup(auth, provider)
-      .then(result => {
+      .then(async result => {
         console.log('GitHub login successful', result.user)
+        const isValid = await validateProfessorId()
+        if (!isValid) {
+          alert('Invalid Professor ID.')
+          return
+        }
         saveUserToDB(result.user.uid)
         router.push('/pages/register/addInfo')
       })
@@ -151,14 +176,6 @@ const RegisterPage = () => {
             <Typography variant='body2'>Make your app management easy and fun!</Typography>
           </Box>
 
-          <TextField
-            fullWidth
-            label='Name'
-            variant='outlined'
-            value={name}
-            onChange={e => setName(e.target.value)}
-            sx={{ mb: 2 }}
-          />
           <TextField
             fullWidth
             label='Email'

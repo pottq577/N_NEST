@@ -108,7 +108,7 @@ const Home = () => {
         day: row[2], // 수정: 교수 ID가 아니라 요일
         time: row[3], // 수정: 요일이 아니라 시간
         code: row[4], // 수정: 시간이 아니라 코드
-        professor_id: row[5] // 수정: 코드가 아니라 교수 ID
+        professor_id: String(row[5]) // 수정: 코드가 아니라 교수 ID
       }))
     } else if (fileType === '학생') {
       formattedData = data.slice(1).map(row => ({
