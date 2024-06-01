@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException,  Path,Query
+from fastapi import FastAPI, HTTPException,  Path, Query
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from openai import OpenAI
@@ -40,25 +40,29 @@ model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # 요청 데이터 모델 정의
+
+
 class SummarizeRequest(BaseModel):
     text: str
 
 # POST 요청을 처리하는 엔드포인트
+
+
 @app.post("/summarize/")
 async def summarize(request: SummarizeRequest):
     if not request.text:
-        raise HTTPException(status_code=400, detail="No text provided for summarization")
+        raise HTTPException(
+            status_code=400, detail="No text provided for summarization")
 
     # 텍스트를 토큰화하고 모델에 입력
-    inputs = tokenizer("summarize: " + request.text, return_tensors="pt", max_length=1000, truncation=True)
-    summary_ids = model.generate(**inputs, max_length=400, min_length=100, length_penalty=2.0, num_beams=4, early_stopping=True)
+    inputs = tokenizer("summarize: " + request.text,
+                       return_tensors="pt", max_length=1000, truncation=True)
+    summary_ids = model.generate(**inputs, max_length=400, min_length=100,
+                                 length_penalty=2.0, num_beams=4, early_stopping=True)
 
     # 요약된 텍스트 출력
     summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
     return {"summary": summary}
-
-
-
 
 
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -67,15 +71,19 @@ genai.configure(api_key=GOOGLE_API_KEY)
 @app.get("/summarize/Introduction")
 async def generate_content(text: str = Query(..., description="Text to summarize")):
     model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content("프로젝트의 기본 소개에 대한 내용을 중점으로 짧게 요약해줘: " + text)
+    response = model.generate_content(
+        "프로젝트의 기본 소개에 대한 내용을 중점으로 짧게 요약해줘: " + text)
 
     return {"text": response.text}
+
 
 @app.get("/summarize/Body")
 async def generate_content(text: str = Query(..., description="Text to summarize")):
     model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content("프로젝트의 개발과정 및 설명에 대한 내용으로 짧게요약해줘: " + text)
+    response = model.generate_content(
+        "프로젝트의 개발과정 및 설명에 대한 내용으로 짧게요약해줘: " + text)
     return {"text": response.text}
+
 
 @app.get("/summarize/Conclusion")
 async def generate_content(text: str = Query(..., description="Text to summarize")):
@@ -93,7 +101,8 @@ async def generate_content(text: str = Query(..., description="Text to summarize
 @app.get("/summarize/finalsum")
 async def generate_final_summary(text: str = Query(..., description="Text to generate final summary")):
     model = genai.GenerativeModel('gemini-pro')
-    response = model.generate_content("이제 이앱이 어떤 앱인지 1줄에서 최대 3줄로 요약해줘: " + text)
+    response = model.generate_content(
+        "이제 이앱이 어떤 앱인지 1줄에서 최대 3줄로 요약해줘: " + text)
     return {"text": response.text}  # Ensure response is returned
 
 
@@ -105,7 +114,6 @@ async def generate_content(category: str, text: str = Query(...)):
     return {"text": response.text}
 
 
-
 def extract_section(content, start_pattern, end_pattern):
     start = re.search(start_pattern, content)
     end = re.search(end_pattern, content)
@@ -115,11 +123,13 @@ def extract_section(content, start_pattern, end_pattern):
         return content[start.end():].strip()
     return ""
 
+
 @app.get("/summarize/Gen/{title}/{technologies}/{problem}")
 async def generate_content(
     title: str = Path(..., description="Title of the project"),
     technologies: str = Path(..., description="Technologies to be used"),
-    problem: str = Path(..., description="Problem that the project aims to solve")
+    problem: str = Path(...,
+                        description="Problem that the project aims to solve")
 ):
     model = genai.GenerativeModel('gemini-pro')
     prompt = (
@@ -136,7 +146,8 @@ async def generate_content(
     project_title = extract_section(generated_text, "프로젝트 제목:", "추진 배경:")
     background = extract_section(generated_text, "추진 배경:", "개발 내용:")
     development_content = extract_section(generated_text, "개발 내용:", "기대 효과:")
-    expected_effects = extract_section(generated_text, "기대 효과:", "$")  # $는 텍스트 끝을 의미
+    expected_effects = extract_section(
+        generated_text, "기대 효과:", "$")  # $는 텍스트 끝을 의미
 
     return {
         "project_title": project_title,
@@ -146,12 +157,9 @@ async def generate_content(
     }
 
 
-
-
-
-
 class ImageRequest(BaseModel):
     prompt: str
+
 
 @app.post("/generate-image/")
 async def generate_image(request: ImageRequest):
@@ -182,7 +190,9 @@ async def generate_image(request: ImageRequest):
     except Exception as e:
         return {"error": str(e)}
 
-#===========================================================================
+# ===========================================================================
+
+
 @app.post("/generate-image-geminai/")
 async def generate_image(request: ImageRequest):
     try:
@@ -200,13 +210,16 @@ async def generate_image(request: ImageRequest):
 class SummaryRequest(BaseModel):
     text: str
 
+
 @app.post("/generate-summary/")
 async def generate_summary(request: SummaryRequest):
     if not request.text:
-        raise HTTPException(status_code=400, detail="No text provided for summarization")
+        raise HTTPException(
+            status_code=400, detail="No text provided for summarization")
 
     # 입력 텍스트를 토크나이저로 변환하면서, 입력 최대 길이를 증가
-    inputs = tokenizer.encode("summarize: " + request.text, return_tensors="pt", max_length=1024, truncation=True)
+    inputs = tokenizer.encode("summarize: " + request.text,
+                              return_tensors="pt", max_length=1024, truncation=True)
 
     # 요약 생성을 위한 매개변수 조정: 긴 텍스트를 고려하여 요약의 최대 길이와 최소 길이 증가
     summary_ids = model.generate(
@@ -223,4 +236,3 @@ async def generate_summary(request: SummaryRequest):
     summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
 
     return {"summary": summary}
-

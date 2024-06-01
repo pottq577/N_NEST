@@ -12,7 +12,7 @@ const Recruit = () => {
   return (
     <Box sx={{ padding: 1 }}>
       <Typography variant='h4' sx={{ my: 4 }}>
-        지원한 포지션
+        지원한 팀
       </Typography>
       {selectedTeams.length > 0 ? (
         selectedTeams.map(team => <RenderList key={team.id} team={team} showAppliedTime={true} />)

@@ -16,7 +16,8 @@ import {
   IconButton,
   FormControl,
   Select,
-  MenuItem
+  MenuItem,
+  InputLabel
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CancelIcon from '@mui/icons-material/Cancel'
@@ -129,11 +130,11 @@ export default function AskQuestionPage() {
     <Container maxWidth='sm' sx={{ mt: 4 }}>
       <Paper elevation={3} sx={{ padding: 4 }}>
         <Typography variant='h4' component='h1' align='center' gutterBottom>
-          Ask a Question
+          질문 등록하기
         </Typography>
         <Box component='form' onSubmit={handleSubmit} sx={{ mt: 2 }}>
           <TextField
-            label='Title'
+            label='제목'
             fullWidth
             margin='normal'
             value={title}
@@ -141,7 +142,7 @@ export default function AskQuestionPage() {
             required
           />
           <TextField
-            label='Description'
+            label='문제 설명'
             fullWidth
             multiline
             rows={4}
@@ -152,16 +153,17 @@ export default function AskQuestionPage() {
             minLength={20}
           />
           <TextField
-            label='Code (optional)'
+            label='코드 (선택)'
             fullWidth
             multiline
             rows={4}
             margin='normal'
             value={code}
             onChange={handleCodeChange}
-            placeholder='Insert code here if any...'
+            placeholder='코드를 입력하세요'
           />
           <FormControl fullWidth margin='normal'>
+            <InputLabel id='카테고리'>카테고리 선택</InputLabel>
             <Select value={category} onChange={handleCategoryChange}>
               {popularCategories.map(cat => (
                 <MenuItem key={cat} value={cat}>
@@ -172,7 +174,7 @@ export default function AskQuestionPage() {
           </FormControl>
           {category === '직접 입력' && (
             <TextField
-              label='Custom Category'
+              label='카테고리'
               fullWidth
               margin='normal'
               value={customCategoryInput}
@@ -203,13 +205,13 @@ export default function AskQuestionPage() {
           <Grid container spacing={2} sx={{ mt: 2 }}>
             <Grid item xs={6}>
               <Button type='submit' variant='contained' color='primary' fullWidth>
-                Submit Question
+                질문 등록
               </Button>
             </Grid>
             <Grid item xs={6}>
               <Link href='/question-answer' passHref>
                 <Button variant='contained' color='secondary' fullWidth>
-                  Cancel
+                  취소
                 </Button>
               </Link>
             </Grid>

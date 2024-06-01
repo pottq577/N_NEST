@@ -25,6 +25,7 @@ const ImgStyled = styled('img')(({ theme }) => ({
 
 const MakeTeam = () => {
   const [teamData, setTeamData] = useState([])
+  const [snackbarOpen, setSnackbarOpen] = useState(false)
   const router = useRouter()
   const defaultImg = '/images/cards/logo-bitbank.png'
   const [imgSrc, setImgSrc] = useState(defaultImg)

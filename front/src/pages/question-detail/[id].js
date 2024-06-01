@@ -208,16 +208,20 @@ export default function QuestionDetailPage() {
         <>
           <Card>
             <CardContent>
-              <Typography variant='h4' component='h1' gutterBottom>
-                {questionDetails.title}
-              </Typography>
-              <Box display='flex' justifyContent='space-between' mb={2}>
-                <Typography variant='subtitle1'>
-                  Asked: {new Date(questionDetails.createdAt).toLocaleDateString()}
+              {/* 질문 제목 */}
+              <Box display='flex' justifyContent='space-between' alignItems='center' mb={2}>
+                <Typography variant='h4' component='h1' gutterBottom>
+                  {questionDetails.title}
                 </Typography>
-                <Typography variant='subtitle1'>Category: {questionDetails.category}</Typography>
+                <Box display='flex' flexDirection='column' alignItems='center'>
+                  <Typography variant='subtitle1'>
+                    {new Date(questionDetails.createdAt).toLocaleDateString()}
+                  </Typography>
+                  <Typography variant='subtitle1'>{questionDetails.category}</Typography>
+                </Box>
               </Box>
-              <Typography variant='subtitle1'>Code snippet:</Typography>
+
+              {/* 코드 */}
               <Box component='pre' sx={styles.code}>
                 {questionDetails.code.split('\n').map((line, index) => (
                   <Box
@@ -287,14 +291,14 @@ export default function QuestionDetailPage() {
           <Card sx={{ mt: 4 }}>
             <CardContent>
               <Typography variant='h5' component='h2'>
-                General Answers:
+                코드 외 답변
               </Typography>
               {questionDetails.generalAnswers && questionDetails.generalAnswers.length > 0 ? (
                 questionDetails.generalAnswers.map((answer, index) => (
                   <Card key={index} sx={styles.answerCard}>
                     <CardContent>
                       <Typography variant='body2' color='textSecondary'>
-                        Title: {answer.userTitle}
+                        답변자 {answer.userTitle}
                       </Typography>
                       <Typography variant='body2'>{answer.text}</Typography>
                       <Button
@@ -304,13 +308,13 @@ export default function QuestionDetailPage() {
                         {answer.resolved === 'true' ? 'Unresolve' : 'Resolve'}
                       </Button>
                       <Typography variant='body2' color='textSecondary'>
-                        Answered: {new Date(answer.createdAt).toLocaleDateString()}
+                        {new Date(answer.createdAt).toLocaleDateString()}에 작성됨
                       </Typography>
                     </CardContent>
                   </Card>
                 ))
               ) : (
-                <Typography variant='body1'>No general answers yet.</Typography>
+                <Typography variant='body1'>아직 답변이 없습니다.</Typography>
               )}
             </CardContent>
           </Card>
@@ -322,12 +326,12 @@ export default function QuestionDetailPage() {
                 rows={4}
                 variant='outlined'
                 fullWidth
-                placeholder='Your General Answer'
+                placeholder='코드 외 답변 등록'
                 value={generalAnswerText}
                 onChange={e => setGeneralAnswerText(e.target.value)}
               />
               <Button variant='contained' onClick={handleGeneralAnswerSubmit} sx={{ mt: 2 }}>
-                Post Your General Answer
+                답변 등록
               </Button>
             </CardContent>
           </Card>
