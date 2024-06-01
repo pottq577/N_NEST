@@ -16,13 +16,18 @@ import {
   Button,
   TextField,
   IconButton,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  ListItemText,
   Select,
   MenuItem,
   FormControl,
-  ListItemText,
-  InputLabel,
-  Tabs,
-  Tab
+  InputLabel
 } from '@mui/material';
 import { styled } from '@mui/system';
 import { useRouter } from 'next/router';
@@ -53,7 +58,7 @@ const CourseDetail = () => {
   const [filteredProjects, setFilteredProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const [isEvaluationSubmitted, setIsEvaluationSubmitted] = useState(false);
   const [maxTeams, setMaxTeams] = useState(5);
   const [criteria, setCriteria] = useState([]);
   const [newCriteria, setNewCriteria] = useState('');
@@ -61,11 +66,18 @@ const CourseDetail = () => {
   const [assignedEvaluations, setAssignedEvaluations] = useState({});
   const [evaluationResults, setEvaluationResults] = useState([]);
   const [evaluationProgress, setEvaluationProgress] = useState([]);
+  const [evaluationAssignments, setEvaluationAssignments] = useState([]);
   const [tabIndex, setTabIndex] = useState(0);
   const [userId, setUserId] = useState('');
   const [githubId, setGithubId] = useState('');
   const [studentId, setStudentId] = useState('');
-
+  const [openDialog, setOpenDialog] = useState(false);
+  const [evaluations, setEvaluations] = useState({});
+  useEffect(() => {
+    if (code) {
+      fetchEvaluationProgress(code);
+    }
+  }, [code]);
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
@@ -93,8 +105,15 @@ const CourseDetail = () => {
     if (code) {
       fetchCourseData();
       fetchProjects();
+      fetchEvaluationCriteria(code);  // 평가 기준 데이터 가져오기
     }
   }, [code]);
+
+  useEffect(() => {
+    if (studentId && code) {
+      fetchEvaluationAssignments();
+    }
+  }, [studentId, code]);
 
   useEffect(() => {
     if (projects && courseData) {
@@ -151,23 +170,55 @@ const CourseDetail = () => {
   const fetchEvaluationProgress = async (courseCode) => {
     try {
       const response = await axios.get(`http://localhost:8000/api/evaluation-progress/${courseCode}`);
+      console.log('Evaluation progress fetched:', response.data);  // 로그 추가
       setEvaluationProgress(response.data);
     } catch (error) {
       console.error('Error fetching evaluation progress:', error);
     }
   };
 
+  const fetchEvaluationCriteria = async (courseCode) => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/evaluations/${courseCode}`);
+      console.log('Evaluation criteria fetched:', response.data.criteria);  // 로그 추가
+      setCriteria(response.data.criteria);
+      setMaxTeams(response.data.max_teams || 5);
+    } catch (error) {
+      console.error('Error fetching evaluation criteria:', error);
+    }
+  };
+
   const saveEvaluationCriteria = async () => {
     try {
-      await axios.post('http://localhost:8000/api/evaluations', {
+      const response = await axios.post('http://localhost:8000/api/evaluations', {
         course_code: code,
         criteria: criteria,
         max_teams: maxTeams
       });
       alert('Evaluation criteria saved successfully');
     } catch (error) {
-      console.error('Error saving evaluation criteria:', error);
+      if (error.response && error.response.status === 400 && error.response.data.message === 'Evaluation criteria already exists. Do you want to update it?') {
+        // 이미 존재하는 경우 업데이트 다이얼로그 열기
+        setOpenDialog(true);
+      } else {
+        console.error('Error saving evaluation criteria:', error);
+        console.error('Response data:', error.response?.data);
+      }
     }
+  };
+
+  const updateEvaluationCriteria = async () => {
+    try {
+      const response = await axios.put('http://localhost:8000/api/evaluations', {
+        course_code: code,
+        criteria: criteria,
+        max_teams: maxTeams
+      });
+      alert('Evaluation criteria updated successfully');
+    } catch (error) {
+      console.error('Error updating evaluation criteria:', error);
+    }
+    setOpenDialog(false);
   };
 
   const addCriteria = () => {
@@ -187,7 +238,7 @@ const CourseDetail = () => {
       const response = await axios.post(`http://localhost:8000/api/start-evaluation/${code}`);
       alert('Evaluation started successfully and teams assigned');
       setAssignedEvaluations(response.data);
-      console.log('Assigned evaluations:', response.data);
+      fetchEvaluationAssignments();
     } catch (error) {
       console.error('Error starting evaluation:', error);
     }
@@ -202,6 +253,15 @@ const CourseDetail = () => {
     }
   };
 
+  const fetchEvaluationAssignments = async () => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/evaluation-assignments/${code}/${studentId}`);
+      setEvaluationAssignments(response.data.evaluations || []);
+    } catch (error) {
+      console.error('Error fetching evaluation assignments:', error);
+    }
+  };
+
   const registerTeam = async (teamName) => {
     try {
       await axios.post('http://localhost:8000/api/teams/register', {
@@ -213,6 +273,36 @@ const CourseDetail = () => {
       fetchTeams(code);
     } catch (error) {
       console.error(`Error joining ${teamName}:`, error);
+    }
+  };
+
+  const handleScoreChange = (teamName, criteriaName, score) => {
+    setEvaluations(prevEvaluations => ({
+      ...prevEvaluations,
+      [teamName]: {
+        ...prevEvaluations[teamName],
+        [criteriaName]: score
+      }
+    }));
+  };
+
+  const submitEvaluations = async () => {
+    try {
+      for (const teamName of Object.keys(evaluations)) {
+        await axios.post('http://localhost:8000/api/evaluate', {
+          course_code: code,
+          evaluator_id: studentId,
+          team_name: teamName,
+          scores: evaluations[teamName]
+        });
+      }
+      alert('Evaluations submitted successfully');
+      setIsEvaluationSubmitted(true); // 평가 제출 후 상태 업데이트
+    } catch (error) {
+      console.error('Error submitting evaluations:', error);
+      if (error.response && error.response.status === 400 && error.response.data.detail === "You have already submitted an evaluation for this team.") {
+        alert('You have already submitted an evaluation for this team.');
+      }
     }
   };
 
@@ -275,6 +365,7 @@ const CourseDetail = () => {
               <Tab label="Team Status" />
               <Tab label="Evaluation Progress" />
               <Tab label="Final Results" />
+              <Tab label="Evaluate Teams" />
             </Tabs>
 
             {tabIndex === 0 && (
@@ -327,18 +418,28 @@ const CourseDetail = () => {
                 <Box mt={4}>
                   <Typography variant="h5" gutterBottom>Team Status</Typography>
                   <List>
-                    {teams && teams.length > 0 ? (
-                      teams.map((team, index) => (
-                        <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <ListItemText primary={`Team: ${team.team_name}`} />
-                          <IconButton edge="end" aria-label="add" onClick={() => registerTeam(team.team_name)}>
-                            <AddIcon />
-                          </IconButton>
-                        </ListItem>
-                      ))
-                    ) : (
-                      <Typography>No teams available</Typography>
-                    )}
+                    {Array.from({ length: maxTeams }, (_, i) => (
+                      <ListItem key={i} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <ListItemText primary={`Team ${i + 1}`} />
+                        <IconButton edge="end" aria-label="add" onClick={() => registerTeam(`Team ${i + 1}`)}>
+                          <AddIcon />
+                        </IconButton>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Team Members</Typography>
+                  <List>
+                    {teams.map((team, index) => (
+                      <ListItem key={index}>
+                        <ListItemText
+                          primary={team.team_name}
+                          secondary={team.students.map(student => student.name).join(', ')}
+                        />
+                      </ListItem>
+                    ))}
                   </List>
                 </Box>
 
@@ -347,8 +448,8 @@ const CourseDetail = () => {
                   <List>
                     {Object.entries(assignedEvaluations).map(([studentId, teamNames], index) => (
                       <ListItem key={index}>
-                        <ListItemText 
-                          primary={`Student ID: ${studentId}, Assigned Teams: ${Array.isArray(teamNames) ? teamNames.join(', ') : ''}`} 
+                        <ListItemText
+                          primary={`Student ID: ${studentId}, Assigned Teams: ${Array.isArray(teamNames) ? teamNames.join(', ') : ''}`}
                         />
                       </ListItem>
                     ))}
@@ -369,8 +470,8 @@ const CourseDetail = () => {
                     {evaluationProgress && evaluationProgress.length > 0 ? (
                       evaluationProgress.map((progress, index) => (
                         <ListItem key={index}>
-                          <ListItemText 
-                            primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`} 
+                          <ListItemText
+                            primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`}
                           />
                         </ListItem>
                       ))
@@ -393,8 +494,8 @@ const CourseDetail = () => {
                     {evaluationResults && evaluationResults.length > 0 ? (
                       evaluationResults.map((result, index) => (
                         <ListItem key={index}>
-                          <ListItemText 
-                            primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`} 
+                          <ListItemText
+                            primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`}
                           />
                         </ListItem>
                       ))
@@ -405,8 +506,40 @@ const CourseDetail = () => {
                 </Box>
               </>
             )}
+
+            {tabIndex === 4 && (
+              <>
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Evaluate Teams</Typography>
+                  {evaluationAssignments.length > 0 ? (
+                    evaluationAssignments.map((team, index) => (
+                      <div key={index}>
+                        <Typography variant="h6">{team}</Typography>
+                        {criteria.map((criterion, idx) => (
+                          <Box key={idx} display="flex" alignItems="center" mb={2}>
+                            <Typography style={{ flex: 1 }}>{criterion}</Typography>
+                            <TextField
+                              type="number"
+                              onChange={(e) => handleScoreChange(team, criterion, parseInt(e.target.value))}
+                              style={{ flex: 1 }}
+                              inputProps={{ min: 1, max: 5 }}
+                            />
+                          </Box>
+                        ))}
+                      </div>
+                    ))
+                  ) : (
+                    <Typography>No evaluation assignments found</Typography>
+                  )}
+                  <Button variant="contained" color="primary" onClick={submitEvaluations} disabled={isEvaluationSubmitted}>
+                  Submit Evaluations
+                  </Button>
+                </Box>
+              </>
+            )}
+
           </Box>
-          
+
           <Divider />
           <Box sx={{ mt: 4 }}>
             <Typography variant='h5' component='h2' gutterBottom>
@@ -494,6 +627,23 @@ const CourseDetail = () => {
           </Box>
         </Paper>
       )}
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
+        <DialogTitle>Update Evaluation Criteria</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Evaluation criteria already exists. Do you want to update it?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)} color="primary">
+            No
+          </Button>
+          <Button onClick={updateEvaluationCriteria} color="primary" autoFocus>
+            Yes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

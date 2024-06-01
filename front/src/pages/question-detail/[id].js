@@ -178,7 +178,7 @@ export default function QuestionDetailPage() {
           'Content-Type': 'application/json'
         }
       });
-  
+
       if (response.ok) {
         const data = await response.json();
         alert(`Answer resolve status toggled. New title: ${data.answer_user_new_title}`);
@@ -193,7 +193,7 @@ export default function QuestionDetailPage() {
       alert(`해결 상태 변경에 실패하였습니다: ${error.message}`);
     }
   };
-  
+
 
   if (!questionDetails) {
     return <p>Loading...</p>;
@@ -231,12 +231,14 @@ export default function QuestionDetailPage() {
                         <div style={styles.innerCard}>
                           <span style={styles.smallMeta}>Title: {answer.userTitle}</span>
                           <p>{answer.text}</p>
-                          <button
-                            onClick={() => handleResolveToggle(index, idx)}
-                            disabled={answer.resolved === 'false' && hasResolvedAnswer}
-                          >
-                            {answer.resolved === 'true' ? 'Unresolve' : 'Resolve'}
-                          </button>
+                          {questionDetails.userId === userId && answer.userId !== userId && (
+                            <button
+                              onClick={() => handleResolveToggle(index, idx)}
+                              disabled={answer.resolved === 'false' && hasResolvedAnswer}
+                            >
+                              {answer.resolved === 'true' ? 'Unresolve' : 'Resolve'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -274,12 +276,14 @@ export default function QuestionDetailPage() {
               <div style={styles.innerCard}>
                 <span style={styles.smallMeta}>Title: {answer.userTitle}</span>
                 <p>{answer.text}</p>
-                <button
-                  onClick={() => handleResolveGeneralAnswerToggle(index)}
-                  disabled={answer.resolved === 'false' && hasResolvedAnswer}
-                >
-                  {answer.resolved === 'true' ? 'Unresolve' : 'Resolve'}
-                </button>
+                {questionDetails.userId === userId && answer.userId !== userId && (
+                  <button
+                    onClick={() => handleResolveGeneralAnswerToggle(index)}
+                    disabled={answer.resolved === 'false' && hasResolvedAnswer}
+                  >
+                    {answer.resolved === 'true' ? 'Unresolve' : 'Resolve'}
+                  </button>
+                )}
                 <span style={styles.meta}>Answered: {new Date(answer.createdAt).toLocaleDateString()}</span>
               </div>
             </div>

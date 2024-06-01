@@ -99,15 +99,16 @@ const Home = () => {
       alert('학생 파일 유형을 선택한 경우 수업을 선택해야 합니다.')
       return
     }
-
+  
     let formattedData = []
     if (fileType === '수업') {
       formattedData = data.slice(1).map(row => ({
         name: row[0],
         professor: row[1],
-        day: row[2],
-        time: row[3],
-        code: row[4]
+        day: row[2], // 수정: 교수 ID가 아니라 요일
+        time: row[3], // 수정: 요일이 아니라 시간
+        code: row[4], // 수정: 시간이 아니라 코드
+        professor_id: String(row[5]) // 수정: 코드가 아니라 교수 ID
       }))
     } else if (fileType === '학생') {
       formattedData = data.slice(1).map(row => ({
@@ -117,7 +118,9 @@ const Home = () => {
         course_code: selectedCourse
       }))
     }
-
+  
+    console.log('Formatted data:', formattedData) // 추가
+  
     try {
       let response
       if (fileType === '수업') {
@@ -126,10 +129,10 @@ const Home = () => {
         response = await axios.post('http://localhost:8000/save-students/', formattedData)
       }
       console.log(response.data)
-
+  
       // 서버 응답 메시지에 따라 사용자에게 알림 표시
       alert(response.data.message)
-
+  
       // 저장 성공 후 화면 초기화
       setFiles([])
       setData([])
@@ -140,6 +143,8 @@ const Home = () => {
       alert('저장 중 오류가 발생했습니다.')
     }
   }
+  
+  
 
   const handleDelete = async id => {
     try {
@@ -316,6 +321,7 @@ const Home = () => {
                     <TableRow>
                       <TableCell>수업 이름</TableCell>
                       <TableCell>교수명</TableCell>
+                      <TableCell>교수 ID</TableCell> {/* 추가 */}
                       <TableCell>요일</TableCell>
                       <TableCell>시간</TableCell>
                       <TableCell>코드</TableCell>
@@ -327,6 +333,7 @@ const Home = () => {
                       <TableRow key={course.id}>
                         <TableCell>{course.name}</TableCell>
                         <TableCell>{course.professor}</TableCell>
+                        <TableCell>{course.professor_id}</TableCell> {/* 추가 */}
                         <TableCell>{course.day}</TableCell>
                         <TableCell>{course.time}</TableCell>
                         <TableCell>{course.code}</TableCell>
