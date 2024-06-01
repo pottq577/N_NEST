@@ -102,7 +102,7 @@ const AddInfoPage = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <TextField
-                    label='Name'
+                    label='이름'
                     variant='outlined'
                     name='name'
                     value={userInfo.name}
@@ -113,7 +113,7 @@ const AddInfoPage = () => {
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
-                    label='School Email Address'
+                    label='학교 이메일 주소'
                     variant='outlined'
                     name='schoolEmail'
                     value={userInfo.schoolEmail}
@@ -124,7 +124,7 @@ const AddInfoPage = () => {
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
-                    label='Student ID'
+                    label='학번'
                     variant='outlined'
                     name='studentId'
                     value={userInfo.studentId}
@@ -135,7 +135,7 @@ const AddInfoPage = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label='Age'
+                    label='나이'
                     variant='outlined'
                     name='age'
                     type='number'
@@ -147,7 +147,7 @@ const AddInfoPage = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label='Contact Number'
+                    label='연락처'
                     variant='outlined'
                     name='contact'
                     value={userInfo.contact}

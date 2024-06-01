@@ -78,6 +78,7 @@ const RegisterPage = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       console.log('User created:', userCredential.user)
+
       // 이메일 인증 메일 발송
       await sendEmailVerification(userCredential.user)
         .then(() => {
@@ -90,6 +91,7 @@ const RegisterPage = () => {
       console.error('Signup error:', error.message)
     }
   }
+
   const handleGitHubLogin = () => {
     const provider = new GithubAuthProvider()
     signInWithPopup(auth, provider)

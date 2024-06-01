@@ -142,14 +142,14 @@ function RepositoryInfo({ courseInfo, studentId }) {
           {renderRepoDetailIcons(<Star sx={{ verticalAlign: 'middle' }} />, props.stars)}
           {renderRepoDetailIcons(<ForkRight sx={{ verticalAlign: 'middle' }} />, props.forks)}
           {renderRepoDetailIcons(<Visibility sx={{ verticalAlign: 'middle' }} />, props.watchers)}
-          <Box sx={{ mx: 1 }}> | </Box>
+          <Box sx={{ mx: 1 }} />
           <Typography variant='subtitle2' component='span'>
             Updated
           </Typography>
           <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
             {new Date(props.updatedAt).toLocaleDateString()}
           </Typography>
-          {props.license && (
+          {props.license != 'No license' && (
             <>
               <Box sx={{ mx: 1 }} />
               <Typography variant='subtitle2' component='span'>
@@ -207,7 +207,7 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
   return (
     <form onSubmit={handleSubmit}>
       <TextField
-        label='Project Title'
+        label='프로젝트 제목'
         fullWidth
         variant='outlined'
         value={projectInfo.projectTitle}
@@ -216,7 +216,7 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
         sx={{ mb: 2 }}
       />
       <TextField
-        label='Technologies Used'
+        label='사용 기술'
         fullWidth
         variant='outlined'
         value={projectInfo.technologiesUsed}
@@ -225,7 +225,7 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
         sx={{ mb: 2 }}
       />
       <TextField
-        label='Problem to Solve'
+        label='주요 해결 과제'
         fullWidth
         multiline
         minRows={4}
@@ -236,7 +236,7 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
         sx={{ mb: 2 }}
       />
       <Button type='submit' variant='contained' color='primary' disabled={isLoading}>
-        {isLoading ? <CircularProgress size={24} /> : 'Generate Summary'}
+        {isLoading ? <CircularProgress size={24} /> : '문서 요약 생성'}
       </Button>
       {error && <Typography color='error'>{error}</Typography>}
       {generateDoc.project_title && (
@@ -371,7 +371,7 @@ export default function ProjectGenerator() {
   const fetchCourseInfo = async courseCode => {
     if (!courseCode) return
     try {
-      const response = await axios.get(`http://127.0.0.1:8000/api/courses/${courseCode}`)
+      const response = await axios.get(`http://localhost:8000/api/courses/${courseCode}`)
       setCourseInfo(response.data)
     } catch (error) {
       console.error('Error fetching course info:', error)
@@ -432,7 +432,7 @@ export default function ProjectGenerator() {
     }
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {
+      const response = await axios.post('http://localhost:8000/save-project/', projectData, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -449,9 +449,9 @@ export default function ProjectGenerator() {
   return (
     <Container maxWidth='md'>
       <Tabs value={tabIndex} onChange={handleTabChange} aria-label='project tabs'>
-        <Tab label='Repository Info' />
-        <Tab label='Create Document' />
-        <Tab label='Summary and Image' />
+        <Tab label='원격 저장소 정보' />
+        <Tab label='문서 생성' />
+        <Tab label='이미지 생성 & 프로젝트 요약' />
       </Tabs>
       <TabPanel value={tabIndex} index={0}>
         <RepositoryInfo courseInfo={courseInfo} studentId={studentId} />
