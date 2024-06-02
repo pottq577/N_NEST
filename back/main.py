@@ -349,7 +349,7 @@ async def save_courses(courses: List[Course]):
     try:
         # 입력된 데이터를 로그에 출력
         logger.info("Received courses: %s", courses)
-        
+
         course_data = [course.dict() for course in courses]
         logger.info("Course data to insert: %s", course_data)
 
@@ -1784,7 +1784,7 @@ async def get_submission(submission_id: str):
 class Professor(BaseModel):
     email: EmailStr
     professor_id: str
-    
+
 
 # Helper function to convert ObjectId to string
 def object_id_to_str(document):
@@ -1827,19 +1827,19 @@ async def validate_professor_id(professor: ProfessorIDValidation):
 async def register_professor(professor: Professor):
     logger.info(f"Received request to register professor: {professor}")
     professor_data = jsonable_encoder(professor)
-    
+
     # Check if the professor exists in the Course collection
     existing_course = await course_collection.find_one({"professor_id": professor.professor_id})
     if not existing_course:
         logger.warning(f"Professor with ID {professor.professor_id} does not exist in any course.")
         raise HTTPException(status_code=400, detail="Professor with this ID does not exist in any course.")
-    
+
     # Check if the professor already exists in the Professor collection
     existing_professor = await professor_collection.find_one({"email": professor.email})
     if existing_professor:
         logger.warning(f"Professor with email {professor.email} already exists.")
         raise HTTPException(status_code=400, detail="Professor with this email already exists.")
-    
+
     new_professor = await professor_collection.insert_one(professor_data)
     created_professor = await professor_collection.find_one({"_id": new_professor.inserted_id})
     logger.info(f"Professor registered successfully with ID: {new_professor.inserted_id}")

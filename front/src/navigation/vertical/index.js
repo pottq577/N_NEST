@@ -51,16 +51,17 @@ const navigation = () => {
       icon: HelpCircleOutline,
       path: '/question-answer'
     },
-    {
-      title: '상호평가 생성',
-      icon: HelpCircleOutline,
-      path: '/evaluation-professor'
-    },
-    {
-      title: '상호평가',
-      icon: HelpCircleOutline,
-      path: '/evaluation-student'
-    },
+
+    // {
+    //   title: '상호평가 생성',
+    //   icon: HelpCircleOutline,
+    //   path: '/evaluation-professor'
+    // },
+    // {
+    //   title: '상호평가',
+    //   icon: HelpCircleOutline,
+    //   path: '/evaluation-student'
+    // },
     {
       title: '코딩테스트 생성',
       icon: HelpCircleOutline,
@@ -91,7 +92,7 @@ const navigation = () => {
       icon: AccountCogOutline,
       path: '/account-settings'
     },
-   
+
     {
       sectionTitle: 'Pages'
     },

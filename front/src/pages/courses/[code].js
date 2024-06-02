@@ -24,30 +24,26 @@ import {
   DialogContentText,
   DialogTitle,
   ListItemText,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel
 } from '@mui/material';
 import { styled } from '@mui/system';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import AddIcon from '@mui/icons-material/Add';
-import { auth } from '../../../lib/firebase'; // 사용자의 Firebase 인증 정보 가져오기
+import { auth } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const CustomCard = styled(Card)(({ theme }) => ({
   transition: 'transform 0.2s',
   '&:hover': {
     transform: 'scale(1.05)',
-    boxShadow: theme.shadows[10]
-  }
+    boxShadow: theme.shadows[10],
+  },
 }));
 
 const CustomAvatar = styled(Avatar)(({ theme }) => ({
   backgroundColor: theme.palette.primary.main,
-  color: theme.palette.common.white
+  color: theme.palette.common.white,
 }));
 
 const CourseDetail = () => {
@@ -73,18 +69,20 @@ const CourseDetail = () => {
   const [studentId, setStudentId] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [evaluations, setEvaluations] = useState({});
+  const [userRole, setUserRole] = useState('');
+
   useEffect(() => {
     if (code) {
       fetchEvaluationProgress(code);
     }
   }, [code]);
+
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
         const response = await axios.get(`http://localhost:8000/courses/${code}`);
         setCourseData(response.data);
         setMaxTeams(response.data.max_teams || 5); // 팀 수 설정
-        setCriteria(response.data.criteria || []); // 평가 기준 설정
         fetchTeams(response.data.course.code);
       } catch (error) {
         console.error('Error fetching course data:', error);
@@ -105,7 +103,7 @@ const CourseDetail = () => {
     if (code) {
       fetchCourseData();
       fetchProjects();
-      fetchEvaluationCriteria(code);  // 평가 기준 데이터 가져오기
+      fetchEvaluationCriteria(code);
     }
   }, [code]);
 
@@ -114,23 +112,6 @@ const CourseDetail = () => {
       fetchEvaluationAssignments();
     }
   }, [studentId, code]);
-
-  useEffect(() => {
-    if (projects && courseData) {
-      const filtered = projects.filter(project => project.course_code === code);
-      setFilteredProjects(filtered);
-      setIsLoading(false);
-    }
-  }, [projects, courseData, code]);
-
-  const handleDragEnd = result => {
-    if (!result.destination) return;
-
-    if (result.destination.droppableId === 'evaluationZone') {
-      const projectId = result.draggableId;
-      router.push(`/evaluate/${projectId}`);
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -147,6 +128,47 @@ const CourseDetail = () => {
       } else {
         setUserId('');
         console.error('No user is signed in');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (projects && courseData) {
+      const filtered = projects.filter((project) => project.course_code === code);
+      setFilteredProjects(filtered);
+      setIsLoading(false);
+    }
+  }, [projects, courseData, code]);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    if (result.destination.droppableId === 'evaluationZone') {
+      const projectId = result.draggableId;
+      router.push(`/evaluate/${projectId}`);
+    }
+  };
+
+  const fetchEvaluationAssignments = async () => {
+    try {
+      const response = await axios.get(`http://localhost:8000/api/evaluation-assignments/${code}/${studentId}`);
+      setEvaluationAssignments(response.data.evaluations || []);
+    } catch (error) {
+      console.error('Error fetching evaluation assignments:', error);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        const isEmailUser = !user.providerData.some((provider) => provider.providerId === 'github.com');
+        setUserRole(isEmailUser ? 'professor' : 'student');
+      } else {
+        setUserId('');
+        setUserRole('professor');
       }
     });
 
@@ -170,7 +192,6 @@ const CourseDetail = () => {
   const fetchEvaluationProgress = async (courseCode) => {
     try {
       const response = await axios.get(`http://localhost:8000/api/evaluation-progress/${courseCode}`);
-      console.log('Evaluation progress fetched:', response.data);  // 로그 추가
       setEvaluationProgress(response.data);
     } catch (error) {
       console.error('Error fetching evaluation progress:', error);
@@ -180,7 +201,6 @@ const CourseDetail = () => {
   const fetchEvaluationCriteria = async (courseCode) => {
     try {
       const response = await axios.get(`http://localhost:8000/api/evaluations/${courseCode}`);
-      console.log('Evaluation criteria fetched:', response.data.criteria);  // 로그 추가
       setCriteria(response.data.criteria);
       setMaxTeams(response.data.max_teams || 5);
     } catch (error) {
@@ -193,16 +213,14 @@ const CourseDetail = () => {
       const response = await axios.post('http://localhost:8000/api/evaluations', {
         course_code: code,
         criteria: criteria,
-        max_teams: maxTeams
+        max_teams: maxTeams,
       });
       alert('Evaluation criteria saved successfully');
     } catch (error) {
       if (error.response && error.response.status === 400 && error.response.data.message === 'Evaluation criteria already exists. Do you want to update it?') {
-        // 이미 존재하는 경우 업데이트 다이얼로그 열기
         setOpenDialog(true);
       } else {
         console.error('Error saving evaluation criteria:', error);
-        console.error('Response data:', error.response?.data);
       }
     }
   };
@@ -212,7 +230,7 @@ const CourseDetail = () => {
       const response = await axios.put('http://localhost:8000/api/evaluations', {
         course_code: code,
         criteria: criteria,
-        max_teams: maxTeams
+        max_teams: maxTeams,
       });
       alert('Evaluation criteria updated successfully');
     } catch (error) {
@@ -229,7 +247,7 @@ const CourseDetail = () => {
   };
 
   const removeCriteria = (crit) => {
-    const updatedCriteria = criteria.filter(c => c !== crit);
+    const updatedCriteria = criteria.filter((c) => c !== crit);
     setCriteria(updatedCriteria);
   };
 
@@ -253,21 +271,12 @@ const CourseDetail = () => {
     }
   };
 
-  const fetchEvaluationAssignments = async () => {
-    try {
-      const response = await axios.get(`http://localhost:8000/api/evaluation-assignments/${code}/${studentId}`);
-      setEvaluationAssignments(response.data.evaluations || []);
-    } catch (error) {
-      console.error('Error fetching evaluation assignments:', error);
-    }
-  };
-
   const registerTeam = async (teamName) => {
     try {
       await axios.post('http://localhost:8000/api/teams/register', {
         course_code: code,
         team_name: teamName,
-        githubId: userId
+        githubId: githubId,
       });
       alert(`Joined ${teamName} successfully`);
       fetchTeams(code);
@@ -277,12 +286,12 @@ const CourseDetail = () => {
   };
 
   const handleScoreChange = (teamName, criteriaName, score) => {
-    setEvaluations(prevEvaluations => ({
+    setEvaluations((prevEvaluations) => ({
       ...prevEvaluations,
       [teamName]: {
         ...prevEvaluations[teamName],
-        [criteriaName]: score
-      }
+        [criteriaName]: score,
+      },
     }));
   };
 
@@ -361,14 +370,21 @@ const CourseDetail = () => {
 
           <Box sx={{ mt: 4 }}>
             <Tabs value={tabIndex} onChange={handleTabChange}>
-              <Tab label="Evaluation Criteria" />
-              <Tab label="Team Status" />
-              <Tab label="Evaluation Progress" />
-              <Tab label="Final Results" />
-              <Tab label="Evaluate Teams" />
+              {userRole === 'professor' ? (
+                [
+                  <Tab key="create-team" label="팀, 평가항목 생성" />,
+                  <Tab key="progress" label="평가 진행사항" />,
+                  <Tab key="results" label="최종 결과" />,
+                ]
+              ) : (
+                [
+                  <Tab key="join-team" label="팀 참가" />,
+                  <Tab key="evaluate" label="평가하기" />,
+                ]
+              )}
             </Tabs>
 
-            {tabIndex === 0 && (
+            {userRole === 'professor' && tabIndex === 0 && (
               <>
                 <Box mt={2}>
                   <TextField
@@ -413,56 +429,35 @@ const CourseDetail = () => {
               </>
             )}
 
-            {tabIndex === 1 && (
+            {userRole === 'student' && tabIndex === 0 && (
               <>
                 <Box mt={4}>
                   <Typography variant="h5" gutterBottom>Team Status</Typography>
                   <List>
-                    {Array.from({ length: maxTeams }, (_, i) => (
-                      <ListItem key={i} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <ListItemText primary={`Team ${i + 1}`} />
-                        <IconButton edge="end" aria-label="add" onClick={() => registerTeam(`Team ${i + 1}`)}>
+                    {teams.map((team, index) => (
+                      <ListItem key={index}>
+                        <ListItemText
+                          primary={team.team_name}
+                          secondary={team.students.map((student) => student.name).join(', ')}
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                  <List>
+                    {teams.map((team, index) => (
+                      <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <ListItemText primary={team.team_name} />
+                        <IconButton edge="end" aria-label="add" onClick={() => registerTeam(team.team_name)}>
                           <AddIcon />
                         </IconButton>
                       </ListItem>
                     ))}
                   </List>
                 </Box>
-
-                <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Team Members</Typography>
-                  <List>
-                    {teams.map((team, index) => (
-                      <ListItem key={index}>
-                        <ListItemText
-                          primary={team.team_name}
-                          secondary={team.students.map(student => student.name).join(', ')}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-
-                <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Assigned Evaluations</Typography>
-                  <List>
-                    {Object.entries(assignedEvaluations).map(([studentId, teamNames], index) => (
-                      <ListItem key={index}>
-                        <ListItemText
-                          primary={`Student ID: ${studentId}, Assigned Teams: ${Array.isArray(teamNames) ? teamNames.join(', ') : ''}`}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-
-                <Button variant="contained" color="primary" onClick={startEvaluation}>
-                  Start Evaluation
-                </Button>
               </>
             )}
 
-            {tabIndex === 2 && (
+            {userRole === 'professor' && tabIndex === 1 && (
               <>
                 <Box mt={4}>
                   <Typography variant="h5" gutterBottom>Evaluation Progress</Typography>
@@ -470,9 +465,7 @@ const CourseDetail = () => {
                     {evaluationProgress && evaluationProgress.length > 0 ? (
                       evaluationProgress.map((progress, index) => (
                         <ListItem key={index}>
-                          <ListItemText
-                            primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`}
-                          />
+                          <ListItemText primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`} />
                         </ListItem>
                       ))
                     ) : (
@@ -483,7 +476,7 @@ const CourseDetail = () => {
               </>
             )}
 
-            {tabIndex === 3 && (
+            {userRole === 'professor' && tabIndex === 2 && (
               <>
                 <Box mt={4}>
                   <Typography variant="h5" gutterBottom>Final Results</Typography>
@@ -494,9 +487,7 @@ const CourseDetail = () => {
                     {evaluationResults && evaluationResults.length > 0 ? (
                       evaluationResults.map((result, index) => (
                         <ListItem key={index}>
-                          <ListItemText
-                            primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`}
-                          />
+                          <ListItemText primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`} />
                         </ListItem>
                       ))
                     ) : (
@@ -507,7 +498,7 @@ const CourseDetail = () => {
               </>
             )}
 
-            {tabIndex === 4 && (
+            {userRole === 'student' && tabIndex === 1 && (
               <>
                 <Box mt={4}>
                   <Typography variant="h5" gutterBottom>Evaluate Teams</Typography>
@@ -532,12 +523,11 @@ const CourseDetail = () => {
                     <Typography>No evaluation assignments found</Typography>
                   )}
                   <Button variant="contained" color="primary" onClick={submitEvaluations} disabled={isEvaluationSubmitted}>
-                  Submit Evaluations
+                    Submit Evaluations
                   </Button>
                 </Box>
               </>
             )}
-
           </Box>
 
           <Divider />
@@ -545,85 +535,124 @@ const CourseDetail = () => {
             <Typography variant='h5' component='h2' gutterBottom>
               관련 프로젝트 목록
             </Typography>
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Grid container spacing={4}>
-                <Droppable droppableId='projects' direction='horizontal'>
-                  {provided => (
-                    <Grid item xs={12} {...provided.droppableProps} ref={provided.innerRef}>
-                      <Grid container spacing={4}>
-                        {filteredProjects.map((project, index) => (
-                          <Draggable key={project._id} draggableId={project._id} index={index}>
-                            {provided => (
-                              <Grid
-                                item
-                                xs={12}
-                                sm={6}
-                                md={4}
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                              >
-                                <CustomCard
-                                  sx={{
-                                    height: '100%',
-                                    display: 'flex',
-                                    flexDirection: 'column'
-                                  }}
+            {userRole === 'professor' && (
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Grid container spacing={4}>
+                  <Droppable droppableId='projects' direction='horizontal'>
+                    {provided => (
+                      <Grid item xs={12} {...provided.droppableProps} ref={provided.innerRef}>
+                        <Grid container spacing={4}>
+                          {filteredProjects.map((project, index) => (
+                            <Draggable key={project._id} draggableId={project._id} index={index}>
+                              {provided => (
+                                <Grid
+                                  item
+                                  xs={12}
+                                  sm={6}
+                                  md={4}
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
                                 >
-                                  <CardMedia
-                                    component='img'
-                                    height='140'
-                                    image={project.generated_image_url}
-                                    alt='Project Image'
-                                    onClick={() => router.push(`/project/${project._id}`)}
-                                  />
-                                  <CardContent>
-                                    <Typography gutterBottom variant='h5' component='div'>
-                                      {project.project_name}
-                                    </Typography>
-                                    <Typography variant='body2' color='text.secondary'>
-                                      {project.summary}
-                                    </Typography>
-                                    <Typography variant='body2' color='text.secondary'>
-                                      By: {project.username}
-                                    </Typography>
-                                    <Typography variant='body2' color='text.secondary'>
-                                      Views: {project.views ?? 0}
-                                    </Typography>
-                                  </CardContent>
-                                </CustomCard>
-                              </Grid>
-                            )}
-                          </Draggable>
-                        ))}
+                                  <CustomCard
+                                    sx={{
+                                      height: '100%',
+                                      display: 'flex',
+                                      flexDirection: 'column'
+                                    }}
+                                  >
+                                    <CardMedia
+                                      component='img'
+                                      height='140'
+                                      image={project.generated_image_url}
+                                      alt='Project Image'
+                                      onClick={() => router.push(`/project/${project._id}`)}
+                                    />
+                                    <CardContent>
+                                      <Typography gutterBottom variant='h5' component='div'>
+                                        {project.project_name}
+                                      </Typography>
+                                      <Typography variant='body2' color='text.secondary'>
+                                        {project.summary}
+                                      </Typography>
+                                      <Typography variant='body2' color='text.secondary'>
+                                        By: {project.username}
+                                      </Typography>
+                                      <Typography variant='body2' color='text.secondary'>
+                                        Views: {project.views ?? 0}
+                                      </Typography>
+                                    </CardContent>
+                                  </CustomCard>
+                                </Grid>
+                              )}
+                            </Draggable>
+                          ))}
+                        </Grid>
+                        {provided.placeholder}
                       </Grid>
-                      {provided.placeholder}
-                    </Grid>
-                  )}
-                </Droppable>
+                    )}
+                  </Droppable>
+                </Grid>
+                <Box
+                  sx={{
+                    mt: 4,
+                    p: 2,
+                    border: '2px dashed #ccc',
+                    borderRadius: 2,
+                    textAlign: 'center',
+                    backgroundColor: '#f9f9f9',
+                  }}
+                >
+                  <Droppable droppableId='evaluationZone'>
+                    {provided => (
+                      <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ p: 2 }}>
+                        <Typography variant='h6' color='textSecondary'>
+                          Drag projects here to evaluate
+                        </Typography>
+                        {provided.placeholder}
+                      </Box>
+                    )}
+                  </Droppable>
+                </Box>
+              </DragDropContext>
+            )}
+            {userRole === 'student' && (
+              <Grid container spacing={4}>
+                {filteredProjects.map((project, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={project._id}>
+                    <CustomCard
+                      sx={{
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}
+                    >
+                      <CardMedia
+                        component='img'
+                        height='140'
+                        image={project.generated_image_url}
+                        alt='Project Image'
+                        onClick={() => router.push(`/project/${project._id}`)}
+                      />
+                      <CardContent>
+                        <Typography gutterBottom variant='h5' component='div'>
+                          {project.project_name}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          {project.summary}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          By: {project.username}
+                        </Typography>
+                        <Typography variant='body2' color='text.secondary'>
+                          Views: {project.views ?? 0}
+                        </Typography>
+                      </CardContent>
+                    </CustomCard>
+                  </Grid>
+                ))}
               </Grid>
-              <Box
-                sx={{
-                  mt: 4,
-                  p: 2,
-                  border: '2px dashed #ccc',
-                  borderRadius: 2,
-                  textAlign: 'center',
-                  backgroundColor: '#f9f9f9'
-                }}
-              >
-                <Droppable droppableId='evaluationZone'>
-                  {provided => (
-                    <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ p: 2 }}>
-                      <Typography variant='h6' color='textSecondary'>
-                        Drag projects here to evaluate
-                      </Typography>
-                      {provided.placeholder}
-                    </Box>
-                  )}
-                </Droppable>
-              </Box>
-            </DragDropContext>
+            )}
           </Box>
         </Paper>
       )}
