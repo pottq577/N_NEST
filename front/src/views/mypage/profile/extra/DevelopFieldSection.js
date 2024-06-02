@@ -8,6 +8,7 @@ import Divider from '@mui/material/Divider'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import Autocomplete from '@mui/material/Autocomplete'
+import axios from 'axios'
 
 import Header from '../components/Header'
 import EmptyMessage from '../components/EmptyMessage'
@@ -31,6 +32,7 @@ const DevelopFieldSection = ({ onComplete }) => {
   const [developFields, setDevelopFields] = useState(loadLocalStorage('developFields'))
   const [isAdding, setIsAdding] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [userId, setUserId] = useState('')
 
   useEffect(() => {
     setDevelopFields(loadLocalStorage('developFields'))
@@ -49,17 +51,44 @@ const DevelopFieldSection = ({ onComplete }) => {
     }
   }
 
-  const handleSaveDevelopFields = () => {
+  const handleSaveDevelopFields = async () => {
     // 백엔드 개발 분야 저장 로직 구현 필요
     setIsAdding(false)
     setIsEditing(true)
+
+    try {
+      const response = await axios.post('http://localhost:8000/user-profile/develop-fields', {
+        user_id: userId,
+        develop_fields: developFields
+      })
+      if (response.status === 201) {
+        console.log('Develop fields saved successfully')
+      }
+    } catch (error) {
+      console.error('Error saving develop fields:', error)
+    }
+
     onComplete('developFields', true)
     localStorage.setItem('developFields', JSON.stringify(developFields))
   }
 
-  const handleDeleteDevelopField = fieldToDelete => () => {
+  const handleDeleteDevelopField = fieldToDelete => async () => {
     const updatedDevelopFields = developFields.filter(field => field !== fieldToDelete)
     setDevelopFields(updatedDevelopFields)
+
+    try {
+      const response = await axios.delete('http://localhost:8000/user-profile/develop-fields', {
+        data: {
+          user_id: userId,
+          develop_fields: updatedDevelopFields
+        }
+      })
+      if (response.status === 200) {
+        console.log('Develop fields deleted successfully')
+      }
+    } catch (error) {
+      console.error('Error deleting develop fields:', error)
+    }
     saveToLocalStorage('developFields', updatedDevelopFields)
   }
 

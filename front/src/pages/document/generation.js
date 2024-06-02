@@ -428,13 +428,12 @@ function SummaryAndImage({
       {error && <Typography color='error'>{error}</Typography>}
       {combinedSummary && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant='h6'>Combined Summary:</Typography>
+          <Typography variant='h6'>프로젝트 요약</Typography>
           <Typography>{combinedSummary}</Typography>
         </Box>
       )}
       {image && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant='h6'>Generated Image:</Typography>
           <img src={image} alt='Generated' style={{ maxWidth: '100%', height: 'auto' }} />
         </Box>
       )}

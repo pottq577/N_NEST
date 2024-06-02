@@ -13,6 +13,8 @@ import DatePicker from '@mui/lab/DatePicker'
 import AdapterDateFns from '@mui/lab/AdapterDateFns'
 import LocalizationProvider from '@mui/lab/LocalizationProvider'
 
+import axios from 'axios'
+
 import Header from '../components/Header'
 import RenderList from '../components/RenderList'
 
@@ -245,6 +247,7 @@ const CertificateSection = ({ onComplete }) => {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [savedData, setSavedData] = useState(loadLocalStorage('certificateData'))
   const [editingIndex, setEditingIndex] = useState(null) // 수정 인덱스 추가
+  const [userId, setUserId] = useState('')
 
   useEffect(() => {
     setSavedData(loadLocalStorage('certificateData'))
@@ -254,7 +257,7 @@ const CertificateSection = ({ onComplete }) => {
 
   const handleAddClick = () => setIsAdding(true)
 
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     const updatedData = editingIndex !== null ? [...savedData] : [...savedData, formData]
     if (editingIndex !== null) {
       updatedData[editingIndex] = formData
@@ -276,6 +279,20 @@ const CertificateSection = ({ onComplete }) => {
     })
     setIsAdding(false)
     setSelectedCategory('')
+
+    // 백엔드에 데이터 저장
+    try {
+      const response = await axios.post('http://localhost:8000/user-profile/certificate', {
+        // user_id: userId,
+        certificates: updatedData
+      })
+      if (response.status === 201) {
+        console.log('Certificate saved successfully')
+      }
+    } catch (error) {
+      console.error('Error saving certificate:', error)
+    }
+
     onComplete('certificate', true)
   }
 
@@ -316,11 +333,26 @@ const CertificateSection = ({ onComplete }) => {
     setEditingIndex(index) // 수정 인덱스 설정
   }
 
-  const handleDeleteCertificate = index => {
+  const handleDeleteCertificate = async index => {
     if (window.confirm('저장된 목록을 삭제하시겠습니까?')) {
       const updatedData = savedData.filter((_, idx) => idx !== index)
       setSavedData(updatedData)
       saveToLocalStorage('certificateData', updatedData)
+
+      // 백엔드에 데이터 삭제 요청
+      try {
+        const response = await axios.delete('http://localhost:8000/user-profile/certificate', {
+          data: {
+            user_id: userId,
+            certificates: updatedData
+          }
+        })
+        if (response.status === 200) {
+          console.log('Certificate deleted successfully')
+        }
+      } catch (error) {
+        console.error('Error deleting certificate:', error)
+      }
     }
     setSelectedCategory('')
   }

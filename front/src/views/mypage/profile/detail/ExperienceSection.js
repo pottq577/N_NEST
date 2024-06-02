@@ -11,6 +11,8 @@ import InputLabel from '@mui/material/InputLabel'
 import FormControl from '@mui/material/FormControl'
 import TextareaAutosize from '@mui/material/TextareaAutosize'
 
+import axios from 'axios'
+
 import Header from '../components/Header'
 import RenderList from '../components/RenderList'
 import CommonDatePicker from '../components/CommonDatePicker'
@@ -117,6 +119,7 @@ const ExperienceSection = ({ onComplete }) => {
   const [Experiences, setExperiences] = useState(loadLocalStorage('experienceData'))
   const [isAdding, setIsAdding] = useState(false)
   const [editingIndex, setEditingIndex] = useState(null)
+  const [userId, setUserId] = useState('')
 
   useEffect(() => {
     setExperiences(loadLocalStorage('experienceData'))
@@ -133,7 +136,7 @@ const ExperienceSection = ({ onComplete }) => {
     setExpData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     const updatedData = editingIndex !== null ? [...Experiences] : [...Experiences, expData]
     if (editingIndex !== null) {
       updatedData[editingIndex] = expData
@@ -143,6 +146,20 @@ const ExperienceSection = ({ onComplete }) => {
     setIsAdding(false)
     setExpData({ type: '', name: '', startDate: null, endDate: null, description: '' })
     setEditingIndex(null)
+
+    // 백엔드에 데이터 저장
+    try {
+      const response = await axios.post('http://localhost:8000/user-profile/experience', {
+        user_id: userId,
+        experiences: updatedData
+      })
+      if (response.status === 201) {
+        console.log('Experience saved successfully')
+      }
+    } catch (error) {
+      console.error('Error saving experience:', error)
+    }
+
     onComplete('experience', true)
   }
 
@@ -158,11 +175,26 @@ const ExperienceSection = ({ onComplete }) => {
     setEditingIndex(idx)
   }
 
-  const handleDeleteItem = idx => {
+  const handleDeleteItem = async idx => {
     if (window.confirm('저장된 목록을 삭제합니다.')) {
       const updatedExp = Experiences.filter((_, i) => i !== idx)
       setExperiences(updatedExp)
       saveToLocalStorage('experienceData', updatedExp)
+
+      // 백엔드에 데이터 삭제 요청
+      try {
+        const response = await axios.delete('http://localhost:8000/user-profile/experience', {
+          data: {
+            user_id: userId,
+            experiences: updatedExp
+          }
+        })
+        if (response.status === 200) {
+          console.log('Experience deleted successfully')
+        }
+      } catch (error) {
+        console.error('Error deleting experience:', error)
+      }
     }
   }
 

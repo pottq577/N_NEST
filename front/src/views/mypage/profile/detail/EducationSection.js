@@ -152,20 +152,6 @@ const EducationSection = ({ onComplete }) => {
     setEducations(loadLocalStorage('educationDetails'))
   }, [])
 
-  useEffect(() => {
-    const fetchUserId = async () => {
-      try {
-        const response = await axios.get('/api/get-user-id', { withCredentials: true })
-        setUserId(response.data.user_id)
-      } catch (error) {
-        console.error('Error fetching user ID:', error)
-      }
-    }
-
-    fetchUserId()
-    setEducations(JSON.parse(localStorage.getItem('educationDetails')) || [])
-  }, [])
-
   const handleAddClick = () => {
     setEducationDetails({
       type: '',
@@ -217,10 +203,8 @@ const EducationSection = ({ onComplete }) => {
 
     // 백엔드에 데이터 저장
     try {
-      console.log('dbtest')
-
       const response = await axios.post('http://localhost:8000/user-profile/education', {
-        user_id: userId,
+        // user_id: userId,
         education: updatedEducations
       })
       if (response.status === 201) {
@@ -252,11 +236,26 @@ const EducationSection = ({ onComplete }) => {
     setIsAdding(true)
   }
 
-  const handleDeleteEducation = index => {
+  const handleDeleteEducation = async index => {
     if (window.confirm('저장된 학력을 삭제합니다.')) {
       const updatedEducations = educations.filter((_, idx) => idx !== index)
       setEducations(updatedEducations)
       saveToLocalStorage('educationDetails', updatedEducations)
+
+      // 백엔드에 데이터 삭제 요청
+      try {
+        const response = await axios.delete('http://localhost:8000/user-profile/education', {
+          data: {
+            user_id: userId,
+            education: updatedEducations
+          }
+        })
+        if (response.status === 200) {
+          console.log('Education data deleted successfully')
+        }
+      } catch (error) {
+        console.error('Error deleting education data:', error)
+      }
     }
   }
 

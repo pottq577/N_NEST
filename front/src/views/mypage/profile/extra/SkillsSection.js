@@ -8,6 +8,7 @@ import Divider from '@mui/material/Divider'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import Autocomplete from '@mui/material/Autocomplete'
+import axios from 'axios'
 
 import Header from '../components/Header'
 import EmptyMessage from '../components/EmptyMessage'
@@ -33,15 +34,7 @@ const SkillsSection = ({ onComplete }) => {
   const [skills, setSkills] = useState(loadLocalStorage('skills'))
   const [isAdding, setIsAdding] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-
-  // const inputFormRef = useRef(null)
-
-  // useEffect(() => {
-  //   // isAdding이 true가 되면 입력 폼으로 스크롤
-  //   if (isAdding && inputFormRef.current) {
-  //     inputFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  //   }
-  // }, [isAdding])
+  const [userId, setUserId] = useState('')
 
   useEffect(() => {
     setSkills(loadLocalStorage('skills'))
@@ -60,19 +53,44 @@ const SkillsSection = ({ onComplete }) => {
     }
   }
 
-  const handleSaveSkills = () => {
-    // 백엔드 스킬 저장 로직 구현 필요
+  const handleSaveSkills = async () => {
     setIsAdding(false)
     setIsEditing(true)
+
+    try {
+      const response = await axios.post('http://localhost:8000/user-profile/skills', {
+        user_id: userId,
+        skills: skills
+      })
+      if (response.status === 201) {
+        console.log('Skills saved successfully')
+      }
+    } catch (error) {
+      console.error('Error saving skills:', error)
+    }
+
     onComplete('skills', true)
     localStorage.setItem('skills', JSON.stringify(skills))
   }
 
-  const handleDeleteSkill = skillToDelete => () => {
-    // setSkills(prevSkills => prevSkills.filter(skills => skills !== skillToDelete))
+  const handleDeleteSkill = skillToDelete => async () => {
     const updatedSkills = skills.filter(skill => skill !== skillToDelete)
     setSkills(updatedSkills)
     saveToLocalStorage('skills', updatedSkills)
+
+    try {
+      const response = await axios.delete('http://localhost:8000/user-profile/skills', {
+        data: {
+          user_id: userId,
+          skills: updatedSkills
+        }
+      })
+      if (response.status === 200) {
+        console.log('Skills deleted successfully')
+      }
+    } catch (error) {
+      console.error('Error deleting skills:', error)
+    }
   }
 
   const handleCancelInput = () => {
@@ -80,8 +98,6 @@ const SkillsSection = ({ onComplete }) => {
     setSkill('')
   }
 
-  // <div ref={inputFormRef}>
-  // </div>
   const InputForm = () => (
     <Grid container spacing={2} columns={3} alignItems='flex-end'>
       <Grid item xs={12}>

@@ -5,6 +5,8 @@ import MenuItem from '@mui/material/MenuItem'
 import TextField from '@mui/material/TextField'
 import InputLabel from '@mui/material/InputLabel'
 import FormControl from '@mui/material/FormControl'
+import Grid from '@mui/material/Grid'
+import Paper from '@mui/material/Paper'
 
 const fields = [
   { label: '프로젝트 제목', name: 'teamTitle', required: true },
@@ -24,33 +26,43 @@ const TeamInputField = ({ teamData, setTeamData }) => {
 
   return (
     <Box>
-      {fields.map(field => (
-        <TextField
-          key={field.name}
-          label={field.label}
-          name={field.name}
-          value={teamData[field.name]}
-          onChange={handleChange}
-          fullWidth
-          margin='normal'
-          required={field.required}
-        />
-      ))}
-      <FormControl fullWidth margin='normal'>
-        <InputLabel id='max-head-label'>최대 인원 수</InputLabel>
-        <Select
-          labelId='max-head-label'
-          id='max-head'
-          value={teamData.maxHead}
-          onChange={e => setTeamData({ ...teamData, maxHead: e.target.value })}
-        >
-          {[...Array(6).keys()].map(i => (
-            <MenuItem key={i} value={i}>
-              {i === 0 ? '선택하세요' : i}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Grid container spacing={2}>
+        {fields.map(field => (
+          <Grid item xs={12} sm={6} key={field.name}>
+            <Paper elevation={2} sx={{ p: 2 }}>
+              <TextField
+                label={field.label}
+                name={field.name}
+                value={teamData[field.name]}
+                onChange={handleChange}
+                fullWidth
+                required={field.required}
+                variant='outlined'
+              />
+            </Paper>
+          </Grid>
+        ))}
+        <Grid item xs={12} sm={6}>
+          <Paper elevation={2} sx={{ p: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel id='max-head-label'>최대 인원 수</InputLabel>
+              <Select
+                labelId='max-head-label'
+                id='max-head'
+                value={teamData.maxHead}
+                onChange={e => setTeamData({ ...teamData, maxHead: e.target.value })}
+                label='최대 인원 수'
+              >
+                {[...Array(6).keys()].map(i => (
+                  <MenuItem key={i} value={i}>
+                    {i === 0 ? '선택하세요' : i}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Paper>
+        </Grid>
+      </Grid>
     </Box>
   )
 }

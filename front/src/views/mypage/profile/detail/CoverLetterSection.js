@@ -6,6 +6,8 @@ import Divider from '@mui/material/Divider'
 import TextField from '@mui/material/TextField'
 import TextareaAutosize from '@mui/material/TextareaAutosize'
 
+import axios from 'axios'
+
 import Header from '../components/Header'
 import RenderList from '../components/RenderList'
 
@@ -57,6 +59,7 @@ const CoverLetterSection = ({ onComplete }) => {
   const [content, setContent] = useState('')
   const [coverLetters, setCoverLetters] = useState([])
   const [file, setFile] = useState(null)
+  const [userId, setUserId] = useState('')
 
   useEffect(() => {
     const storedCoverLetters = JSON.parse(localStorage.getItem('coverLetters')) || []
@@ -71,7 +74,7 @@ const CoverLetterSection = ({ onComplete }) => {
     setIsAdding(true)
   }
 
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     const newCoverLetter = { title, content }
     const updatedCoverLetters = [...coverLetters, newCoverLetter]
     setCoverLetters(updatedCoverLetters)
@@ -79,6 +82,20 @@ const CoverLetterSection = ({ onComplete }) => {
     setTitle('')
     setContent('')
     setIsAdding(false)
+
+    // 백엔드에 데이터 저장
+    try {
+      const response = await axios.post('http://localhost:8000/user-profile/cover-letter', {
+        user_id: userId,
+        cover_letters: updatedCoverLetters
+      })
+      if (response.status === 201) {
+        console.log('Cover letter saved successfully')
+      }
+    } catch (error) {
+      console.error('Error saving cover letter:', error)
+    }
+
     onComplete('coverLetter', true)
   }
 
@@ -98,10 +115,25 @@ const CoverLetterSection = ({ onComplete }) => {
     saveToLocalStorage(remainingCoverLetters)
   }
 
-  const handleDeleteCoverLetter = index => {
+  const handleDeleteCoverLetter = async index => {
     const remainingCoverLetters = coverLetters.filter((_, i) => i !== index)
     setCoverLetters(remainingCoverLetters)
     saveToLocalStorage(remainingCoverLetters)
+
+    // 백엔드에 데이터 삭제 요청
+    try {
+      const response = await axios.delete('http://localhost:8000/user-profile/cover-letter', {
+        data: {
+          // user_id: userId,
+          cover_letters: remainingCoverLetters
+        }
+      })
+      if (response.status === 200) {
+        console.log('Cover letter deleted successfully')
+      }
+    } catch (error) {
+      console.error('Error deleting cover letter:', error)
+    }
   }
 
   const coverLetterListText = (item, type) => {

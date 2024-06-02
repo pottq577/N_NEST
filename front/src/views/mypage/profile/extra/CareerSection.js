@@ -7,6 +7,7 @@ import Divider from '@mui/material/Divider'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import TextareaAutosize from '@mui/material/TextareaAutosize'
+import axios from 'axios'
 
 import Header from '../components/Header'
 import RenderList from '../components/RenderList'
@@ -130,15 +131,8 @@ const CareerSection = ({ onComplete }) => {
   const [careers, setCareers] = useState(loadLocalStorage('careerDetails'))
   const [isAdding, setIsAdding] = useState(false)
   const [editingIndex, setEditingIndex] = useState(null)
+  const [userId, setUserId] = useState('')
 
-  // const inputFormRef = useRef(null)
-
-  // useEffect(() => {
-  //   // isAdding이 true가 되면 입력 폼으로 스크롤
-  //   if (isAdding && inputFormRef.current) {
-  //     inputFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  //   }
-  // }, [isAdding])
   useEffect(() => {
     setCareerDetails(loadLocalStorage('careerDetails'))
   }, [])
@@ -172,11 +166,12 @@ const CareerSection = ({ onComplete }) => {
       task: '',
       depart: '',
       position: '',
-      mainTasks: ''
+      mainTasks: '',
+      developStart: null
     })
   }
 
-  const handleSaveClick = () => {
+  const handleSaveClick = async () => {
     const updatedCareers = editingIndex !== null ? [...careers] : [...careers, careerDetails]
     if (editingIndex !== null) {
       updatedCareers[editingIndex] = careerDetails
@@ -193,8 +188,23 @@ const CareerSection = ({ onComplete }) => {
       task: '',
       depart: '',
       position: '',
-      mainTasks: ''
+      mainTasks: '',
+      developStart: null
     })
+
+    console.log('Sending careers data to backend:', updatedCareers) // 데이터 확인 로그
+
+    try {
+      const response = await axios.post('http://localhost:8000/user-profile/careers', {
+        user_id: userId,
+        careers: updatedCareers
+      })
+      if (response.status === 201) {
+        console.log('Careers saved successfully')
+      }
+    } catch (error) {
+      console.error('Error saving careers:', error)
+    }
     onComplete('career', true)
   }
 
@@ -204,11 +214,24 @@ const CareerSection = ({ onComplete }) => {
     setIsAdding(true)
   }
 
-  const handleDeleteCareer = index => {
+  const handleDeleteCareer = async index => {
     if (window.confirm('저장된 경력을 삭제합니다.')) {
       const updatedCareers = careers.filter((_, idx) => idx !== index)
       setCareers(updatedCareers)
       saveToLocalStorage('careerDetails', updatedCareers)
+      try {
+        const response = await axios.delete('http://localhost:8000/user-profile/careers', {
+          data: {
+            user_id: userId,
+            careers: updatedCareers
+          }
+        })
+        if (response.status === 200) {
+          console.log('Careers deleted successfully')
+        }
+      } catch (error) {
+        console.error('Error deleting careers:', error)
+      }
     }
   }
 

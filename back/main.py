@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.security import OAuth2PasswordBearer
 from motor.motor_asyncio import AsyncIOMotorClient
 from starlette.middleware.sessions import SessionMiddleware
-from pydantic import BaseModel, Field, HttpUrl, EmailStr
+from pydantic import BaseModel, Field, HttpUrl, EmailStr, ValidationError
 from dotenv import load_dotenv
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
@@ -1874,56 +1874,50 @@ class Education(BaseModel):
     endDate: str
 
 
-class Introduction(BaseModel):
+class CoverLetter(BaseModel):
     title: str
     content: str
 
 
 class Experience(BaseModel):
     type: str
-    organization: str
-    start_date: Union[date, str]
-    end_date: Union[date, str]
+    name: str
+    startDate: str
+    endDate: str
+    description: str
 
 
-class Qualification(BaseModel):
-    certificate_name: str
-    issuer: str
-    pass_status: str
-    date_obtained: Union[date, str]
-
-
-class LanguageTest(BaseModel):
+class Certificate(BaseModel):
+    qualName: str
+    issuingOrganization: str
+    acquire: str
+    acquiredDate: str
     language: str
-    test_name: str
-    date_obtained: Union[date, str]
-    score: int
+    testName: str
+    testScore: str
+    score: str
+    awardName: str
+    awardOrg: str
 
 
-class Award(BaseModel):
-    award_name: str
-    date_awarded: Union[date, str]
-    issuer: str
+class Skills(BaseModel):
+    skills: List[str]
 
 
-class Skill(BaseModel):
-    stack: str
-
-
-class DevelopmentField(BaseModel):
-    field: str
+class DevelopField(BaseModel):
+    develop_fields: List[str]
 
 
 class Career(BaseModel):
-    company_name: str
-    start_date: Union[date, str]
-    end_date: Union[date, str]
-    currently_employed: bool
-    role: str
-    department: str
+    companyName: str
+    joinDate: str
+    leaveDate: str
+    isWorking: bool
+    task: str
+    depart: str
     position: str
-    development_start_date: Union[date, str]
-    responsibilities: str
+    mainTasks: str
+    developStart: str
 
 
 class Project(BaseModel):
@@ -1948,13 +1942,11 @@ class TechnicalReport(BaseModel):
 class UserProfile(BaseModel):
     user_id: str  # 사용자 ID (다른 콜렉션의 사용자와 조인)
     education: List[Education]
-    introduction: Introduction
+    coverLetter: List[CoverLetter]
     experiences: List[Experience]
-    qualifications: List[Qualification]
-    language_tests: List[LanguageTest]
-    awards: List[Award]
-    skills: List[Skill]
-    development_fields: List[DevelopmentField]
+    certificates: List[Certificate]
+    skills: List[str]
+    develop_fields: List[str]
     careers: List[Career]
     projects: List[Project]
     technical_report: TechnicalReport
@@ -1963,6 +1955,14 @@ class UserProfile(BaseModel):
 class UserProfileRequest(BaseModel):
     user_id: str
     education: List[Education]
+    coverLetter: List[CoverLetter]
+    experiences: List[Experience]
+    certificates: List[Certificate]
+    skills: List[str]
+    develop_fields: List[str]
+    careers: List[Career]
+    projects: List[Project]
+    technical_report: TechnicalReport
 
 # 로그인한 사용자 정보 가져오기
 
@@ -2000,26 +2000,273 @@ async def create_user_profile(profile: UserProfile):
     raise HTTPException(
         status_code=400, detail="User profile could not be created")
 
+# 학력 추가/수정
+
 
 @app.post("/user-profile/education")
 async def add_education(user_profile_request: UserProfileRequest):
-    user_id = user_profile_request.user_id
-    education_data = [education.dict() for education in user_profile_request.education]  # Convert Pydantic models to dict
+    try:
+        user_id = user_profile_request.user_id
+        education_data = [education.dict()
+                          for education in user_profile_request.education]
 
-    logger.info(f"Adding education data for user_id: {user_id}")
-    logger.info(f"Education data: {education_data}")
+        # 로그 추가
+        print(f"Received education data for user_id: {user_id}")
+        print(f"Education data: {education_data}")
+
+        result = await user_profile.update_one(
+            {"user_id": user_id},
+            {"$set": {"education": education_data}},
+            upsert=True
+        )
+
+        if result.modified_count == 1 or result.upserted_id is not None:
+            return JSONResponse(status_code=201, content={"message": "Education data added/updated successfully"})
+        raise HTTPException(
+            status_code=400, detail="Failed to add/update education data")
+    except ValidationError as e:
+        # 유효성 검사 오류 로그 추가
+        print(f"Validation error: {e.json()}")
+        raise HTTPException(status_code=422, detail=e.errors())
+
+# 학력 삭제
+
+
+@app.delete("/user-profile/education")
+async def delete_education(user_profile_request: UserProfileRequest):
+    user_id = user_profile_request.user_id
+    # Convert Pydantic models to dict
+    education_data = [education.dict()
+                      for education in user_profile_request.education]
+
+    logger.info(f"Deleting education data for user_id: {user_id}")
+    logger.info(f"Updated education data: {education_data}")
 
     result = await user_profile.update_one(
         {"user_id": user_id},
-        {"$set": {"education": education_data}},
+        {"$set": {"education": education_data}}
+    )
+
+    if result.modified_count == 1:
+        return JSONResponse(status_code=200, content={"message": "Education data deleted successfully"})
+    raise HTTPException(
+        status_code=400, detail="Failed to delete education data")
+
+# 자기소개서 추가/수정
+
+
+@app.post("/user-profile/cover-letter")
+async def add_cover_letter(user_profile_request: UserProfileRequest):
+    data = await user_profile_request.json()
+    user_id = data['user_id']
+    cover_letter_data = data['cover_letters']
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"cover_letters": cover_letter_data}},
         upsert=True
     )
 
     if result.modified_count == 1 or result.upserted_id is not None:
-        return JSONResponse(status_code=201, content={"message": "Education data added/updated successfully"})
+        return JSONResponse(status_code=201, content={"message": "Cover letter added/updated successfully"})
     raise HTTPException(
-        status_code=400, detail="Failed to add/update education data")
+        status_code=400, detail="Failed to add/update cover letter")
 
+
+# 자기소개서 삭제
+@app.delete("/user-profile/cover-letter")
+async def delete_cover_letter(user_profile_request: UserProfileRequest):
+    data = await user_profile_request.json()
+    user_id = data['user_id']
+    cover_letter_data = data['cover_letters']
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"cover_letters": cover_letter_data}}
+    )
+
+    if result.modified_count == 1:
+        return JSONResponse(status_code=200, content={"message": "Cover letter deleted successfully"})
+    raise HTTPException(
+        status_code=400, detail="Failed to delete cover letter")
+
+# 경험
+
+
+@app.post("/user-profile/experience")
+async def add_experience(user_profile_request: UserProfileRequest):
+    data = await user_profile_request.json()
+    user_id = data['user_id']
+    experience_data = data['experiences']
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"experiences": experience_data}},
+        upsert=True
+    )
+
+    if result.modified_count == 1 or result.upserted_id is not None:
+        return JSONResponse(status_code=201, content={"message": "Experience added/updated successfully"})
+    raise HTTPException(
+        status_code=400, detail="Failed to add/update experience")
+
+
+@app.delete("/user-profile/experience")
+async def delete_experience(user_profile_request: UserProfileRequest):
+    data = await user_profile_request.json()
+    user_id = data['user_id']
+    experience_data = data['experiences']
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"experiences": experience_data}}
+    )
+
+    if result.modified_count == 1:
+        return JSONResponse(status_code=200, content={"message": "Experience deleted successfully"})
+    raise HTTPException(
+        status_code=400, detail="Failed to delete experience")
+
+# 자격증명
+
+# @app.post("/user-profile/certificate")
+# async def add_certificate(user_profile_request: UserProfileRequest):
+#     user_id = user_profile_request.user_id
+#     # Convert Pydantic models to dict
+#     certificate_data = [certificate.dict()
+#                         for certificate in user_profile_request.certificates]
+
+#     result = await user_profile.update_one(
+#         {"user_id": user_id},
+#         {"$set": {"certificates": certificate_data}},
+#         upsert=True
+#     )
+
+#     if result.modified_count == 1 or result.upserted_id is not None:
+#         return JSONResponse(status_code=201, content={"message": "Certificate added/updated successfully"})
+#     raise HTTPException(
+#         status_code=400, detail="Failed to add/update certificate")
+
+
+# @app.delete("/user-profile/certificate")
+# async def delete_certificate(user_profile_request: UserProfileRequest):
+#     user_id = user_profile_request.user_id
+#     # Convert Pydantic models to dict
+#     certificate_data = [certificate.dict()
+#                         for certificate in user_profile_request.certificates]
+
+#     result = await user_profile.update_one(
+#         {"user_id": user_id},
+#         {"$set": {"certificates": certificate_data}}
+#     )
+
+#     if result.modified_count == 1:
+#         return JSONResponse(status_code=200, content={"message": "Certificate deleted successfully"})
+#     raise HTTPException(
+#         status_code=400, detail="Failed to delete certificate")
+
+# 보유스킬
+
+# @app.post("/user-profile/skills")
+# async def add_skills(user_profile_request: UserProfileRequest):
+#     user_id = user_profile_request.user_id
+#     skills_data = user_profile_request.skills
+
+#     result = await user_profile.update_one(
+#         {"user_id": user_id},
+#         {"$set": {"skills": skills_data}},
+#         upsert=True
+#     )
+
+#     if result.modified_count == 1 or result.upserted_id is not None:
+#         return JSONResponse(status_code=201, content={"message": "Skills added/updated successfully"})
+#     raise HTTPException(
+#         status_code=400, detail="Failed to add/update skills")
+
+
+# @app.delete("/user-profile/skills")
+# async def delete_skills(user_profile_request: UserProfileRequest):
+    user_id = user_profile_request.user_id
+    skills_data = user_profile_request.skills
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"skills": skills_data}}
+    )
+
+    if result.modified_count == 1:
+        return JSONResponse(status_code=200, content={"message": "Skills deleted successfully"})
+    raise HTTPException(
+        status_code=400, detail="Failed to delete skills")
+
+
+# 개발 분야
+# @app.post("/user-profile/develop-fields")
+# async def add_develop_fields(user_profile_request: UserProfileRequest):
+#     user_id = user_profile_request.user_id
+#     develop_fields_data = user_profile_request.develop_fields
+
+#     result = await user_profile.update_one(
+#         {"user_id": user_id},
+#         {"$set": {"develop_fields": develop_fields_data}},
+#         upsert=True
+#     )
+
+#     if result.modified_count == 1 or result.upserted_id is not None:
+#         return JSONResponse(status_code=201, content={"message": "Develop fields added/updated successfully"})
+#     raise HTTPException(
+#         status_code=400, detail="Failed to add/update develop fields")
+
+
+# @app.delete("/user-profile/develop-fields")
+# async def delete_develop_fields(user_profile_request: UserProfileRequest):
+#     user_id = user_profile_request.user_id
+#     develop_fields_data = user_profile_request.develop_fields
+
+#     result = await user_profile.update_one(
+#         {"user_id": user_id},
+#         {"$set": {"develop_fields": develop_fields_data}}
+#     )
+
+#     if result.modified_count == 1:
+#         return JSONResponse(status_code=200, content={"message": "Develop fields deleted successfully"})
+#     raise HTTPException(
+#         status_code=400, detail="Failed to delete develop fields")
+
+
+@app.post("/user-profile/careers")
+async def add_careers(user_profile_request: UserProfileRequest):
+    user_id = user_profile_request.user_id
+    careers_data = [career.dict() for career in user_profile_request.careers]
+
+    print(f"Received careers data for user_id: {user_id}")
+    print(f"Careers data: {careers_data}")
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"careers": careers_data}},
+        upsert=True
+    )
+
+    if result.modified_count == 1 or result.upserted_id is not None:
+        return JSONResponse(status_code=201, content={"message": "Careers added/updated successfully"})
+    raise HTTPException(status_code=400, detail="Failed to add/update careers")
+
+
+@app.delete("/user-profile/careers")
+async def delete_careers(user_profile_request: UserProfileRequest):
+    user_id = user_profile_request.user_id
+    careers_data = user_profile_request.careers
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"careers": careers_data}}
+    )
+
+    if result.modified_count == 1:
+        return JSONResponse(status_code=200, content={"message": "Careers deleted successfully"})
+    raise HTTPException(
+        status_code=400, detail="Failed to delete careers")
 
 if __name__ == "__main__":
     import uvicorn
