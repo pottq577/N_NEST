@@ -253,9 +253,13 @@ export default function UploadDocument() {
       <CardContent>
         <InfoRow
           label='과목'
-          value={`${courseInfo.name}-${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`}
+          value={
+            courseInfo.name
+              ? `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`
+              : 'None'
+          }
         />
-        <InfoRow label='과목코드' value={courseInfo.code} />
+        <InfoRow label='과목코드' value={courseInfo.code || 'None'} />
       </CardContent>
     </StyledCard>
   )

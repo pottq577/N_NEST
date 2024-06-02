@@ -114,7 +114,7 @@ const InputForm = ({ educationDetails, handleChange, handleSaveEducation, handle
     </Grid>
     <Grid item xs={4} sm={6} mt={2}>
       <CommonDatePicker
-        label='입학년월'
+        label='졸업년월'
         value={educationDetails.endDate}
         onChange={newDate => handleChange('endDate', newDate)}
         format={'yyyy-MM'}

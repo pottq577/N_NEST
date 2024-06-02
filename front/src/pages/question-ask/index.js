@@ -172,7 +172,7 @@ export default function AskQuestionPage() {
               ))}
             </Select>
           </FormControl>
-          {category === '직접 입력' && (
+          {/* {category === '직접 입력' && (
             <TextField
               label='카테고리'
               fullWidth
@@ -190,7 +190,7 @@ export default function AskQuestionPage() {
                 )
               }}
             />
-          )}
+          )} */}
           <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {customCategories.map(category => (
               <Chip

@@ -1,3 +1,5 @@
+// !! REPOSITORY INFO, CREATE DOCUMENT, SUMMARY AND IMAGE에서 각 섹션 배경 색 흰색으로 통일
+
 import React, { useState, useEffect } from 'react'
 import {
   Container,
@@ -111,15 +113,15 @@ function RepositoryInfo({ courseInfo, studentId }) {
   const RenderCourseInfo = () => (
     <StyledCard>
       <CardContent>
-        {/* <Typography variant='h6' gutterBottom>
-          강의 정보
-        </Typography> */}
-
         <InfoRow
           label='과목'
-          value={`${courseInfo.name}-${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`}
+          value={
+            courseInfo.name
+              ? `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`
+              : 'None'
+          }
         />
-        <InfoRow label='과목코드' value={courseInfo.code} />
+        <InfoRow label='과목코드' value={courseInfo.code || 'None'} />
       </CardContent>
     </StyledCard>
   )
@@ -138,10 +140,6 @@ function RepositoryInfo({ courseInfo, studentId }) {
   const RenderRepoInfo = props => (
     <StyledCard>
       <CardContent>
-        {/* <Typography variant='h6' gutterBottom>
-          원격 저장소 정보
-        </Typography> */}
-
         <Typography variant='h6' component='div' sx={{ mb: 2, fontWeight: '600', color: '#0072E5' }}>
           {props.name}
         </Typography>

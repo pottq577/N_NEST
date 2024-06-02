@@ -293,26 +293,6 @@ function ProjectDetails() {
               </CardContent>
             </CustomCard>
           </Grid>
-          {/* <Grid item xs={12}>
-            <CustomCard variant='outlined'>
-              <CardMedia
-                component='img'
-                image={project.generated_image_url}
-                alt='Generated'
-                style={{ width: '100%', maxWidth: '66%', height: 'auto', margin: '0 auto', borderRadius: '8px' }}
-              />
-            </CustomCard>
-          </Grid>
-          <Grid item xs={12}>
-            <CustomCard variant='outlined'>
-              <CardContent>
-                <CustomTypography variant='h6' gutterBottom>
-                  Image Previews
-                </CustomTypography>
-                {renderPreviewImages()}
-              </CardContent>
-            </CustomCard>
-          </Grid> */}
 
           {/* 댓글 */}
           <Grid item xs={12}>
