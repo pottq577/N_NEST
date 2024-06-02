@@ -14,7 +14,6 @@ import {
   Paper,
   Divider,
   Button,
-  TextField,
   IconButton,
   Tabs,
   Tab,
@@ -24,6 +23,7 @@ import {
   DialogContentText,
   DialogTitle,
   ListItemText,
+  TextField
 } from '@mui/material';
 import { styled } from '@mui/system';
 import { useRouter } from 'next/router';
@@ -55,7 +55,7 @@ const CourseDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isEvaluationSubmitted, setIsEvaluationSubmitted] = useState(false);
-  const [maxTeams, setMaxTeams] = useState(5);
+  const [maxTeams, setMaxTeams] = useState(0);
   const [criteria, setCriteria] = useState([]);
   const [newCriteria, setNewCriteria] = useState('');
   const [teams, setTeams] = useState([]);
@@ -70,6 +70,7 @@ const CourseDetail = () => {
   const [openDialog, setOpenDialog] = useState(false);
   const [evaluations, setEvaluations] = useState({});
   const [userRole, setUserRole] = useState('');
+  const [evaluationStarted, setEvaluationStarted] = useState(false);
 
   useEffect(() => {
     if (code) {
@@ -82,7 +83,6 @@ const CourseDetail = () => {
       try {
         const response = await axios.get(`http://localhost:8000/courses/${code}`);
         setCourseData(response.data);
-        setMaxTeams(response.data.max_teams || 5); // 팀 수 설정
         fetchTeams(response.data.course.code);
       } catch (error) {
         console.error('Error fetching course data:', error);
@@ -183,6 +183,7 @@ const CourseDetail = () => {
     try {
       const response = await axios.get(`http://localhost:8000/api/courses/${courseCode}/teams`);
       setTeams(response.data.teams || []);
+      setMaxTeams(response.data.teams.length); // 서버에서 조회한 팀 수 설정
     } catch (error) {
       console.error('Error fetching teams:', error);
       setTeams([]);
@@ -191,12 +192,34 @@ const CourseDetail = () => {
 
   const fetchEvaluationProgress = async (courseCode) => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/evaluation-progress/${courseCode}`);
-      setEvaluationProgress(response.data);
+      const progressResponse = await axios.get(`http://localhost:8000/api/evaluation-progress/${courseCode}`);
+      console.log('Evaluation Progress Data:', progressResponse.data); // 데이터 로깅
+  
+      // 각 팀의 학생 명단을 불러오기 위해 fetchTeams 함수 호출
+      const teamsResponse = await axios.get(`http://localhost:8000/api/courses/${courseCode}/teams`);
+      const teamsData = teamsResponse.data.teams || [];
+      console.log('Teams Data:', teamsData); // 팀 데이터 로깅
+    
+      // 모든 팀 정보를 포함한 평가 진행 데이터 매핑
+      const updatedProgress = teamsData.map((team) => {
+        const progress = progressResponse.data.find(p => p.team_name === team.team_name);
+        return {
+          team_name: team.team_name,
+          students: team.students.map(student => student.name),
+          total_score: progress ? progress.total_score : 0,
+        };
+      });
+  
+      console.log('Updated Progress:', updatedProgress); // 업데이트된 평가 진행 데이터 로깅
+    
+      setEvaluationProgress(updatedProgress);
     } catch (error) {
       console.error('Error fetching evaluation progress:', error);
     }
   };
+  
+  
+  
 
   const fetchEvaluationCriteria = async (courseCode) => {
     try {
@@ -256,6 +279,7 @@ const CourseDetail = () => {
       const response = await axios.post(`http://localhost:8000/api/start-evaluation/${code}`);
       alert('Evaluation started successfully and teams assigned');
       setAssignedEvaluations(response.data);
+      setEvaluationStarted(true); // 평가 시작 시 상태 업데이트
       fetchEvaluationAssignments();
     } catch (error) {
       console.error('Error starting evaluation:', error);
@@ -443,16 +467,17 @@ const CourseDetail = () => {
                       </ListItem>
                     ))}
                   </List>
-                  <List>
-                    {teams.map((team, index) => (
-                      <ListItem key={index} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <ListItemText primary={team.team_name} />
-                        <IconButton edge="end" aria-label="add" onClick={() => registerTeam(team.team_name)}>
-                          <AddIcon />
-                        </IconButton>
-                      </ListItem>
-                    ))}
-                  </List>
+                  {!evaluationStarted && (
+                    <Box mt={4}>
+                      {Array.from({ length: maxTeams }, (_, index) => (
+                        <Box key={index} display="flex" alignItems="center" mb={2}>
+                          <Button variant="contained" color="primary" onClick={() => registerTeam(`팀 ${index + 1}`)}>
+                            Join 팀 {index + 1}
+                          </Button>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
                 </Box>
               </>
             )}
@@ -460,40 +485,34 @@ const CourseDetail = () => {
             {userRole === 'professor' && tabIndex === 1 && (
               <>
                 <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Evaluation Progress</Typography>
+                  <Typography variant="h5" gutterBottom>Team Participation Status</Typography>
                   <List>
                     {evaluationProgress && evaluationProgress.length > 0 ? (
                       evaluationProgress.map((progress, index) => (
                         <ListItem key={index}>
-                          <ListItemText primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`} />
+                          <ListItemText
+                            primary={`Team: ${progress.team_name}`}
+                            secondary={
+                              <>
+                                <Typography component="span">
+                                  Students: {progress.students.length > 0 ? progress.students.join(', ') : 'No students available'}
+                                </Typography>
+                                <br />
+                                <Typography component="span">
+                                  Total Score: {progress.total_score || 0}
+                                </Typography>
+                              </>
+                            }
+                          />
                         </ListItem>
                       ))
                     ) : (
                       <Typography>No evaluation progress available</Typography>
                     )}
                   </List>
-                </Box>
-              </>
-            )}
-
-            {userRole === 'professor' && tabIndex === 2 && (
-              <>
-                <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Final Results</Typography>
-                  <Button variant="contained" color="primary" onClick={fetchEvaluationResults}>
-                    Fetch Final Results
+                  <Button variant="contained" color="primary" onClick={startEvaluation}>
+                    Start Evaluation
                   </Button>
-                  <List>
-                    {evaluationResults && evaluationResults.length > 0 ? (
-                      evaluationResults.map((result, index) => (
-                        <ListItem key={index}>
-                          <ListItemText primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`} />
-                        </ListItem>
-                      ))
-                    ) : (
-                      <Typography>No final results available</Typography>
-                    )}
-                  </List>
                 </Box>
               </>
             )}
@@ -529,6 +548,29 @@ const CourseDetail = () => {
               </>
             )}
           </Box>
+
+          {userRole === 'professor' && tabIndex === 2 && (
+              <>
+                <Box mt={4}>
+                  <Typography variant="h5" gutterBottom>Final Results</Typography>
+                  <Button variant="contained" color="primary" onClick={fetchEvaluationResults}>
+                    Fetch Final Results
+                  </Button>
+                  <List>
+                    {evaluationResults && evaluationResults.length > 0 ? (
+                      evaluationResults.map((result, index) => (
+                        <ListItem key={index}>
+                          <ListItemText primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`} />
+                        </ListItem>
+                      ))
+                    ) : (
+                      <Typography>No final results available</Typography>
+                    )}
+                  </List>
+                </Box>
+              </>
+            )}
+
 
           <Divider />
           <Box sx={{ mt: 4 }}>
