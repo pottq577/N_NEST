@@ -13,7 +13,7 @@ import {
   Pagination
 } from '@mui/material'
 
-const categories = ['All', 'backend', 'frontend', 'security', 'network', 'cloud', 'others']
+const categories = ['All', 'frontend', 'backend', 'database', 'security', 'network', 'cloud', 'others']
 
 export default function QuestionListPage() {
   const [questions, setQuestions] = useState([])
@@ -41,6 +41,7 @@ export default function QuestionListPage() {
 
   const indexOfLastQuestion = currentPage * questionsPerPage
   const indexOfFirstQuestion = indexOfLastQuestion - questionsPerPage
+
   const currentQuestions = questions
     .filter(question => selectedCategory === 'All' || question.category === selectedCategory)
     .slice(indexOfFirstQuestion, indexOfLastQuestion)
@@ -54,13 +55,57 @@ export default function QuestionListPage() {
     setCurrentPage(value)
   }
 
+  const QuestionsList = ({ question }) => (
+    <Grid item xs={12} key={question.id}>
+      <Card>
+        <CardContent>
+          <Grid container>
+            <Grid
+              item
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                mr: 5
+              }}
+            >
+              <Typography variant='body2' color='textSecondary'>
+                {question.votes ? question.votes.length : 0} votes
+              </Typography>
+              <Typography variant='body2' color='textSecondary'>
+                {question.answers ? question.answers.length : 0} answers
+              </Typography>
+              <Typography variant='body2' color='textSecondary'>
+                {question.views ? question.views.length : 0} views
+              </Typography>
+            </Grid>
+            <Grid item xs={9}>
+              <Link href={`/question-detail/${question.id}`} passHref>
+                <Typography variant='h6' component='a' color='primary' gutterBottom>
+                  {question.title}
+                </Typography>
+              </Link>
+              <Typography variant='subtitle2' gutterBottom>
+                {question.description}
+              </Typography>
+              <Box display='flex' flexWrap='wrap' mt={2}>
+                <Chip label={question.category} color='primary' />
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    </Grid>
+  )
+
   return (
     <Container maxWidth='md' sx={{ mt: 4 }}>
       <Box display='flex' justifyContent='space-between' alignItems='center' mb={4}>
-        <Typography variant='h4'>All Questions</Typography>
+        <Typography variant='h4'>Q&A</Typography>
         <Link href='/question-ask' passHref>
           <Button variant='contained' color='primary'>
-            Ask Question
+            질문하기
           </Button>
         </Link>
       </Box>
@@ -82,34 +127,10 @@ export default function QuestionListPage() {
             <CircularProgress />
           </Grid>
         ) : currentQuestions.length > 0 ? (
-          currentQuestions.map(question => (
-            <Grid item xs={12} key={question.id}>
-              <Card>
-                <CardContent>
-                  <Link href={`/question-detail/${question.id}`} passHref>
-                    <Typography variant='h6' component='a' color='primary' gutterBottom>
-                      {question.title}
-                    </Typography>
-                  </Link>
-                  <Box display='flex' flexWrap='wrap' mt={2}>
-                    <Typography variant='body2' color='textSecondary' sx={{ marginRight: 2 }}>
-                      {question.votes} votes
-                    </Typography>
-                    <Typography variant='body2' color='textSecondary' sx={{ marginRight: 2 }}>
-                      {question.answers ? question.answers.length : 0} answers
-                    </Typography>
-                    <Typography variant='body2' color='textSecondary' sx={{ marginRight: 2 }}>
-                      {question.views} views
-                    </Typography>
-                    <Chip label={question.category} color='primary' />
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))
+          currentQuestions.map(question => <QuestionsList key={question.index} question={question} />)
         ) : (
-          <Grid item xs={12}>
-            <Typography>No questions found.</Typography>
+          <Grid item xs={12} display='flex' justifyContent='center' alignItems='center' minHeight='50vh'>
+            <Typography variant='h6'>질문이 없습니다.</Typography>
           </Grid>
         )}
       </Grid>

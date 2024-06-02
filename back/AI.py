@@ -58,9 +58,6 @@ async def summarize(request: SummarizeRequest):
     return {"summary": summary}
 
 
-
-
-
 genai.configure(api_key=GOOGLE_API_KEY)
 
 
@@ -115,11 +112,18 @@ def extract_section(content, start_pattern, end_pattern):
         return content[start.end():].strip()
     return ""
 
+def cleanup_text(text):
+    # 불필요한 문자를 제거하거나 대체하는 작업을 수행
+    # 예: * 문자를 제거
+    cleaned_text = text.replace('*', '').strip()
+    return cleaned_text
+
 @app.get("/summarize/Gen/{title}/{technologies}/{problem}")
 async def generate_content(
     title: str = Path(..., description="Title of the project"),
     technologies: str = Path(..., description="Technologies to be used"),
-    problem: str = Path(..., description="Problem that the project aims to solve")
+    problem: str = Path(...,
+                        description="Problem that the project aims to solve")
 ):
     model = genai.GenerativeModel('gemini-pro')
     prompt = (
@@ -132,11 +136,15 @@ async def generate_content(
     response = model.generate_content(prompt)
     generated_text = response.text
 
-    # 각 섹션 추출
-    project_title = extract_section(generated_text, "프로젝트 제목:", "추진 배경:")
-    background = extract_section(generated_text, "추진 배경:", "개발 내용:")
-    development_content = extract_section(generated_text, "개발 내용:", "기대 효과:")
-    expected_effects = extract_section(generated_text, "기대 효과:", "$")  # $는 텍스트 끝을 의미
+    # 각 섹션 추출 및 클린업
+    project_title = cleanup_text(extract_section(
+        generated_text, "프로젝트 제목:", "추진 배경:"))
+    background = cleanup_text(extract_section(
+        generated_text, "추진 배경:", "개발 내용:"))
+    development_content = cleanup_text(
+        extract_section(generated_text, "개발 내용:", "기대 효과:"))
+    expected_effects = cleanup_text(extract_section(
+        generated_text, "기대 효과:", "$"))  # $는 텍스트 끝을 의미
 
     return {
         "project_title": project_title,

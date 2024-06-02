@@ -14,7 +14,7 @@ import {
   Card,
   CardContent,
   Avatar,
-  IconButton
+  Divider
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import { useRouter } from 'next/router'
@@ -24,8 +24,11 @@ import SummarizeIcon from '@mui/icons-material/Summarize'
 import ImageIcon from '@mui/icons-material/Image'
 import InfoIcon from '@mui/icons-material/Info'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { Star, ForkRight, Visibility } from '@mui/icons-material'
+import AssignmentIcon from '@mui/icons-material/Assignment'
+import BackgroundIcon from '@mui/icons-material/Description'
+import TechnologyIcon from '@mui/icons-material/Build'
+import EffectIcon from '@mui/icons-material/EmojiEvents'
 
 const CustomPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -48,11 +51,11 @@ const StyledCard = styled(Card)(({ theme }) => ({
   alignItems: 'center',
   padding: theme.spacing(2),
   marginBottom: theme.spacing(2),
-  backgroundColor: '#f5f5f5',
+  backgroundColor: '#fff', // 하얀색으로 변경
   boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
   borderRadius: theme.shape.borderRadius,
   '&:hover': {
-    backgroundColor: '#e0e0e0'
+    backgroundColor: '#f0f0f0'
   }
 }))
 
@@ -81,7 +84,6 @@ function TabPanel(props) {
 }
 
 function RepositoryInfo({ courseInfo, studentId }) {
-  const [showMore, setShowMore] = useState(false)
   const router = useRouter()
   const query = router.query
 
@@ -93,7 +95,7 @@ function RepositoryInfo({ courseInfo, studentId }) {
 
   const RenderUserInfo = props => (
     <StyledCard>
-      <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{props.username?.charAt(0).toUpperCase()}</Avatar>
+      <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{props.username.charAt(0).toUpperCase()}</Avatar>
       <CardContent>
         <Typography variant='h6'>{props.username}</Typography>
         <Typography variant='body2' color='textSecondary'>
@@ -111,9 +113,13 @@ function RepositoryInfo({ courseInfo, studentId }) {
       <CardContent>
         <InfoRow
           label='과목'
-          value={`${courseInfo.name}-${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`}
+          value={
+            courseInfo.name
+              ? `${courseInfo.name} - ${courseInfo.professor} (${courseInfo.day} ${courseInfo.time})`
+              : 'None'
+          }
         />
-        <InfoRow label='과목코드' value={courseInfo.code} />
+        <InfoRow label='과목코드' value={courseInfo.code || 'None'} />
       </CardContent>
     </StyledCard>
   )
@@ -167,37 +173,20 @@ function RepositoryInfo({ courseInfo, studentId }) {
           <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
             {new Date(props.updatedAt).toLocaleDateString()}
           </Typography>
+          {props.license != 'No license' && (
+            <>
+              <Box sx={{ mx: 1 }} />
+              <Typography variant='subtitle2' component='span'>
+                {props.license}
+              </Typography>
+            </>
+          )}
         </Typography>
         <Typography variant='body2' sx={{ mb: 2 }}>
-          <Link href={props.htmlUrl} target='_blank' rel='noopener noreferrer' color='primary'>
+          <Link href={props.html_url} target='_blank' rel='noopener noreferrer' color='primary'>
             GitHub로 이동
           </Link>
         </Typography>
-        {showMore && (
-          <>
-            <Typography variant='body2' color='textSecondary' component='p'>
-              <strong>Contributors:</strong> {props.contributors || 'No contributors info'}
-            </Typography>
-            <Typography variant='body2' color='textSecondary' component='p'>
-              <strong>License:</strong> {props.license || 'No license'}
-            </Typography>
-            <Typography variant='body2' color='textSecondary' component='p'>
-              <strong>Forks:</strong> {props.forks}
-            </Typography>
-            <Typography variant='body2' color='textSecondary' component='p'>
-              <strong>Watchers:</strong> {props.watchers}
-            </Typography>
-            <Typography variant='body2' color='textSecondary' component='p'>
-              <strong>Default Branch:</strong> {props.defaultBranch}
-            </Typography>
-            <Typography variant='body2' color='textSecondary' component='p'>
-              <strong>Private:</strong> {props.isPrivate ? 'Yes' : 'No'}
-            </Typography>
-          </>
-        )}
-        <IconButton onClick={() => setShowMore(!showMore)}>
-          <ExpandMoreIcon />
-        </IconButton>
       </CardContent>
     </StyledCard>
   )
@@ -238,7 +227,7 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
   return (
     <form onSubmit={handleSubmit}>
       <CustomTextField
-        label='Project Title'
+        label='프로젝트 제목'
         fullWidth
         variant='outlined'
         value={projectInfo.projectTitle}
@@ -246,7 +235,7 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
         required
       />
       <CustomTextField
-        label='Technologies Used'
+        label='사용 기술'
         fullWidth
         variant='outlined'
         value={projectInfo.technologiesUsed}
@@ -254,7 +243,7 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
         required
       />
       <CustomTextField
-        label='Problem to Solve'
+        label='주요 해결 과제'
         fullWidth
         multiline
         minRows={4}
@@ -264,35 +253,54 @@ function CreateDocumentForm({ projectInfo, setProjectInfo, generateDoc, setGener
         required
       />
       <CustomButton
-        type='submit'
+        type='제출'
         variant='contained'
         color='primary'
         startIcon={isLoading ? <CircularProgress size={24} /> : <SummarizeIcon />}
       >
-        {isLoading ? 'Generating...' : 'Generate Summary'}
+        {isLoading ? '생성 중...' : '요약 생성'}
       </CustomButton>
       {error && <Typography color='error'>{error}</Typography>}
       {generateDoc.project_title && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant='h6'>Generated Summary:</Typography>
-          <Typography>
-            <strong>Project Title:</strong> {generateDoc.project_title}
-          </Typography>
-          <Typography>
-            <strong>Background:</strong> {generateDoc.background}
-          </Typography>
-          <Typography>
-            <strong>Development Content:</strong> {generateDoc.development_content}
-          </Typography>
-          <Typography>
-            <strong>Expected Effects:</strong> {generateDoc.expected_effects}
-          </Typography>
+          <Card variant='outlined'>
+            <CardContent>
+              <Typography variant='h6' gutterBottom>
+                <AssignmentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                자동 생성된 요약 정보
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <BackgroundIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>프로젝트 제목: </strong> {generateDoc.project_title}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <BackgroundIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>프로젝트 목적: </strong> {generateDoc.background}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <TechnologyIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>사용 기술: </strong> {generateDoc.development_content}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <EffectIcon sx={{ mr: 1, color: 'primary.main' }} />
+                <Typography variant='body1'>
+                  <strong>기대 효과: </strong> {generateDoc.expected_effects}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
         </Box>
       )}
     </form>
   )
 }
-
 function SummaryAndImage({
   generateDoc,
   setGenerate,
@@ -300,12 +308,13 @@ function SummaryAndImage({
   setCombinedSummary,
   image,
   setImage,
-  handleSaveDocument
+  handleSaveDocument,
+  previewImages,
+  setPreviewImages
 }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [progress, setProgress] = useState(0)
-  const [previewImages, setPreviewImages] = useState([])
 
   const handleSummarizeAndGenerateImage = async () => {
     setIsLoading(true)
@@ -336,6 +345,7 @@ function SummaryAndImage({
           request.then(response => {
             completedRequests += 1
             setProgress(Math.floor((completedRequests / totalRequests) * 100))
+
             return response
           })
         )
@@ -376,33 +386,57 @@ function SummaryAndImage({
 
   return (
     <CustomPaper>
-      <Typography variant='h6'>Original Content and Summaries:</Typography>
-      <Typography>
-        <strong>Project Title:</strong> {generateDoc.project_title}
-      </Typography>
-      <Typography>
-        <strong>Background:</strong> {generateDoc.background}
-      </Typography>
-      <Typography>
-        <strong>Development Content:</strong> {generateDoc.development_content}
-      </Typography>
-      <Typography>
-        <strong>Expected Effects:</strong> {generateDoc.expected_effects}
-      </Typography>
+      <Card variant='outlined'>
+        <CardContent>
+          <Typography variant='h5' gutterBottom sx={{ fontWeight: '600' }}>
+            <AssignmentIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+            생성된 문서 정보
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <AssignmentIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>프로젝트 제목: </strong> {generateDoc.project_title}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <BackgroundIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>프로젝트 목적: </strong> {generateDoc.background}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <TechnologyIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>사용 기술: </strong> {generateDoc.development_content}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <EffectIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant='body1'>
+              <strong>기대 효과: </strong> {generateDoc.expected_effects}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
       <CustomButton onClick={handleSummarizeAndGenerateImage} disabled={isLoading} startIcon={<ImageIcon />}>
-        {isLoading ? <CircularProgress size={24} /> : 'Summarize and Generate Image'}
+        {isLoading ? <CircularProgress size={24} /> : '요약 작성 & 이미지 생성'}
       </CustomButton>
       {isLoading && <LinearProgress variant='determinate' value={progress} />}
       {error && <Typography color='error'>{error}</Typography>}
       {combinedSummary && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant='h6'>Combined Summary:</Typography>
+          <Typography variant='h5' gutterBottom sx={{ fontWeight: '600', color: '#0072E5' }}>
+            요약
+          </Typography>
           <Typography>{combinedSummary}</Typography>
         </Box>
       )}
       {image && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant='h6'>Generated Image:</Typography>
+          <Typography variant='h5' gutterBottom sx={{ fontWeight: '600', color: '#0072E5' }}>
+            생성된 이미지
+          </Typography>
           <img src={image} alt='Generated' style={{ maxWidth: '100%', height: 'auto' }} />
         </Box>
       )}
@@ -416,13 +450,15 @@ function SummaryAndImage({
         />
         <label htmlFor='image-upload'>
           <CustomButton component='span' startIcon={<AddPhotoAlternateIcon />}>
-            Add Image
+            이미지 추가하기
           </CustomButton>
         </label>
       </Box>
       {previewImages.length > 0 && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant='h6'>Additional Images:</Typography>
+          <Typography variant='h5' gutterBottom sx={{ fontWeight: '600', color: '#0072E5' }}>
+            추가된 이미지
+          </Typography>
           {previewImages.map((img, index) => (
             <img
               key={index}
@@ -434,7 +470,7 @@ function SummaryAndImage({
         </Box>
       )}
       <CustomButton onClick={handleSaveDocument} startIcon={<SaveIcon />}>
-        Save Document
+        저장
       </CustomButton>
     </CustomPaper>
   )
@@ -442,6 +478,7 @@ function SummaryAndImage({
 
 export default function ProjectGenerator() {
   const [tabIndex, setTabIndex] = useState(0)
+
   const [projectInfo, setProjectInfo] = useState({
     projectTitle: '',
     technologiesUsed: '',
@@ -470,6 +507,7 @@ export default function ProjectGenerator() {
   const fetchCourseInfo = async courseCode => {
     if (!courseCode || courseCode === 'None') {
       setCourseInfo({})
+
       return
     }
     try {
@@ -509,6 +547,7 @@ export default function ProjectGenerator() {
       !generateDoc.expected_effects
     ) {
       alert('Extracted text is required to save the document.')
+
       return
     }
 
@@ -543,6 +582,9 @@ export default function ProjectGenerator() {
       comments: []
     }
 
+    // 전송할 데이터 구조 확인
+    console.log('Project data to be saved:', projectData)
+
     try {
       const response = await axios.post('http://127.0.0.1:8000/save-project/', projectData, {
         headers: {
@@ -562,9 +604,9 @@ export default function ProjectGenerator() {
   return (
     <Container maxWidth='md'>
       <Tabs value={tabIndex} onChange={handleTabChange} aria-label='project tabs'>
-        <Tab label='Repository Info' icon={<InfoIcon />} />
-        <Tab label='Create Document' icon={<SummarizeIcon />} />
-        <Tab label='Summary and Image' icon={<ImageIcon />} />
+        <Tab label='저장소 정보' icon={<InfoIcon />} />
+        <Tab label='문서 생성하기' icon={<SummarizeIcon />} />
+        <Tab label='요약&이미지 생성' icon={<ImageIcon />} />
       </Tabs>
       <TabPanel value={tabIndex} index={0}>
         <RepositoryInfo courseInfo={courseInfo} studentId={studentId} />
@@ -586,6 +628,8 @@ export default function ProjectGenerator() {
           image={image}
           setImage={setImage}
           handleSaveDocument={handleSaveDocument}
+          previewImages={previewImages} // Add this line to pass previewImages as props
+          setPreviewImages={setPreviewImages} // Add this line to pass setPreviewImages as props
         />
       </TabPanel>
     </Container>

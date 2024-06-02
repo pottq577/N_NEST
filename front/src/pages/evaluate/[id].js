@@ -17,6 +17,64 @@ import {
 } from '@mui/material'
 import { styled } from '@mui/system'
 import Rating from 'react-rating-stars-component'
+import { Star, ForkRight, Visibility } from '@mui/icons-material'
+
+const languageColors = {
+  JavaScript: '#f1e05a',
+  Python: '#3572A5',
+  Java: '#b07219',
+  HTML: '#e34c26',
+  CSS: '#563d7c'
+}
+
+const parseText = text => {
+  const sections = text.split(', ').map(section => {
+    const [title, content] = section.split(': ** ')
+
+    // ** 로 끝나는 부분 제거하고, 줄바꿈 문자를 기준으로 분리한 후 불필요한 * 제거
+    const cleanedContent = content
+      ?.trim()
+      .replace(/\*\*$/, '')
+      .split('\n')
+      .map(line => line.replace(/^\*|\*$/g, '').trim())
+      .join('\n')
+
+    return { title: title.trim(), content: cleanedContent }
+  })
+
+  return sections
+}
+
+const TextExtractedCard = ({ project }) => {
+  const sections = parseText(project.text_extracted)
+
+  return (
+    <CustomCard variant='outlined' sx={{ mt: 4 }}>
+      <CardContent>
+        <CustomTypography variant='h6' gutterBottom>
+          텍스트 추출
+        </CustomTypography>
+        {sections.map((section, index) => (
+          <div key={index}>
+            <Typography variant='h6' gutterBottom>
+              {section.title}
+            </Typography>
+            <Typography variant='body1' gutterBottom>
+              {section.content
+                ? section.content.split('\n').map((line, idx) => (
+                    <span key={idx}>
+                      {line}
+                      <br />
+                    </span>
+                  ))
+                : null}
+            </Typography>
+          </div>
+        ))}
+      </CardContent>
+    </CustomCard>
+  )
+}
 
 const CustomCard = styled(Card)(({ theme }) => ({
   transition: 'transform 0.2s',
@@ -66,6 +124,7 @@ function ProjectDetails() {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)
           }
+
           return response.json()
         })
         .then(data => {
@@ -103,6 +162,7 @@ function ProjectDetails() {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
+
         return response.json()
       })
       .then(data => {
@@ -248,86 +308,114 @@ function ProjectDetails() {
     )
   }
 
+  const RenderRepoDetail = ({ repo }) => (
+    <Paper sx={{ p: 5 }}>
+      <Typography variant='h6' component='div' sx={{ mb: 2, fontWeight: '600', color: '#0072E5' }}>
+        {repo.name}
+      </Typography>
+      <Typography variant='body2' color='textSecondary' component='p' sx={{ mb: 2 }}>
+        {repo.description || 'No description'}
+      </Typography>
+      <Typography
+        variant='body2'
+        color='textSecondary'
+        component='p'
+        sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', mb: 2 }}
+      >
+        {/* 언어 아이콘 Box */}
+        <Box
+          sx={{
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            backgroundColor: languageColors[repo.language] || '#000',
+            display: 'inline-block',
+            mr: 1
+          }}
+        />
+        <Typography variant='subtitle2' component='span'>
+          {repo.language || 'No info'}
+        </Typography>
+        {renderRepoDetailIcons('Stars', <Star sx={{ verticalAlign: 'middle' }} />, repo.stargazers_count)}
+        {renderRepoDetailIcons('Forks', <ForkRight sx={{ verticalAlign: 'middle' }} />, repo.forks_count)}
+        {renderRepoDetailIcons('Watchers', <Visibility sx={{ verticalAlign: 'middle' }} />, repo.watchers_count)}
+        <Box sx={{ mx: 1 }} />
+
+        {repo.license && (
+          <>
+            <Box sx={{ mx: 1 }} />
+            <Typography variant='subtitle2' component='span'>
+              {repo.license.name}
+            </Typography>
+          </>
+        )}
+        <Box sx={{ mx: 2 }} />
+        <Typography variant='subtitle2' component='span'>
+          Updated
+        </Typography>
+        <Typography variant='subtitle2' component='span' sx={{ ml: 2 }}>
+          {new Date(repo.updated_at).toLocaleDateString()}
+        </Typography>
+      </Typography>
+      <Typography variant='body2' sx={{ mb: 2 }}>
+        <Link href={repo.repository_url} target='_blank' rel='noopener noreferrer' color='primary'>
+          GitHub로 이동
+        </Link>
+      </Typography>
+    </Paper>
+  )
+
+  const renderRepoDetailIcons = (label, icon, value) =>
+    value > 0 && (
+      <>
+        <Box sx={{ mx: 1 }} />
+        {icon}
+        <Typography variant='subtitle2' component='span' sx={{ ml: 0.5 }}>
+          {value}
+        </Typography>
+      </>
+    )
+
   return (
     <Container maxWidth='lg' sx={{ mt: 4 }}>
       {project && (
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
+            {/* 프로젝트 정보 */}
             <CustomCard variant='outlined'>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
-                  Repository Information
+                  프로젝트 정보
                 </CustomTypography>
                 <Typography variant='body1' gutterBottom>
-                  <strong>Student ID:</strong> {project.student_id}
+                  <strong>학번:</strong> {project.student_id}
                 </Typography>
                 <Typography variant='body1' gutterBottom>
-                  <strong>Course Code:</strong> {project.course_code}
+                  <strong>과목:</strong> {project.course} - {project.course_code}
                 </Typography>
                 <Typography variant='body1' gutterBottom>
-                  <strong>Course:</strong> {project.course}
+                  <strong>조회수:</strong> {project.views ?? 0} {/* 기본값 설정 */}
                 </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Description:</strong> {project.description}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Language:</strong> {project.language}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Stars:</strong> {project.stars}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Last Updated:</strong> {new Date(project.updated_at).toLocaleDateString()}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>License:</strong> {project.license}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Forks:</strong> {project.forks}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Watchers:</strong> {project.watchers}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Contributors:</strong> {project.contributors}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Private:</strong> {project.is_private ? 'Yes' : 'No'}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Default Branch:</strong> {project.default_branch}
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Repository URL:</strong>{' '}
-                  <Link href={project.repository_url} target='_blank' rel='noopener noreferrer'>
-                    {project.repository_url}
-                  </Link>
-                </Typography>
-                <Typography variant='body1' gutterBottom>
-                  <strong>Views:</strong> {project.views ?? 0} {/* 기본값 설정 */}
-                </Typography>
+                <RenderRepoDetail repo={project} />
               </CardContent>
             </CustomCard>
+
+            {/* 요약 정보 */}
             <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
-                  Summary Information
+                  요약 정보
                 </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   {project.summary}
                 </Typography>
               </CardContent>
             </CustomCard>
-            <CustomCard variant='outlined' sx={{ mt: 4 }}>
-              <CardContent>
-                <CustomTypography variant='h6' gutterBottom>
-                  Text Extracted
-                </CustomTypography>
-                <Typography variant='body1' gutterBottom>
-                  {project.text_extracted}
-                </Typography>
-              </CardContent>
-            </CustomCard>
+
+            {/* 텍스트 추출 */}
+            <TextExtractedCard project={project} />
+
+            {/* 프로젝트 이미지 */}
             <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardMedia
                 component='img'
@@ -336,6 +424,8 @@ function ProjectDetails() {
                 style={{ width: '100%', maxWidth: '66%', height: 'auto', margin: '0 auto', borderRadius: '8px' }}
               />
             </CustomCard>
+
+            {/* 댓글 */}
             <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
@@ -365,6 +455,8 @@ function ProjectDetails() {
               </CardContent>
             </CustomCard>
           </Grid>
+
+          {/* 다이나믹 프롬프팅 */}
           <Grid item xs={12} md={4}>
             <Paper elevation={3} sx={{ position: 'sticky', top: 16, p: 2 }}>
               <Typography variant='h5' gutterBottom>
