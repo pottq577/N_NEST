@@ -8,23 +8,23 @@ import Button from '@mui/material/Button'
 import Container from '@mui/material/Container'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
-
 import { styled } from '@mui/material/styles'
-
 import EditIcon from '@mui/icons-material/Edit'
 import IconButton from '@mui/material/IconButton'
 import DeleteIcon from '@mui/icons-material/Delete'
-
 import TeamInputField from '../TeamInputField'
 
 const ImgStyled = styled('img')(({ theme }) => ({
   width: 150,
   height: 150,
-  border: '10'
+  borderRadius: '50%', // 사진을 원형으로 만들기
+  border: '2px solid #ddd',
+  margin: theme.spacing(2)
 }))
 
 const MakeTeam = () => {
   const [teamData, setTeamData] = useState([])
+  const [snackbarOpen, setSnackbarOpen] = useState(false)
   const router = useRouter()
   const defaultImg = '/images/cards/logo-bitbank.png'
   const [imgSrc, setImgSrc] = useState(defaultImg)
@@ -53,7 +53,7 @@ const MakeTeam = () => {
     <Box
       sx={{
         display: 'flex',
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center'
       }}
     >
@@ -65,12 +65,14 @@ const MakeTeam = () => {
         ref={fileInputRef}
         accept='image/*' // 파일 선택기에 이미지만 표시
       />
-      <IconButton id='edit' color='primary' aria-label='edit profile' onClick={onImgEditClick}>
-        <EditIcon />
-      </IconButton>
-      <IconButton id='edit' color='primary' aria-label='edit profile' onClick={onImgDeleteClick}>
-        <DeleteIcon />
-      </IconButton>
+      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+        <IconButton color='primary' aria-label='edit profile' onClick={onImgEditClick}>
+          <EditIcon />
+        </IconButton>
+        <IconButton color='secondary' aria-label='delete profile' onClick={onImgDeleteClick}>
+          <DeleteIcon />
+        </IconButton>
+      </Box>
     </Box>
   )
 
@@ -103,11 +105,13 @@ const MakeTeam = () => {
 
   return (
     <Container>
-      <Typography variant='h4'>팀 만들기</Typography>
-      <Paper component='form' onSubmit={handleSubmit} elevation={0} sx={{ p: 3, bgcolor: 'inherit' }}>
+      <Typography variant='h4' gutterBottom>
+        팀 만들기
+      </Typography>
+      <Paper component='form' onSubmit={handleSubmit} elevation={3} sx={{ p: 3 }}>
         <Grid container spacing={2}>
           <Grid item xs={12} md={7}>
-            <Card sx={{ bgcolor: 'inherit', boxShadow: 'none' }}>
+            <Card>
               <CardContent>
                 <TeamInputField teamData={teamData} setTeamData={setTeamData} />
               </CardContent>
@@ -115,7 +119,7 @@ const MakeTeam = () => {
           </Grid>
           <Grid item xs={12} md={5}>
             <ProjectImg />
-            <Button type='submit' variant='contained' color='primary' sx={{ mt: 5 }}>
+            <Button type='submit' variant='contained' color='primary' sx={{ mt: 2, width: '100%' }}>
               팀 생성하기
             </Button>
           </Grid>

@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { setHours, setMinutes, format, isBefore, isAfter, parseISO } from 'date-fns';
 import { Container, TextField, MenuItem, Button, Typography, Grid, Box, Checkbox, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Tabs, Tab } from '@mui/material';
 import { auth } from '../../../lib/firebase';
+import { setHours, setMinutes, format, isBefore, isAfter, parseISO } from 'date-fns';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const timeIntervals = [15, 30, 45, 60];
 
+const defaultWeeklySchedule = daysOfWeek.reduce((schedule, day) => {
+  schedule[day] = {
+    start: null,
+    end: null,
+    interval: 30,
+    maxCapacity: 1
+  };
+  return schedule;
+}, {});
+
 const AvailabilitySettings = () => {
-  const [userId, setUserId] = useState('');
-  const [weeklySchedule, setWeeklySchedule] = useState(null);
+  const [userEmail, setUserEmail] = useState('');
+  const [weeklySchedule, setWeeklySchedule] = useState(defaultWeeklySchedule);
   const [unavailableTimes, setUnavailableTimes] = useState([]);
   const [tabValue, setTabValue] = useState(0);
   const [reservations, setReservations] = useState([]);
@@ -17,11 +27,11 @@ const AvailabilitySettings = () => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
-        setUserId(user.uid);
-        fetchData(user.uid);
-        fetchReservations(user.uid);
+        setUserEmail(user.email);
+        fetchData(user.email);
+        fetchReservations(user.email);
       } else {
-        setUserId('');
+        setUserEmail('');
         console.error('No user is signed in');
       }
     });
@@ -29,22 +39,25 @@ const AvailabilitySettings = () => {
     return () => unsubscribe();
   }, []);
 
-  const fetchData = async (userId) => {
+  const fetchData = async (email) => {
     try {
-      const response = await axios.get('http://localhost:8000/availability/user', { params: { userId } });
-      setWeeklySchedule(response.data.weeklySchedule);
-      setUnavailableTimes(response.data.unavailableTimes);
+      const response = await axios.get('http://localhost:8000/availability/userp', { params: { email } });
+      if (response.data && response.data.weeklySchedule) {
+        setWeeklySchedule(response.data.weeklySchedule);
+      } else {
+        setWeeklySchedule(defaultWeeklySchedule);
+      }
+      setUnavailableTimes(response.data.unavailableTimes || []);
     } catch (error) {
       console.error('Error fetching availability:', error);
       alert('Error fetching availability: ' + (error.response?.data?.detail || 'Unknown error'));
     }
   };
 
-  const fetchReservations = async (userId) => {
+  const fetchReservations = async (email) => {
     try {
-      const response = await axios.get('http://localhost:8000/reservations/');
-      const userReservations = response.data.filter(reservation => reservation.userId === userId && isAfter(parseISO(`${reservation.date}T${reservation.time}`), new Date()));
-      setReservations(userReservations);
+      const response = await axios.get('http://localhost:8000/reservations/', { params: { email } });
+      setReservations(response.data);
     } catch (error) {
       console.error('Error fetching reservations:', error);
       alert('Error fetching reservations: ' + (error.response?.data?.detail || 'Unknown error'));
@@ -87,7 +100,7 @@ const AvailabilitySettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const availabilityData = {
-      userId,
+      email: userEmail,
       weeklySchedule,
       unavailableTimes
     };
@@ -133,7 +146,7 @@ const AvailabilitySettings = () => {
       {tabValue === 0 && (
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
-            {weeklySchedule && daysOfWeek.map(day => (
+            {daysOfWeek.map(day => (
               <Grid item xs={12} sm={6} md={4} key={day}>
                 <Typography variant="h6">{day}</Typography>
                 <TextField
@@ -241,7 +254,7 @@ const AvailabilitySettings = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {weeklySchedule && generateTimeSlots('00:00', '23:45', timeIntervals[0]).map(time => (
+                {generateTimeSlots('00:00', '23:45', timeIntervals[0]).map(time => (
                   <TableRow key={time}>
                     <TableCell>{time}</TableCell>
                     {daysOfWeek.map(day => (

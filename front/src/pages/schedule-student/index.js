@@ -6,8 +6,8 @@ import { Container, TextField, MenuItem, Button, Typography, Box } from '@mui/ma
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const ReservationPage = () => {
-  const [users, setUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState('');
+  const [professors, setProfessors] = useState([]);
+  const [selectedProfessor, setSelectedProfessor] = useState(null);
   const [weeklySchedule, setWeeklySchedule] = useState({});
   const [unavailableTimes, setUnavailableTimes] = useState([]);
   const [reservations, setReservations] = useState([]);
@@ -16,24 +16,25 @@ const ReservationPage = () => {
   const [selectedTime, setSelectedTime] = useState('');
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchProfessors = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/availability/');
-        setUsers(response.data.map(item => item.userId));
+        const response = await axios.get('http://localhost:8000/api/professors/available');
+        console.log(response.data);  // 로깅 추가
+        setProfessors(response.data);
       } catch (error) {
-        console.error('Error fetching users:', error);
-        alert('Error fetching users: ' + (error.response?.data?.detail || 'Unknown error'));
+        console.error('Error fetching professors:', error);
+        alert('Error fetching professors: ' + (error.response?.data?.detail || 'Unknown error'));
       }
     };
 
-    fetchUsers();
+    fetchProfessors();
   }, []);
 
   useEffect(() => {
-    if (selectedUser) {
+    if (selectedProfessor) {
       const fetchData = async () => {
         try {
-          const availabilityResponse = await axios.get('http://localhost:8000/availability/user', { params: { userId: selectedUser } });
+          const availabilityResponse = await axios.get('http://localhost:8000/availability/user', { params: { userId: selectedProfessor.professor_id } });
           setWeeklySchedule(availabilityResponse.data.weeklySchedule);
           setUnavailableTimes(availabilityResponse.data.unavailableTimes);
 
@@ -47,10 +48,10 @@ const ReservationPage = () => {
 
       fetchData();
     }
-  }, [selectedUser]);
+  }, [selectedProfessor]);
 
   const handleReservation = async () => {
-    if (!studentName || !selectedDate || !selectedTime || !selectedUser) {
+    if (!studentName || !selectedDate || !selectedTime || !selectedProfessor) {
       alert('Please fill in all fields');
       return;
     }
@@ -58,7 +59,7 @@ const ReservationPage = () => {
     const selectedDay = daysOfWeek[getDay(new Date(selectedDate))];
     const reservationData = {
       studentName,
-      userId: selectedUser,
+      userId: selectedProfessor.professor_id,
       day: selectedDay,
       date: selectedDate,
       time: selectedTime
@@ -111,15 +112,15 @@ const ReservationPage = () => {
       <Box>
         <TextField
           select
-          label="Select User"
-          value={selectedUser}
-          onChange={e => setSelectedUser(e.target.value)}
+          label="Select Professor"
+          value={selectedProfessor ? selectedProfessor.professor_id : ''}
+          onChange={e => setSelectedProfessor(professors.find(prof => prof.professor_id === e.target.value))}
           fullWidth
           variant="outlined"
           margin="normal"
         >
-          {users.map(userId => (
-            <MenuItem key={userId} value={userId}>{userId}</MenuItem>
+          {professors.map(prof => (
+            <MenuItem key={prof.professor_id} value={prof.professor_id}>{prof.name}</MenuItem>
           ))}
         </TextField>
         <TextField

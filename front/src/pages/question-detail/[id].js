@@ -263,13 +263,13 @@ export default function QuestionDetailPage() {
             onChange={(e) => setAnswerText(e.target.value)}
           ></textarea>
           <button style={styles.commentButton} onClick={handleAnswerSubmit}>
-            Save Answer
+            답변 저장
           </button>
         </div>
       )}
 
       <div style={styles.card}>
-        <h2>General Answers:</h2>
+        <h2>일반 답변:</h2>
         {questionDetails.generalAnswers && questionDetails.generalAnswers.length > 0 ? (
           questionDetails.generalAnswers.map((answer, index) => (
             <div key={index} style={styles.answerCard}>
@@ -289,7 +289,7 @@ export default function QuestionDetailPage() {
             </div>
           ))
         ) : (
-          <p>No general answers yet.</p>
+          <p>아직 답변이 없습니다.</p>
         )}
 
       </div>
@@ -301,7 +301,7 @@ export default function QuestionDetailPage() {
           onChange={(e) => setGeneralAnswerText(e.target.value)}
         ></textarea>
         <button style={styles.button} onClick={handleGeneralAnswerSubmit}>
-          Post Your General Answer
+          일반 답변 작성
         </button>
       </div>
     </div>

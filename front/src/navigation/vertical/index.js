@@ -13,7 +13,8 @@ import ClipboardListOutline from 'mdi-material-ui/ClipboardListOutline'
 import HelpCircleOutline from 'mdi-material-ui/HelpCircleOutline'
 import ShieldAccountOutline from 'mdi-material-ui/ShieldAccountOutline'
 import GroupIcon from '@mui/icons-material/Group';
-
+import CodeIcon from '@mui/icons-material/Code' // Importing the Code icon
+import CreateIcon from '@mui/icons-material/Create' // Importing the Create icon
 const navigation = () => {
   return [
     // {
@@ -31,11 +32,11 @@ const navigation = () => {
       icon: HomeOutline,
       path: '/summary2'
     }, */
-    {
-      title: 'Professor',
-      icon: HomeOutline,
-      path: '/summaryprofessor'
-    },
+    // {
+    //   title: 'Professor',
+    //   icon: HomeOutline,
+    //   path: '/summaryprofessor'
+    // },
     {
       title: 'Project List',
       icon: ClipboardListOutline,
@@ -64,24 +65,24 @@ const navigation = () => {
     // },
     {
       title: '코딩테스트 생성',
-      icon: HelpCircleOutline,
+      icon: CreateIcon,
       path: '/code-test-create'
     },
     {
       title: '코딩테스트',
-      icon: HelpCircleOutline,
+      icon: CodeIcon,
       path: '/code-test-list'
     },
-    {
-      title: '일정 생성',
-      icon: HelpCircleOutline,
-      path: '/schedule-professor'
-    },
-    {
-      title: '예약',
-      icon: HelpCircleOutline,
-      path: '/schedule-student'
-    },
+    // {
+    //   title: '일정 생성',
+    //   icon: HelpCircleOutline,
+    //   path: '/schedule-professor'
+    // },
+    // {
+    //   title: '예약',
+    //   icon: HelpCircleOutline,
+    //   path: '/schedule-student'
+    // },
     {
       title: '팀원 모집',
       icon: GroupIcon,

@@ -80,6 +80,8 @@ submissions_collection = db['submissions']
 evaluation_assignment_collection = db["evaluation_assignments"]
 evaluation_result_collection = db['EvaluationResult']
 professor_collection = db['Professor']
+availability_collection = db['availability']
+reservations_collection = db['reservations']
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -1159,7 +1161,7 @@ class Schedule(BaseModel):
     maxCapacity: int = 1
 
 class AvailabilityData(BaseModel):
-    userId: str
+    email: EmailStr
     weeklySchedule: dict = Field(default_factory=dict)
     unavailableTimes: List[TimeSlot] = Field(default_factory=list)
 
@@ -1170,39 +1172,63 @@ class ReservationData(BaseModel):
     date: str
     time: str
 
+async def get_professor_id_by_email(email: str) -> Optional[str]:
+    professor = await professor_collection.find_one({"email": email})
+    if professor:
+        return professor.get("professor_id")
+    return None
+
+async def get_course_by_professor_id(professor_id: str):
+    course = await course_collection.find_one({"professor_id": professor_id})
+    if course:
+        return course.get("professor")
+    return None
+
 @app.post("/availability/")
 async def save_availability(data: AvailabilityData):
     try:
-        existing_data = await db.availability.find_one({"userId": data.userId})
-        if existing_data:
-            await db.availability.update_one({"userId": data.userId}, {"$set": data.dict()})
-        else:
-            await db.availability.insert_one(data.dict())
-        return {"message": "Availability settings saved successfully!"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        professor_id = await get_professor_id_by_email(data.email)
+        if not professor_id:
+            raise HTTPException(status_code=404, detail="Professor not found")
+        
+        course = await get_course_by_professor_id(professor_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
 
-@app.get("/availability/", response_model=List[AvailabilityData])
-async def get_all_availability():
-    try:
-        data = await db.availability.find().to_list(None)
-        if data:
-            return [AvailabilityData(**item) for item in data]
+        data_dict = data.dict()
+        data_dict["userId"] = professor_id
+        existing_data = await availability_collection.find_one({"userId": professor_id})
+        if existing_data:
+            await availability_collection.update_one({"userId": professor_id}, {"$set": data_dict})
         else:
-            raise HTTPException(status_code=404, detail="No availability settings found.")
+            await availability_collection.insert_one(data_dict)
+        return {"message": "Availability settings saved successfully!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/availability/user", response_model=AvailabilityData)
 async def get_availability(userId: str = Query(...)):
     try:
-        data = await db.availability.find_one({"userId": userId})
+        data = await availability_collection.find_one({"userId": userId})
         if data:
             return AvailabilityData(**data)
         else:
             raise HTTPException(status_code=404, detail="No availability settings found.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/availability/userp", response_model=AvailabilityData)
+async def get_availability(email: str = Query(...)):
+    try:
+        data = await db.availability.find_one({"email": email})
+        if data:
+            return AvailabilityData(**data)
+        else:
+            raise HTTPException(status_code=404, detail="No availability settings found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 @app.get("/reservations/")
 async def get_reservations():
@@ -1213,6 +1239,7 @@ async def get_reservations():
         return reservations
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/reservation/")
 async def make_reservation(data: ReservationData):
@@ -1239,7 +1266,49 @@ async def make_reservation(data: ReservationData):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/professors")
+async def get_professors():
+    professors = []
+    async for professor in professor_collection.find():
+        professor_id = professor.get("professor_id")
+        
+        # course 컬렉션에서 해당 교수 ID로 교수 이름을 조회합니다.
+        course = await course_collection.find_one({"professor_id": professor_id})
+        if not course:
+            professor_name = "No Name Available"
+        else:
+            professor_name = course.get("professor", "No Name Available")
 
+        professor_data = {
+            "professor_id": professor_id,
+            "email": professor.get("email"),
+            "name": professor_name
+        }
+        professors.append(professor_data)
+    print(professors)  # 로깅 추가
+    return professors
+
+@app.get("/api/professors/available")
+async def get_available_professors():
+    professors = []
+    async for availability in availability_collection.find():
+        professor_id = availability.get("userId")
+        
+        professor = await professor_collection.find_one({"professor_id": professor_id})
+        if not professor:
+            continue
+        
+        course = await course_collection.find_one({"professor_id": professor_id})
+        professor_name = course.get("professor", "No Name Available") if course else "No Name Available"
+
+        professor_data = {
+            "professor_id": professor_id,
+            "email": professor.get("email"),
+            "name": professor_name
+        }
+        professors.append(professor_data)
+    print(professors)  # 로깅 추가
+    return professors
 
 
 # Pydantic 모델 정의

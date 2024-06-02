@@ -1,11 +1,26 @@
 import React, { useState, useEffect } from 'react'
-import { Container, Grid, Card, CardMedia, CardContent, Typography, CircularProgress, Box } from '@mui/material'
+import {
+  Container,
+  Grid,
+  Card,
+  CardMedia,
+  CardContent,
+  Typography,
+  CircularProgress,
+  Box,
+  CardActions,
+  Button,
+  Avatar
+} from '@mui/material'
 import { useRouter } from 'next/router'
+import { getAuth, onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../../../lib/firebase'
 
 function Projects() {
   const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [userProfilePic, setUserProfilePic] = useState(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -21,6 +36,18 @@ function Projects() {
       })
   }, [])
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      if (user) {
+        setUserProfilePic(user.photoURL)
+      } else {
+        setUserProfilePic(null)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [])
+
   if (error) {
     return (
       <Container>
@@ -31,7 +58,7 @@ function Projects() {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
       </Box>
     )
@@ -42,26 +69,44 @@ function Projects() {
   }
 
   return (
-    <Container maxWidth='lg'>
+    <Container maxWidth='lg' sx={{ mt: 4 }}>
       <Grid container spacing={4}>
         {projects.map(project => (
           <Grid item key={project._id} xs={12} sm={6} md={4}>
-            <Card onClick={() => handleCardClick(project)}>
-              <CardMedia component='img' height='140' image={project.generated_image_url} alt='Project Image' />
-              <CardContent>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
+              <CardMedia
+                component='img'
+                height='200'
+                image={project.generated_image_url}
+                alt='Project Image'
+                sx={{ objectFit: 'cover' }}
+              />
+              <CardContent sx={{ flexGrow: 1 }}>
                 <Typography gutterBottom variant='h5' component='div'>
                   {project.project_name}
                 </Typography>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography variant='body2' color='text.secondary' paragraph>
                   {project.summary}
                 </Typography>
-                <Typography variant='body2' color='text.secondary'>
-                  By: {project.username}
-                </Typography>
-                <Typography variant='body2' color='text.secondary'>
-                  Views: {project.views ?? 0} {/* 기본값 설정 */}
-                </Typography>
               </CardContent>
+              <Box sx={{ px: 2, pb: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar alt={project.username} src={userProfilePic} sx={{ mr: 2 }} />
+                    <Typography variant='body2' color='text.secondary'>
+                      By: {project.username}
+                    </Typography>
+                  </Box>
+                  <Typography variant='body2' color='text.secondary' sx={{ mr: 2 }}>
+                    Views: {project.views ?? 0}
+                  </Typography>
+                </Box>
+              </Box>
+              <CardActions sx={{ justifyContent: 'flex-start', pl: 2 }}>
+                <Button size='small' color='primary' onClick={() => handleCardClick(project)}>
+                  Learn More
+                </Button>
+              </CardActions>
             </Card>
           </Grid>
         ))}

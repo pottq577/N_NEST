@@ -32,6 +32,9 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import AddIcon from '@mui/icons-material/Add';
 import { auth } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+
 
 const CustomCard = styled(Card)(({ theme }) => ({
   transition: 'transform 0.2s',
@@ -71,6 +74,12 @@ const CourseDetail = () => {
   const [evaluations, setEvaluations] = useState({});
   const [userRole, setUserRole] = useState('');
   const [evaluationStarted, setEvaluationStarted] = useState(false);
+
+  const [isListOpen, setIsListOpen] = useState(true)
+
+  const handleToggleList = () => {
+    setIsListOpen(!isListOpen)
+  }
 
   useEffect(() => {
     if (code) {
@@ -378,17 +387,22 @@ const CourseDetail = () => {
           </Box>
           <Divider />
           <Box sx={{ mt: 4, mb: 4 }}>
-            <Typography variant='h5' component='h2' gutterBottom>
-              수강 학생 명단
-            </Typography>
-            <List>
-              {courseData.students.map((student, index) => (
-                <ListItem key={index} sx={{ padding: 1 }}>
-                  <CustomAvatar sx={{ marginRight: 2 }}>{student.name.charAt(0)}</CustomAvatar>
-                  <Typography variant='body1'>{student.name}</Typography>
-                </ListItem>
-              ))}
-            </List>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Typography variant='h5' component='h2' gutterBottom>
+                수강 학생 명단 ({courseData.students.length}명)
+              </Typography>
+              <IconButton onClick={handleToggleList}>{isListOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>
+            </Box>
+            {isListOpen && (
+              <List>
+                {courseData.students.map((student, index) => (
+                  <ListItem key={index} sx={{ padding: 1 }}>
+                    <CustomAvatar sx={{ marginRight: 2 }}>{student.name.charAt(0)}</CustomAvatar>
+                    <Typography variant='body1'>{student.name}</Typography>
+                  </ListItem>
+                ))}
+              </List>
+            )}
           </Box>
           <Divider />
 

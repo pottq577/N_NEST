@@ -78,7 +78,7 @@ const ProfileSection = () => {
   }
 
   const handleProfileEnrollClick = () => {
-    router.push('/mypage?tab=ProfileManage')
+    router.push('/mypage/?tab=ProfileManage')
   }
 
   const totalExperienceMonths = careerDetails.reduce((total, career) => {

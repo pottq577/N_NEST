@@ -63,6 +63,8 @@
     "eslint-plugin-react": "^7.29.4",
     "file-saver": "^2.0.5",
     "firebase": "^10.11.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.1",
     "mammoth": "^1.7.2",
     "mdi-material-ui": "^7.1.0",
     "next": "^12.3.4",
@@ -76,6 +78,7 @@
     "react-dropzone": "^14.2.3",
     "react-perfect-scrollbar": "^1.5.8",
     "react-popper": "^2.2.5",
+    "react-rating-stars-component": "^2.2.0",
     "react-swipeable-views": "^0.14.0",
     "swr": "^2.2.5",
     "xlsx": "^0.18.5"

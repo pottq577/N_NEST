@@ -1,180 +1,158 @@
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
+import {
+  Container,
+  Typography,
+  Box,
+  Card,
+  CardContent,
+  Button,
+  Grid,
+  Chip,
+  CircularProgress,
+  Pagination
+} from '@mui/material'
+
+const categories = [
+  'All',
+  'JavaScript',
+  'Python',
+  'Java',
+  'CSS',
+  'HTML',
+  'React',
+  'Node.js',
+  'Angular',
+  'Vue.js',
+  'SQL',
+  '기타'
+]
 
 export default function QuestionListPage() {
-  const [questions, setQuestions] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const questionsPerPage = 10;
-  const categories = ['All', 'CSS', 'Android', 'JavaScript', 'React'];
+  const [questions, setQuestions] = useState([])
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const questionsPerPage = 10
 
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const response = await fetch('http://127.0.0.1:8000/list/questions');
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        console.log('Fetched data:', data); // This will show the structure of the data
-        setQuestions(data);
+        const response = await fetch('http://127.0.0.1:8000/list/questions')
+        if (!response.ok) throw new Error('Network response was not ok')
+        const data = await response.json()
+        setQuestions(data)
       } catch (error) {
-        console.error('Error fetching questions:', error);
+        console.error('Error fetching questions:', error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchQuestions();
-  }, []);
+    fetchQuestions()
+  }, [])
 
-  const indexOfLastQuestion = currentPage * questionsPerPage;
-  const indexOfFirstQuestion = indexOfLastQuestion - questionsPerPage;
+  const indexOfLastQuestion = currentPage * questionsPerPage
+  const indexOfFirstQuestion = indexOfLastQuestion - questionsPerPage
+
   const currentQuestions = questions
     .filter(question => selectedCategory === 'All' || question.category === selectedCategory)
-    .slice(indexOfFirstQuestion, indexOfLastQuestion);
+    .slice(indexOfFirstQuestion, indexOfLastQuestion)
 
   const totalPages = Math.ceil(
-    questions.filter(question => selectedCategory === 'All' || question.category === selectedCategory).length / questionsPerPage
-  );
+    questions.filter(question => selectedCategory === 'All' || question.category === selectedCategory).length /
+      questionsPerPage
+  )
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
+  const handlePageChange = (event, value) => {
+    setCurrentPage(value)
+  }
+
+  const QuestionsList = ({ question }) => (
+    <Grid item xs={12} key={question.id}>
+      <Card>
+        <CardContent>
+          <Grid container>
+            <Grid
+              item
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                mr: 5
+              }}
+            >
+              <Typography variant='body2' color='textSecondary'>
+                {question.votes ? question.votes.length : 0} votes
+              </Typography>
+              <Typography variant='body2' color='textSecondary'>
+                {question.answers ? question.answers.length : 0} answers
+              </Typography>
+              <Typography variant='body2' color='textSecondary'>
+                {question.views ? question.views.length : 0} views
+              </Typography>
+            </Grid>
+            <Grid item xs={9}>
+              <Link href={`/question-detail/${question.id}`} passHref>
+                <Typography variant='h6' component='a' color='primary' gutterBottom>
+                  {question.title}
+                </Typography>
+              </Link>
+              <Typography variant='subtitle2' gutterBottom>
+                {question.description}
+              </Typography>
+              <Box display='flex' flexWrap='wrap' mt={2}>
+                <Chip label={question.category} color='primary' />
+              </Box>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    </Grid>
+  )
 
   return (
-    <div className='container'>
-      <header className='header'>
-        <h1>All Questions</h1>
-        <div className='filter'>
-          <Link href='/question-ask' passHref>
-            <button type='button' className='askButton'>
-              Ask Question
-            </button>
-          </Link>
-        </div>
-      </header>
+    <Container maxWidth='md' sx={{ mt: 4 }}>
+      <Box display='flex' justifyContent='space-between' alignItems='center' mb={4}>
+        <Typography variant='h4'>Q&A</Typography>
+        <Link href='/question-ask' passHref>
+          <Button variant='contained' color='primary'>
+            질문하기
+          </Button>
+        </Link>
+      </Box>
 
-      <main className='main'>
+      <Box display='flex' justifyContent='center' mb={4} flexWrap='wrap' gap={1}>
+        {categories.map(category => (
+          <Chip
+            key={category}
+            label={category}
+            onClick={() => setSelectedCategory(category)}
+            color={selectedCategory === category ? 'primary' : 'default'}
+          />
+        ))}
+      </Box>
+
+      <Grid container spacing={3}>
         {loading ? (
-          <p>Loading...</p>
+          <Grid item xs={12} display='flex' justifyContent='center'>
+            <CircularProgress />
+          </Grid>
         ) : currentQuestions.length > 0 ? (
-          currentQuestions.map(question => (
-            <article key={question.id} className='questionCard'>
-              <Link href={`/question-detail/${question.id}`} passHref>
-                <a className='questionTitle'>
-                  <h2>{question.title}</h2>
-                </a>
-              </Link>
-              <div className='questionStats'>
-                <span>{question.votes} votes</span>
-                <span>{question.answers ? question.answers.length : 0} answers</span>
-                <span>{question.views} views</span>
-                <span className='categoryTag'>{question.category}</span>
-              </div>
-            </article>
-          ))
+          currentQuestions.map(question => <QuestionsList key={question.index} question={question} />)
         ) : (
-          <p>No questions found.</p>
+          <Grid item xs={12}>
+            <Typography>질문이 없습니다.</Typography>
+          </Grid>
         )}
-        {totalPages > 1 && (
-          <div className='pagination'>
-            {Array.from({ length: totalPages }, (_, index) => (
-              <button
-                key={index + 1}
-                onClick={() => handlePageChange(index + 1)}
-                className={currentPage === index + 1 ? 'active' : ''}
-              >
-                {index + 1}
-              </button>
-            ))}
-          </div>
-        )}
-      </main>
+      </Grid>
 
-      <style jsx>{`
-        .container {
-          max-width: 800px;
-          margin: auto;
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          font-family: Arial, sans-serif;
-        }
-        .header {
-          width: 100%;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-        }
-        .filter {
-          display: flex;
-          align-items: center;
-        }
-        .main {
-          width: 100%;
-        }
-        .questionCard {
-          padding: 15px;
-          margin-bottom: 10px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          transition: box-shadow 0.3s ease;
-        }
-        .questionCard:hover {
-          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-        .questionTitle {
-          color: #007bff;
-          text-decoration: none;
-        }
-        .questionStats {
-          margin-top: 10px;
-          font-size: 0.9rem;
-          display: flex;
-          gap: 15px; /* Adds space between stats */
-        }
-        .categoryTag {
-          background-color: #007bff;
-          color: white;
-          padding: 2px 5px;
-          border-radius: 5px;
-          font-size: 0.8rem;
-        }
-        .askButton {
-          background-color: #007bff;
-          color: white;
-          padding: 10px 20px;
-          border: none;
-          border-radius: 5px;
-          cursor: pointer;
-          transition: background-color 0.3s;
-        }
-        .askButton:hover {
-          background-color: #0056b3;
-        }
-        .pagination {
-          display: flex;
-          justify-content: center;
-          margin-top: 20px;
-        }
-        .pagination button {
-          background-color: #007bff;
-          color: white;
-          border: none;
-          border-radius: 5px;
-          margin: 0 5px;
-          padding: 5px 10px;
-          cursor: pointer;
-          transition: background-color 0.3s;
-        }
-        .pagination button:hover {
-          background-color: #0056b3;
-        }
-        .pagination .active {
-          background-color: #0056b3;
-        }
-      `}</style>
-    </div>
-  );
+      {totalPages > 1 && (
+        <Box display='flex' justifyContent='center' mt={4}>
+          <Pagination count={totalPages} page={currentPage} onChange={handlePageChange} color='primary' />
+        </Box>
+      )}
+    </Container>
+  )
 }

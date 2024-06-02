@@ -1,19 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/router'
-import { Tabs, Tab, Box } from '@mui/material'
-import Overview from '../../views/mypage/overview/index'
-import Project from '../../views/mypage/projects/index'
-import Portfolio from 'src/views/mypage/portfolio'
-import ProfileManage from 'src/views/mypage/profile/'
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { Tabs, Tab, Box } from '@mui/material';
+import Overview from '../../views/mypage/overview/index';
+import Project from '../../views/mypage/projects/index';
+import Portfolio from 'src/views/mypage/portfolio';
+import ProfileManage from 'src/views/mypage/profile/';
+import AvailabilitySettings from '/src/pages/schedule-student';
+import ReservationPage from '/src/pages/schedule-professor';
+import { auth } from '../../../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
-/**
- * 탭 UI 및 상태 관리 로직 구현
- * 해당 파일에서 Tabs와 Tab 컴포넌트를 사용하여 탭을 구성하고, 각 탭 클릭 시 보여줄 컨텐츠의 상태를 변경하는 로직을 구현함
- * @param {*} props
- * @returns
- */
 function TabPanel(props) {
-  const { children, value, index, ...other } = props
+  const { children, value, index, ...other } = props;
 
   return (
     <div
@@ -25,47 +23,78 @@ function TabPanel(props) {
     >
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
-  )
+  );
 }
 
 export default function TabsContainer() {
-  const router = useRouter()
-  const [value, setValue] = useState(0)
+  const router = useRouter();
+  const [value, setValue] = useState(0);
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
-    const tab = router.query.tab
-    if (tab === 'overview') setValue(0)
-    else if (tab === 'projects') setValue(1)
-    else if (tab === 'ProfileManage') setValue(2)
-    else if (tab === 'portfolio') setValue(3)
-  }, [router.query.tab])
+    const fetchUserRole = async () => {
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          const isEmailUser = !user.providerData.some((provider) => provider.providerId === 'github.com');
+          setUserRole(isEmailUser ? 'professor' : 'student');
+        } else {
+          setUserRole('');
+          console.error('No user is signed in');
+        }
+      });
+    };
+
+    fetchUserRole();
+  }, []);
+
+  useEffect(() => {
+    const tab = router.query.tab;
+    const tabsMap = {
+      overview: 0,
+      projects: 1,
+      profileManage: 2,
+      portfolio: 3,
+      availability: 4,
+      reservation: 5,
+    };
+    if (tab && tabsMap.hasOwnProperty(tab)) {
+      setValue(tabsMap[tab]);
+    }
+  }, [router.query.tab]);
 
   const handleChange = (event, newValue) => {
-    setValue(newValue)
+    setValue(newValue);
+  };
+
+  const tabs = [
+    { label: '개요', component: <Overview /> },
+    { label: '프로젝트', component: <Project /> },
+    { label: '프로필 관리', component: <ProfileManage /> },
+    { label: '포트폴리오', component: <Portfolio /> },
+  ];
+
+  if (userRole === 'professor') {
+    tabs.push({ label: '일정 생성', component: <ReservationPage />  });
+  }
+
+  if (userRole === 'student') {
+    tabs.push({ label: '예약', component: <AvailabilitySettings />});
   }
 
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Tabs value={value} onChange={handleChange} aria-label='basic tabs example'>
-          <Tab label='개요' />
-          <Tab label='프로젝트' />
-          <Tab label='프로필 관리' />
-          <Tab label='포트폴리오' />
+          {tabs.map((tab, index) => (
+            <Tab key={index} label={tab.label} />
+          ))}
         </Tabs>
       </Box>
-      <TabPanel value={value} index={0}>
-        <Overview />
-      </TabPanel>
-      <TabPanel value={value} index={1}>
-        <Project />
-      </TabPanel>
-      <TabPanel value={value} index={2}>
-        <ProfileManage />
-      </TabPanel>
-      <TabPanel value={value} index={3}>
-        <Portfolio />
-      </TabPanel>
+      {tabs.map((tab, index) => (
+        <TabPanel key={index} value={value} index={index}>
+          {tab.component}
+        </TabPanel>
+      ))}
     </Box>
-  )
+  );
 }

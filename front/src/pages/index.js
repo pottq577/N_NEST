@@ -12,7 +12,7 @@ import CardStatisticsVerticalComponent from 'src/@core/components/card-statistic
 
 // ** Styled Component Import
 import ApexChartWrapper from 'src/@core/styles/libs/react-apexcharts'
-
+import Projects from 'src/pages/project'
 // ** Demo Components Imports
 import Table from 'src/views/dashboard/Table'
 import Trophy from 'src/views/dashboard/Trophy'
@@ -24,8 +24,8 @@ import SalesByCountries from 'src/views/dashboard/SalesByCountries'
 
 const Dashboard = () => {
   return (
-    <ApexChartWrapper>
-      <Grid container spacing={6}>
+    <Projects>
+      {/* <Grid container spacing={6}>
         <Grid item xs={12} md={4}>
           <Trophy />
         </Grid>
@@ -93,8 +93,8 @@ const Dashboard = () => {
         <Grid item xs={12}>
           <Table />
         </Grid>
-      </Grid>
-    </ApexChartWrapper>
+      </Grid> */}
+    </Projects>
   )
 }
 
