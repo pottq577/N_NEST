@@ -1,32 +1,34 @@
 from fastapi import FastAPI, HTTPException, Query, Request, Depends, APIRouter, Response, Cookie
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
-from motor.motor_asyncio import AsyncIOMotorClient
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 from fastapi.encoders import jsonable_encoder
+from fastapi.security import OAuth2PasswordBearer
+from motor.motor_asyncio import AsyncIOMotorClient
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
-import httpx
 from dotenv import load_dotenv
 from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
+from jose import jwt, JWTError
+from typing import Dict, Optional, List, Tuple, Union
+from bson import ObjectId
+from openai import OpenAI
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from datetime import date
+import httpx
 import asyncio
 import aiohttp
 import subprocess
 import os
 import jwt
 import asyncio
-from datetime import datetime, timedelta, timezone
-from jose import jwt, JWTError
-from typing import Dict, Optional, List, Tuple, Union
 import random
 import json
-from bson import ObjectId
 import logging
-from fastapi.security import OAuth2PasswordBearer
 import google.generativeai as genai
-from openai import OpenAI
 import requests
 import re
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
 load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -76,7 +78,7 @@ problems_collection = db['problems']
 submissions_collection = db['submissions']
 evaluation_assignment_collection = db["evaluation_assignments"]
 evaluation_result_collection = db['EvaluationResult']
-profile_collection = db['Profile']
+user_profile = db['UserProfile']
 
 # GitHub 설정
 CLIENT_ID = 'Iv1.636c6226a979a74a'
@@ -84,6 +86,15 @@ CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 REDIRECT_URI = 'http://localhost:8000/auth/callback'
 
 # 데이터 모델 정의
+
+
+@app.middleware("http")
+async def log_request(request: Request, call_next):
+    logger.info(f"Request URL: {request.url}")
+    logger.info(f"Request method: {request.method}")
+    response = await call_next(request)
+    logger.info(f"Response status code: {response.status_code}")
+    return response
 
 
 class UserInfo(BaseModel):
@@ -1852,6 +1863,162 @@ async def save_evaluation(evaluation: Evaluation):
     except Exception as e:
         print(f"Error: {e}")  # 오류 메시지를 콘솔에 출력
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class Education(BaseModel):
+    type: str
+    name: str
+    major: str
+    status: str
+    startDate: str
+    endDate: str
+
+
+class Introduction(BaseModel):
+    title: str
+    content: str
+
+
+class Experience(BaseModel):
+    type: str
+    organization: str
+    start_date: Union[date, str]
+    end_date: Union[date, str]
+
+
+class Qualification(BaseModel):
+    certificate_name: str
+    issuer: str
+    pass_status: str
+    date_obtained: Union[date, str]
+
+
+class LanguageTest(BaseModel):
+    language: str
+    test_name: str
+    date_obtained: Union[date, str]
+    score: int
+
+
+class Award(BaseModel):
+    award_name: str
+    date_awarded: Union[date, str]
+    issuer: str
+
+
+class Skill(BaseModel):
+    stack: str
+
+
+class DevelopmentField(BaseModel):
+    field: str
+
+
+class Career(BaseModel):
+    company_name: str
+    start_date: Union[date, str]
+    end_date: Union[date, str]
+    currently_employed: bool
+    role: str
+    department: str
+    position: str
+    development_start_date: Union[date, str]
+    responsibilities: str
+
+
+class Project(BaseModel):
+    project_name: str
+    year: str
+    summary: str
+    team_type: str
+    team_members: Optional[str]
+    stack_used: str
+    details: str
+    open_status: bool
+    website_link: Optional[str]
+    android_link: Optional[str]
+    ios_link: Optional[str]
+    repository_link: Optional[str]
+
+
+class TechnicalReport(BaseModel):
+    content: str
+
+
+class UserProfile(BaseModel):
+    user_id: str  # 사용자 ID (다른 콜렉션의 사용자와 조인)
+    education: List[Education]
+    introduction: Introduction
+    experiences: List[Experience]
+    qualifications: List[Qualification]
+    language_tests: List[LanguageTest]
+    awards: List[Award]
+    skills: List[Skill]
+    development_fields: List[DevelopmentField]
+    careers: List[Career]
+    projects: List[Project]
+    technical_report: TechnicalReport
+
+
+class UserProfileRequest(BaseModel):
+    user_id: str
+    education: List[Education]
+
+# 로그인한 사용자 정보 가져오기
+
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("github_id")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    return user_id
+
+
+@app.get("/api/get-user-id")
+async def get_user_id(current_user: str = Depends(get_current_user)):
+    return {"user_id": current_user}
+
+
+@app.post("/user-profile", response_model=UserProfile)
+async def create_user_profile(profile: UserProfile):
+    profile_data = jsonable_encoder(profile)
+    logger.info(f"Inserting profile data: {profile_data}")
+    result = await user_profile.insert_one(profile_data)
+    if result.inserted_id:
+        logger.info(f"Profile created with ID: {result.inserted_id}")
+        return JSONResponse(status_code=201, content=profile_data)
+    logger.error("User profile could not be created")
+    raise HTTPException(
+        status_code=400, detail="User profile could not be created")
+
+
+@app.post("/user-profile/education")
+async def add_education(user_profile_request: UserProfileRequest):
+    user_id = user_profile_request.user_id
+    education_data = [education.dict() for education in user_profile_request.education]  # Convert Pydantic models to dict
+
+    logger.info(f"Adding education data for user_id: {user_id}")
+    logger.info(f"Education data: {education_data}")
+
+    result = await user_profile.update_one(
+        {"user_id": user_id},
+        {"$set": {"education": education_data}},
+        upsert=True
+    )
+
+    if result.modified_count == 1 or result.upserted_id is not None:
+        return JSONResponse(status_code=201, content={"message": "Education data added/updated successfully"})
+    raise HTTPException(
+        status_code=400, detail="Failed to add/update education data")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ import FormControl from '@mui/material/FormControl'
 import Header from '../components/Header'
 import RenderList from '../components/RenderList'
 import CommonDatePicker from '../components/CommonDatePicker'
+import axios from 'axios'
 
 const loadLocalStorage = key => JSON.parse(localStorage.getItem(key)) || []
 const saveToLocalStorage = (key, value) => localStorage.setItem(key, JSON.stringify(value))
@@ -145,17 +146,24 @@ const EducationSection = ({ onComplete }) => {
   const [isAdding, setIsAdding] = useState(false)
   const [educations, setEducations] = useState(loadLocalStorage('educationDetails'))
   const [editingIndex, setEditingIndex] = useState(null)
+  const [userId, setUserId] = useState('')
 
-  // const inputFormRef = useRef(null)
-
-  // useEffect(() => {
-  //   // isAdding이 true가 되면 입력 폼으로 스크롤
-  //   if (isAdding && inputFormRef.current) {
-  //     inputFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  //   }
-  // }, [isAdding])
   useEffect(() => {
     setEducations(loadLocalStorage('educationDetails'))
+  }, [])
+
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const response = await axios.get('/api/get-user-id', { withCredentials: true })
+        setUserId(response.data.user_id)
+      } catch (error) {
+        console.error('Error fetching user ID:', error)
+      }
+    }
+
+    fetchUserId()
+    setEducations(JSON.parse(localStorage.getItem('educationDetails')) || [])
   }, [])
 
   const handleAddClick = () => {
@@ -189,7 +197,7 @@ const EducationSection = ({ onComplete }) => {
     }
   }
 
-  const handleSaveEducation = () => {
+  const handleSaveEducation = async () => {
     const updatedEducations = editingIndex !== null ? [...educations] : [...educations, educationDetails]
     if (editingIndex !== null) {
       updatedEducations[editingIndex] = educationDetails
@@ -206,6 +214,22 @@ const EducationSection = ({ onComplete }) => {
       startDate: null,
       endDate: null
     })
+
+    // 백엔드에 데이터 저장
+    try {
+      console.log('dbtest')
+
+      const response = await axios.post('http://localhost:8000/user-profile/education', {
+        user_id: userId,
+        education: updatedEducations
+      })
+      if (response.status === 201) {
+        console.log('Education data saved successfully')
+      }
+    } catch (error) {
+      console.error('Error saving education data:', error)
+    }
+
     onComplete('education', true)
   }
 
