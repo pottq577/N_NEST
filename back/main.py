@@ -1171,6 +1171,10 @@ class ReservationData(BaseModel):
     day: str
     date: str
     time: str
+    studentUserId: str  # 현재 사용자의 UID를 추가
+
+
+
 
 async def get_professor_id_by_email(email: str) -> Optional[str]:
     professor = await professor_collection.find_one({"email": email})
@@ -1190,7 +1194,7 @@ async def save_availability(data: AvailabilityData):
         professor_id = await get_professor_id_by_email(data.email)
         if not professor_id:
             raise HTTPException(status_code=404, detail="Professor not found")
-        
+
         course = await get_course_by_professor_id(professor_id)
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
@@ -1228,23 +1232,41 @@ async def get_availability(email: str = Query(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/reservations/user")
+async def get_user_reservations(user_id: str):
+    try:
+        reservations = await db.reservations.find({"studentUserId": user_id}).to_list(None)
+        for reservation in reservations:
+            reservation["_id"] = str(reservation["_id"])
+            logging.info(f"Reservation found: {reservation}")
 
+            # 교수 정보를 course 컬렉션에서 조회
+            professor_course = await db.Course.find_one({"professor_id": reservation["userId"]})
+            logging.info(f"Professor course data: {professor_course}")
+
+            if professor_course:
+                reservation["professor_name"] = professor_course.get("professor", "No Name Available")
+            else:
+                reservation["professor_name"] = "No Name Available"
+        return reservations
+    except Exception as e:
+        logging.error(f"Error fetching user reservations: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/reservations/")
 async def get_reservations():
     try:
-        reservations = await db.reservations.find().to_list(None)
+        reservations = await reservations_collection.find().to_list(None)
         for reservation in reservations:
             reservation["_id"] = str(reservation["_id"])
         return reservations
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/reservation/")
 async def make_reservation(data: ReservationData):
     try:
-        availability = await db.availability.find_one({"userId": data.userId})
+        availability = await availability_collection.find_one({"userId": data.userId})
         if not availability:
             raise HTTPException(status_code=404, detail="No availability settings found.")
 
@@ -1257,11 +1279,11 @@ async def make_reservation(data: ReservationData):
         if any(slot['day'] == data.day and slot['time'] == data.time for slot in unavailable_times):
             raise HTTPException(status_code=400, detail="The selected time is unavailable.")
 
-        existing_reservations = await db.reservations.count_documents({"day": data.day, "time": data.time})
+        existing_reservations = await reservations_collection.count_documents({"day": data.day, "time": data.time})
         if existing_reservations >= weekly_schedule[data.day]['maxCapacity']:
             raise HTTPException(status_code=400, detail="The selected time is fully booked.")
 
-        result = await db.reservations.insert_one(data.dict())
+        result = await reservations_collection.insert_one(data.dict())
         return {"message": "Reservation saved successfully!", "id": str(result.inserted_id)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1271,7 +1293,7 @@ async def get_professors():
     professors = []
     async for professor in professor_collection.find():
         professor_id = professor.get("professor_id")
-        
+
         # course 컬렉션에서 해당 교수 ID로 교수 이름을 조회합니다.
         course = await course_collection.find_one({"professor_id": professor_id})
         if not course:
@@ -1293,11 +1315,11 @@ async def get_available_professors():
     professors = []
     async for availability in availability_collection.find():
         professor_id = availability.get("userId")
-        
+
         professor = await professor_collection.find_one({"professor_id": professor_id})
         if not professor:
             continue
-        
+
         course = await course_collection.find_one({"professor_id": professor_id})
         professor_name = course.get("professor", "No Name Available") if course else "No Name Available"
 

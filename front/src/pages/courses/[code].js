@@ -203,12 +203,12 @@ const CourseDetail = () => {
     try {
       const progressResponse = await axios.get(`http://localhost:8000/api/evaluation-progress/${courseCode}`);
       console.log('Evaluation Progress Data:', progressResponse.data); // 데이터 로깅
-  
+
       // 각 팀의 학생 명단을 불러오기 위해 fetchTeams 함수 호출
       const teamsResponse = await axios.get(`http://localhost:8000/api/courses/${courseCode}/teams`);
       const teamsData = teamsResponse.data.teams || [];
       console.log('Teams Data:', teamsData); // 팀 데이터 로깅
-    
+
       // 모든 팀 정보를 포함한 평가 진행 데이터 매핑
       const updatedProgress = teamsData.map((team) => {
         const progress = progressResponse.data.find(p => p.team_name === team.team_name);
@@ -218,17 +218,17 @@ const CourseDetail = () => {
           total_score: progress ? progress.total_score : 0,
         };
       });
-  
+
       console.log('Updated Progress:', updatedProgress); // 업데이트된 평가 진행 데이터 로깅
-    
+
       setEvaluationProgress(updatedProgress);
     } catch (error) {
       console.error('Error fetching evaluation progress:', error);
     }
   };
-  
-  
-  
+
+
+
 
   const fetchEvaluationCriteria = async (courseCode) => {
     try {
@@ -436,7 +436,7 @@ const CourseDetail = () => {
                 </Box>
 
                 <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Evaluation Criteria</Typography>
+                  <Typography variant="h5" gutterBottom>평가 항목</Typography>
                   <Box display="flex" alignItems="center">
                     <TextField
                       label="New Criteria"
@@ -446,7 +446,7 @@ const CourseDetail = () => {
                       style={{ marginRight: '16px' }}
                     />
                     <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={addCriteria}>
-                      Add Criteria
+                     평가 항목 추가
                     </Button>
                   </Box>
                   <List>
@@ -462,7 +462,7 @@ const CourseDetail = () => {
                 </Box>
 
                 <Button variant="contained" color="secondary" onClick={saveEvaluationCriteria}>
-                  Save Evaluation Criteria
+                 평가 항목 저장
                 </Button>
               </>
             )}
@@ -470,7 +470,7 @@ const CourseDetail = () => {
             {userRole === 'student' && tabIndex === 0 && (
               <>
                 <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Team Status</Typography>
+                  <Typography variant="h5" gutterBottom>참가 현황</Typography>
                   <List>
                     {teams.map((team, index) => (
                       <ListItem key={index}>
@@ -525,7 +525,7 @@ const CourseDetail = () => {
                     )}
                   </List>
                   <Button variant="contained" color="primary" onClick={startEvaluation}>
-                    Start Evaluation
+                    평가 시작
                   </Button>
                 </Box>
               </>
@@ -534,7 +534,7 @@ const CourseDetail = () => {
             {userRole === 'student' && tabIndex === 1 && (
               <>
                 <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Evaluate Teams</Typography>
+                  <Typography variant="h5" gutterBottom>상호 평가</Typography>
                   {evaluationAssignments.length > 0 ? (
                     evaluationAssignments.map((team, index) => (
                       <div key={index}>
@@ -553,10 +553,10 @@ const CourseDetail = () => {
                       </div>
                     ))
                   ) : (
-                    <Typography>No evaluation assignments found</Typography>
+                    <Typography>평가가 진행 불가합니다</Typography>
                   )}
                   <Button variant="contained" color="primary" onClick={submitEvaluations} disabled={isEvaluationSubmitted}>
-                    Submit Evaluations
+                    평가 제출
                   </Button>
                 </Box>
               </>
@@ -566,7 +566,7 @@ const CourseDetail = () => {
           {userRole === 'professor' && tabIndex === 2 && (
               <>
                 <Box mt={4}>
-                  <Typography variant="h5" gutterBottom>Final Results</Typography>
+                  <Typography variant="h5" gutterBottom>최종 결과</Typography>
                   <Button variant="contained" color="primary" onClick={fetchEvaluationResults}>
                     Fetch Final Results
                   </Button>
@@ -663,7 +663,7 @@ const CourseDetail = () => {
                     {provided => (
                       <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ p: 2 }}>
                         <Typography variant='h6' color='textSecondary'>
-                          Drag projects here to evaluate
+                          평가하기 위한 프로젝트를 드래그 하세요
                         </Typography>
                         {provided.placeholder}
                       </Box>

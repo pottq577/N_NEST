@@ -178,7 +178,7 @@ export default function ProfessorEvaluation() {
               </Box>
 
               <Box mt={4}>
-                <Typography variant="h5" gutterBottom>Evaluation Criteria</Typography>
+                <Typography variant="h5" gutterBottom>평가 항목</Typography>
                 <Box display="flex" alignItems="center">
                   <TextField
                     label="New Criteria"
@@ -188,7 +188,7 @@ export default function ProfessorEvaluation() {
                     style={{ marginRight: '16px' }}
                   />
                   <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={addCriteria}>
-                    Add Criteria
+                    평가 항목 추가
                   </Button>
                 </Box>
                 <List>
@@ -204,7 +204,7 @@ export default function ProfessorEvaluation() {
               </Box>
 
               <Button variant="contained" color="secondary" onClick={saveEvaluationCriteria}>
-                Save Evaluation Criteria
+                평가 항목 및 팀 수 저장
               </Button>
             </>
           )}
@@ -212,13 +212,13 @@ export default function ProfessorEvaluation() {
           {tabIndex === 1 && (
             <>
               <Box mt={4}>
-                <Typography variant="h5" gutterBottom>Team Status</Typography>
+                <Typography variant="h5" gutterBottom>팀 현황</Typography>
                 <List>
                   {teams && teams.length > 0 ? (
                     teams.map((team, index) => (
                       <ListItem key={index}>
-                        <ListItemText 
-                          primary={`Team: ${team.team_name}, Students: ${team.students.map(student => student.name).join(', ')}`} 
+                        <ListItemText
+                          primary={`Team: ${team.team_name}, Students: ${team.students.map(student => student.name).join(', ')}`}
                         />
                       </ListItem>
                     ))
@@ -232,8 +232,8 @@ export default function ProfessorEvaluation() {
                   <List>
                     {Object.entries(assignedEvaluations).map(([studentId, teamNames], index) => (
                       <ListItem key={index}>
-                        <ListItemText 
-                          primary={`Student ID: ${studentId}, Assigned Teams: ${Array.isArray(teamNames) ? teamNames.join(', ') : ''}`} 
+                        <ListItemText
+                          primary={`Student ID: ${studentId}, Assigned Teams: ${Array.isArray(teamNames) ? teamNames.join(', ') : ''}`}
                         />
                       </ListItem>
                     ))}
@@ -242,7 +242,7 @@ export default function ProfessorEvaluation() {
               </Box>
 
               <Button variant="contained" color="primary" onClick={startEvaluation}>
-                Start Evaluation
+                상호 평가 시작
               </Button>
             </>
           )}
@@ -250,18 +250,18 @@ export default function ProfessorEvaluation() {
           {tabIndex === 2 && (
             <>
               <Box mt={4}>
-                <Typography variant="h5" gutterBottom>Evaluation Progress</Typography>
+                <Typography variant="h5" gutterBottom>평가 과정</Typography>
                 <List>
                   {evaluationProgress && evaluationProgress.length > 0 ? (
                     evaluationProgress.map((progress, index) => (
                       <ListItem key={index}>
-                        <ListItemText 
-                          primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`} 
+                        <ListItemText
+                          primary={`Team: ${progress.team_name}, Total Score: ${progress.total_score}`}
                         />
                       </ListItem>
                     ))
                   ) : (
-                    <Typography>No evaluation progress available</Typography>
+                    <Typography>진행중인 평가가 없습니다</Typography>
                   )}
                 </List>
               </Box>
@@ -271,21 +271,21 @@ export default function ProfessorEvaluation() {
           {tabIndex === 3 && (
             <>
               <Box mt={4}>
-                <Typography variant="h5" gutterBottom>Final Results</Typography>
+                <Typography variant="h5" gutterBottom>최종 결과</Typography>
                 <Button variant="contained" color="primary" onClick={fetchEvaluationResults}>
-                  Fetch Final Results
+                  최종 결과 확인
                 </Button>
                 <List>
                   {evaluationResults && evaluationResults.length > 0 ? (
                     evaluationResults.map((result, index) => (
                       <ListItem key={index}>
-                        <ListItemText 
-                          primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`} 
+                        <ListItemText
+                          primary={`Team: ${result.team_name}, Total Score: ${result.total_score}`}
                         />
                       </ListItem>
                     ))
                   ) : (
-                    <Typography>No final results available</Typography>
+                    <Typography>최종 결과가 없습니다</Typography>
                   )}
                 </List>
               </Box>

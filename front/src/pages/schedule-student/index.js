@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Container, TextField, MenuItem, Button, Typography, Box, Tab, Tabs, Paper } from '@mui/material';
+import { auth } from '../../../lib/firebase'; // Import Firebase authentication
+import { onAuthStateChanged } from 'firebase/auth'; // Import onAuthStateChanged
 import { setHours, setMinutes, format, isBefore, getDay } from 'date-fns';
-import { Container, TextField, MenuItem, Button, Typography, Box } from '@mui/material';
-
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const ReservationPage = () => {
@@ -14,6 +15,9 @@ const ReservationPage = () => {
   const [studentName, setStudentName] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [userId, setUserId] = useState(null); // State to store the current user's UID
+  const [userReservations, setUserReservations] = useState([]); // State to store user reservations
+  const [tabIndex, setTabIndex] = useState(0); // State to manage tab selection
 
   useEffect(() => {
     const fetchProfessors = async () => {
@@ -28,6 +32,18 @@ const ReservationPage = () => {
     };
 
     fetchProfessors();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        console.error('No user is signed in');
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -50,6 +66,22 @@ const ReservationPage = () => {
     }
   }, [selectedProfessor]);
 
+  useEffect(() => {
+    if (userId) {
+      const fetchUserReservations = async () => {
+        try {
+          const response = await axios.get(`http://localhost:8000/reservations/user?user_id=${userId}`);
+          setUserReservations(response.data);
+        } catch (error) {
+          console.error('Error fetching user reservations:', error);
+          alert('Error fetching user reservations: ' + (error.response?.data?.detail || 'Unknown error'));
+        }
+      };
+
+      fetchUserReservations();
+    }
+  }, [userId]);
+
   const handleReservation = async () => {
     if (!studentName || !selectedDate || !selectedTime || !selectedProfessor) {
       alert('Please fill in all fields');
@@ -57,12 +89,14 @@ const ReservationPage = () => {
     }
 
     const selectedDay = daysOfWeek[getDay(new Date(selectedDate))];
+
     const reservationData = {
       studentName,
       userId: selectedProfessor.professor_id,
       day: selectedDay,
       date: selectedDate,
-      time: selectedTime
+      time: selectedTime,
+      studentUserId: userId // Include the current user's UID
     };
 
     console.log("Sending reservation to server:", reservationData);
@@ -73,9 +107,14 @@ const ReservationPage = () => {
       setStudentName('');
       setSelectedDate('');
       setSelectedTime('');
+
       // Fetch the updated reservations after making a new reservation
       const reservationsResponse = await axios.get('http://localhost:8000/reservations/');
       setReservations(reservationsResponse.data);
+
+      // Fetch the updated user reservations
+      const userReservationsResponse = await axios.get(`http://localhost:8000/reservations/user?user_id=${userId}`);
+      setUserReservations(userReservationsResponse.data);
     } catch (error) {
       console.error('Error making reservation:', error);
       alert('Error making reservation: ' + (error.response?.data?.detail || 'Unknown error'));
@@ -95,12 +134,14 @@ const ReservationPage = () => {
       }
       current = setMinutes(current, current.getMinutes() + interval);
     }
+
     return slots;
   };
 
   const getAvailableTimeSlots = () => {
     if (!selectedDate) return [];
     const selectedDay = daysOfWeek[getDay(new Date(selectedDate))];
+
     return weeklySchedule[selectedDay]?.start && weeklySchedule[selectedDay]?.end
       ? generateTimeSlots(weeklySchedule[selectedDay].start, weeklySchedule[selectedDay].end, weeklySchedule[selectedDay].interval, selectedDay)
       : [];
@@ -109,57 +150,87 @@ const ReservationPage = () => {
   return (
     <Container>
       <Typography variant="h4" gutterBottom>Make a Reservation</Typography>
-      <Box>
-        <TextField
-          select
-          label="Select Professor"
-          value={selectedProfessor ? selectedProfessor.professor_id : ''}
-          onChange={e => setSelectedProfessor(professors.find(prof => prof.professor_id === e.target.value))}
-          fullWidth
-          variant="outlined"
-          margin="normal"
+      <Paper>
+        <Tabs
+          value={tabIndex}
+          onChange={(event, newValue) => setTabIndex(newValue)}
+          indicatorColor="primary"
+          textColor="primary"
+          centered
         >
-          {professors.map(prof => (
-            <MenuItem key={prof.professor_id} value={prof.professor_id}>{prof.name}</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          label="Student Name"
-          value={studentName}
-          onChange={e => setStudentName(e.target.value)}
-          fullWidth
-          variant="outlined"
-          margin="normal"
-        />
-        <TextField
-          label="Date"
-          type="date"
-          value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-          fullWidth
-          variant="outlined"
-          margin="normal"
-          InputLabelProps={{ shrink: true }}
-        />
-        {selectedDate && (
+          <Tab label="New Reservation" />
+          <Tab label="My Reservations" />
+        </Tabs>
+      </Paper>
+      {tabIndex === 0 && (
+        <Box>
           <TextField
             select
-            label="Time"
-            value={selectedTime}
-            onChange={e => setSelectedTime(e.target.value)}
+            label="Select Professor"
+            value={selectedProfessor ? selectedProfessor.professor_id : ''}
+            onChange={e => setSelectedProfessor(professors.find(prof => prof.professor_id === e.target.value))}
             fullWidth
             variant="outlined"
             margin="normal"
           >
-            {getAvailableTimeSlots().map(time => (
-              <MenuItem key={time} value={time}>{time}</MenuItem>
+            {professors.map(prof => (
+              <MenuItem key={prof.professor_id} value={prof.professor_id}>{prof.name}</MenuItem>
             ))}
           </TextField>
-        )}
-        <Button variant="contained" color="primary" onClick={handleReservation} fullWidth>
-          Make Reservation
-        </Button>
-      </Box>
+          <TextField
+            label="Student Name"
+            value={studentName}
+            onChange={e => setStudentName(e.target.value)}
+            fullWidth
+            variant="outlined"
+            margin="normal"
+          />
+          <TextField
+            label="Date"
+            type="date"
+            value={selectedDate}
+            onChange={e => setSelectedDate(e.target.value)}
+            fullWidth
+            variant="outlined"
+            margin="normal"
+            InputLabelProps={{ shrink: true }}
+          />
+          {selectedDate && (
+            <TextField
+              select
+              label="Time"
+              value={selectedTime}
+              onChange={e => setSelectedTime(e.target.value)}
+              fullWidth
+              variant="outlined"
+              margin="normal"
+            >
+              {getAvailableTimeSlots().map(time => (
+                <MenuItem key={time} value={time}>{time}</MenuItem>
+              ))}
+            </TextField>
+          )}
+          <Button variant="contained" color="primary" onClick={handleReservation} fullWidth>
+            Make Reservation
+          </Button>
+        </Box>
+      )}
+      {tabIndex === 1 && (
+        <Box>
+          <Typography variant="h6" gutterBottom>My Reservations</Typography>
+          {userReservations.length > 0 ? (
+            userReservations.map(reservation => (
+              <Box key={reservation._id} mb={2} p={2} border={1} borderColor="grey.300" borderRadius={4}>
+                <Typography><strong>Professor Name:</strong> {reservation.professor_name}</Typography>
+                <Typography><strong>Date:</strong> {reservation.date}</Typography>
+                <Typography><strong>Time:</strong> {reservation.time}</Typography>
+              </Box>
+            ))
+          ) : (
+            <Typography>No reservations found.</Typography>
+          )}
+        </Box>
+      )}
     </Container>
   );
 };
