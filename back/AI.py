@@ -129,7 +129,7 @@ async def generate_content(
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "system", "content": "당신은 유용한 조수입니다."},
+            {"role": "system", "content": "너는 IT 프로젝트 계획서 작성을 도와주는 도우미야."},
             {"role": "user", "content": (
                 f"다음 세부 사항으로 프로젝트 요약을 생성해 주세요:\n"
                 f"프로젝트 제목: {title}\n"

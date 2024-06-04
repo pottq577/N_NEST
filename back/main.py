@@ -1342,47 +1342,45 @@ async def classify_text(request: ClassificationRequest):
     if not request.text:
         raise HTTPException(status_code=400, detail="No text provided")
 
-    # Set the text to classify
-    prompt_text = (
-        "Classify the following IT-related response into categories such as backend, frontend, security, network, cloud, and others. Only assign a category if the relevance is over 80%: \n\n"
-        f"'{request.text}'"
-    )
+    prompt_texts = [
+        f"Classify the following IT-related response into categories such as backend, frontend, security, network, cloud, and others. Only assign a category if the relevance is over 80%:\n\n'{request.text}'",
+        f"Based on the given IT-related response, determine the category it belongs to (backend, frontend, security, network, cloud, others). Only choose a category if it is over 80% relevant:\n\n'{request.text}'",
+        f"Analyze the following IT-related text and classify it into one of these categories: backend, frontend, security, network, cloud, others. Make sure the relevance is above 80%:\n\n'{request.text}'"
+    ]
 
     categories = ["backend", "frontend", "security", "network", "cloud", "others"]
     it_terms = ["server", "api", "http", "frontend", "backend", "database", "network", "security", "encryption", "cloud", "storage", "virtualization"]
     results: List[str] = []
 
-    # Query the OpenAI API three times
-    for _ in range(3):
-        response = client2.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are an AI that classifies IT-related questions."},
-                {"role": "user", "content": prompt_text}
-            ],
-            max_tokens=60
-        )
+    for prompt_text in prompt_texts:
+        for _ in range(3):  # 반복 횟수를 늘려 더 많은 데이터를 수집
+            response = client2.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are an AI that classifies IT-related questions."},
+                    {"role": "user", "content": prompt_text}
+                ],
+                max_tokens=60
+            )
 
-        # Analyze the model's response
-        raw_response = response.choices[0].message.content.strip().lower()
+            raw_response = response.choices[0].message.content.strip().lower()
 
-        # Check if IT terms are present in the response
-        if any(term in raw_response for term in it_terms):
-            # Map response to category
-            found_categories = [category for category in categories if category in raw_response]
-            if found_categories:
-                results.extend(found_categories)
+            # Check if IT terms are present in the response
+            if any(term in raw_response for term in it_terms):
+                found_categories = [category for category in categories if category in raw_response]
+                if found_categories:
+                    results.extend(found_categories)
+                else:
+                    results.append("others")
             else:
                 results.append("others")
-        else:
-            results.append("others")
 
-    # Determine the most common category
     if results:
         most_common_category = Counter(results).most_common(1)[0][0]
         return {"category": most_common_category}
     else:
         return {"category": "others"}
+
 
 class CodeAnswer(BaseModel):
     lineNumber: int
