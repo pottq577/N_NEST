@@ -48,6 +48,7 @@ const UserProjectsPage = () => {
     const unsubscribe = onAuthStateChanged(auth, async user => {
       if (user) {
         const githubUsername = user.reloadUserInfo.screenName
+
         if (githubUsername) {
           try {
             const response = await fetch(`http://localhost:8000/get-user-name/`, {
@@ -57,6 +58,7 @@ const UserProjectsPage = () => {
               },
               body: JSON.stringify({ githubUsername })
             })
+
             if (response.ok) {
               const { name, githubId, studentId } = await response.json()
               setCurrentUsername(name)
@@ -73,6 +75,7 @@ const UserProjectsPage = () => {
             console.error('Error fetching user name:', error.message)
           }
         }
+
         setCurrentUser({
           uid: user.uid,
           displayName: user.displayName,
@@ -88,7 +91,7 @@ const UserProjectsPage = () => {
     })
 
     return () => unsubscribe()
-  }, [auth])
+  }, [])
 
   const fetchUserRepos = username => {
     fetch(`https://api.github.com/users/${username}/repos`)
@@ -101,6 +104,7 @@ const UserProjectsPage = () => {
               .then(contributors => ({ ...repo, contributors }))
               .catch(error => {
                 console.error('Error fetching contributors:', error)
+
                 return { ...repo, contributors: [] } // Handle errors by setting contributors to an empty array
               })
           )
@@ -118,6 +122,7 @@ const UserProjectsPage = () => {
         if (!response.ok) {
           throw new Error('Failed to fetch user projects')
         }
+
         return response.json()
       })
       .then(data => {
@@ -218,7 +223,9 @@ const UserProjectsPage = () => {
               }
             }}
           >
-            <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{userInfo.name.charAt(0).toUpperCase()}</Avatar>
+            <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>
+              {userInfo.name.charAt(0).toUpperCase()}
+            </Avatar>
             <CardContent>
               <Typography variant='h6'>{userInfo.name}</Typography>
               <Typography variant='body2' color='textSecondary'>

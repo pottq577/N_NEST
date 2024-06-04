@@ -14,7 +14,8 @@ const defaultWeeklySchedule = daysOfWeek.reduce((schedule, day) => {
     interval: 30,
     maxCapacity: 1
   };
-  return schedule;
+
+return schedule;
 }, {});
 
 const AvailabilitySettings = () => {
@@ -99,6 +100,7 @@ const AvailabilitySettings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const availabilityData = {
       email: userEmail,
       weeklySchedule,
@@ -118,7 +120,8 @@ const AvailabilitySettings = () => {
 
   const saveAvailability = async (availabilityData) => {
     const response = await axios.post('http://localhost:8000/availability/', availabilityData);
-    return response.data;
+
+return response.data;
   };
 
   const generateTimeSlots = (startTime, endTime, interval) => {
@@ -129,7 +132,8 @@ const AvailabilitySettings = () => {
       slots.push(format(current, 'HH:mm'));
       current = setMinutes(current, current.getMinutes() + interval);
     }
-    return slots;
+
+return slots;
   };
 
   const handleTabChange = (event, newValue) => {

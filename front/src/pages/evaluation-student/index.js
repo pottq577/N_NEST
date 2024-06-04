@@ -28,6 +28,7 @@ export default function StudentTeamRegistration() {
   const [evaluationAssignments, setEvaluationAssignments] = useState([]);
   const [criteria, setCriteria] = useState([]);
   const [evaluations, setEvaluations] = useState({});
+
   //const [manualStudentId, setManualStudentId] = useState(''); // 수동 학번 설정
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function StudentTeamRegistration() {
           const githubResponse = await axios.get(`http://127.0.0.1:8000/api/students/github/${user.uid}`);
           const studentInfo = githubResponse.data;
           setGithubId(studentInfo.githubId);
-         
+
           //setStudentId('2021243023')
           setStudentId(studentInfo.studentId);  // 학번 설정
         } catch (error) {
@@ -112,7 +113,8 @@ export default function StudentTeamRegistration() {
     for (let i = 1; i <= maxTeams; i++) {
       options.push(`Team ${i}`);
     }
-    return options;
+
+return options;
   };
 
   const registerTeam = async () => {

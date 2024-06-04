@@ -10,17 +10,23 @@ import {
   Box,
   CardActions,
   Button,
-  Avatar
+  Avatar,
+  TextField,
+  InputAdornment,
+  IconButton
 } from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
 import { useRouter } from 'next/router'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../../lib/firebase'
 
 function Projects() {
   const [projects, setProjects] = useState([])
+  const [filteredProjects, setFilteredProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
   const [userProfilePic, setUserProfilePic] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -28,6 +34,7 @@ function Projects() {
       .then(response => response.json())
       .then(data => {
         setProjects(data)
+        setFilteredProjects(data)
         setIsLoading(false)
       })
       .catch(error => {
@@ -47,6 +54,19 @@ function Projects() {
 
     return () => unsubscribe()
   }, [])
+
+  const handleSearchChange = event => {
+    const query = event.target.value.toLowerCase()
+    setSearchQuery(query)
+
+    const filtered = projects.filter(
+      project =>
+        project.project_name.toLowerCase().includes(query) ||
+        project.summary.toLowerCase().includes(query) ||
+        project.username.toLowerCase().includes(query)
+    )
+    setFilteredProjects(filtered)
+  }
 
   if (error) {
     return (
@@ -70,8 +90,26 @@ function Projects() {
 
   return (
     <Container maxWidth='lg' sx={{ mt: 4 }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
+        <TextField
+          label='Search projects'
+          variant='outlined'
+          fullWidth
+          value={searchQuery}
+          onChange={handleSearchChange}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position='end'>
+                <IconButton>
+                  <SearchIcon />
+                </IconButton>
+              </InputAdornment>
+            )
+          }}
+        />
+      </Box>
       <Grid container spacing={4}>
-        {projects.map(project => (
+        {filteredProjects.map(project => (
           <Grid item key={project._id} xs={12} sm={6} md={4}>
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
               <CardMedia

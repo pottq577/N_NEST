@@ -80,7 +80,7 @@ const UserProjectsPage = () => {
     })
 
     return () => unsubscribe() // 클린업 함수
-  }, [auth])
+  }, [])
 
   const fetchUserRepos = username => {
     fetch(`https://api.github.com/users/${username}/repos`)
@@ -93,6 +93,7 @@ const UserProjectsPage = () => {
               .then(contributors => ({ ...repo, contributors }))
               .catch(error => {
                 console.error('Error fetching contributors:', error)
+
                 return { ...repo, contributors: [] } // Handle errors by setting contributors to an empty array
               })
           )

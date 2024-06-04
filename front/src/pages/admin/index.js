@@ -97,9 +97,10 @@ const Home = () => {
   const handleSave = async () => {
     if (fileType === '학생' && !selectedCourse) {
       alert('학생 파일 유형을 선택한 경우 수업을 선택해야 합니다.')
-      return
+
+return
     }
-  
+
     let formattedData = []
     if (fileType === '수업') {
       formattedData = data.slice(1).map(row => ({
@@ -118,9 +119,9 @@ const Home = () => {
         course_code: selectedCourse
       }))
     }
-  
+
     console.log('Formatted data:', formattedData) // 추가
-  
+
     try {
       let response
       if (fileType === '수업') {
@@ -129,10 +130,10 @@ const Home = () => {
         response = await axios.post('http://localhost:8000/save-students/', formattedData)
       }
       console.log(response.data)
-  
+
       // 서버 응답 메시지에 따라 사용자에게 알림 표시
       alert(response.data.message)
-  
+
       // 저장 성공 후 화면 초기화
       setFiles([])
       setData([])
@@ -143,8 +144,8 @@ const Home = () => {
       alert('저장 중 오류가 발생했습니다.')
     }
   }
-  
-  
+
+
 
   const handleDelete = async id => {
     try {
@@ -175,6 +176,7 @@ const Home = () => {
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue)
+
     // 탭이 변경될 때 데이터 초기화
     setFiles([])
     setData([])
@@ -183,6 +185,7 @@ const Home = () => {
 
   const handleCourseChange = async event => {
     setSelectedCourse(event.target.value)
+
     // 선택한 수업에 대한 학생 목록을 가져오기 (삭제 탭에서만)
     if (fileType === '학생') {
       try {

@@ -127,7 +127,8 @@ export default function UploadDocument() {
   const handleTextFile = async file => {
     if (!file) {
       console.error('No file selected.')
-      return
+
+return
     }
 
     const fileContent = await readFile(file)
@@ -145,7 +146,8 @@ export default function UploadDocument() {
   const handleImageFile = async file => {
     if (!file) {
       console.error('No file selected.')
-      return
+
+return
     }
 
     const base64Image = await convertToBase64(file)
@@ -172,13 +174,15 @@ export default function UploadDocument() {
 
   const extractTextFromDocx = async fileContent => {
     const result = await mammoth.extractRawText({ arrayBuffer: fileContent })
-    return { text: result.value }
+
+return { text: result.value }
   }
 
   const handleDeleteImage = index => {
     setImages(prevImages => {
       const updatedImages = prevImages.filter((_, i) => i !== index)
-      return updatedImages
+
+return updatedImages
     })
   }
 

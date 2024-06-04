@@ -212,7 +212,8 @@ const CourseDetail = () => {
       // 모든 팀 정보를 포함한 평가 진행 데이터 매핑
       const updatedProgress = teamsData.map((team) => {
         const progress = progressResponse.data.find(p => p.team_name === team.team_name);
-        return {
+
+return {
           team_name: team.team_name,
           students: team.students.map(student => student.name),
           total_score: progress ? progress.total_score : 0,

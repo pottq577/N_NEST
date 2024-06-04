@@ -4,6 +4,7 @@ import { Container, TextField, MenuItem, Button, Typography, Box, Tab, Tabs, Pap
 import { auth } from '../../../lib/firebase'; // Import Firebase authentication
 import { onAuthStateChanged } from 'firebase/auth'; // Import onAuthStateChanged
 import { setHours, setMinutes, format, isBefore, getDay } from 'date-fns';
+
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const ReservationPage = () => {
@@ -85,7 +86,8 @@ const ReservationPage = () => {
   const handleReservation = async () => {
     if (!studentName || !selectedDate || !selectedTime || !selectedProfessor) {
       alert('Please fill in all fields');
-      return;
+
+return;
     }
 
     const selectedDay = daysOfWeek[getDay(new Date(selectedDate))];

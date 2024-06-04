@@ -27,20 +27,24 @@ const Overview = () => {
   const fetchProfessorInfoByEmail = async (email) => {
     try {
       const response = await axios.get(`http://localhost:8000/professors?email=${email}`)
-      return response.data
+
+return response.data
     } catch (error) {
       console.error('Error fetching professor info:', error)
-      return null
+
+return null
     }
   }
 
   const fetchCoursesByProfessorId = async (professorId) => {
     try {
       const response = await axios.get(`http://localhost:8000/courses/by-professor/${professorId}`)
-      return response.data
+
+return response.data
     } catch (error) {
       console.error('Error fetching courses:', error)
-      return []
+
+return []
     }
   }
 

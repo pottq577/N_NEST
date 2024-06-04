@@ -33,8 +33,9 @@ export default function QuestionDetailPage() {
 
   useEffect(() => {
     fetchQuestionDetails();
-  }, [id]);
+  }, [fetchQuestionDetails, id]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   async function fetchQuestionDetails() {
     if (id) {
       try {

@@ -49,6 +49,7 @@ export default function TabsContainer() {
 
   useEffect(() => {
     const tab = router.query.tab;
+
     const tabsMap = {
       overview: 0,
       projects: 1,

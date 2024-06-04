@@ -62,12 +62,14 @@ const FormControlLabel = styled(MuiFormControlLabel)(({ theme }) => ({
 const LoginPage = () => {
   const theme = useTheme()
   const router = useRouter()
+
   const [values, setValues] = useState({
     email: '',
     password: '',
     showPassword: false
   })
   const [errorMessage, setErrorMessage] = useState('')
+
   const handleGitHubLogin = () => {
     const provider = new GithubAuthProvider() // GitHub 인증 프로바이더 생성
     signInWithPopup(auth, provider) // Firebase와 함께 signInWithPopup 사용

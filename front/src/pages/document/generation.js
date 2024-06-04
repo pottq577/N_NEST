@@ -95,9 +95,11 @@ function RepositoryInfo({ courseInfo, studentId }) {
 
   const RenderUserInfo = props => (
     <StyledCard>
-      <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{props.username.charAt(0).toUpperCase()}</Avatar>
+      <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>
+        {props.username ? props.username.charAt(0).toUpperCase() : 'U'}
+      </Avatar>
       <CardContent>
-        <Typography variant='h6'>{props.username}</Typography>
+        <Typography variant='h6'>{props.username || 'Unknown'}</Typography>
         <Typography variant='body2' color='textSecondary'>
           <strong>User ID:</strong> {props.userId}
         </Typography>

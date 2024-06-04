@@ -15,6 +15,7 @@ import ShieldAccountOutline from 'mdi-material-ui/ShieldAccountOutline'
 import GroupIcon from '@mui/icons-material/Group';
 import CodeIcon from '@mui/icons-material/Code' // Importing the Code icon
 import CreateIcon from '@mui/icons-material/Create' // Importing the Create icon
+
 const navigation = () => {
   return [
     // {
@@ -73,6 +74,7 @@ const navigation = () => {
       icon: CodeIcon,
       path: '/code-test-list'
     },
+
     // {
     //   title: '일정 생성',
     //   icon: HelpCircleOutline,
@@ -88,11 +90,12 @@ const navigation = () => {
       icon: GroupIcon,
       path: '/teams'
     },
-    {
-      title: 'Account Settings',
-      icon: AccountCogOutline,
-      path: '/account-settings'
-    },
+
+    // {
+    //   title: 'Account Settings',
+    //   icon: AccountCogOutline,
+    //   path: '/account-settings'
+    // },
 
     {
       sectionTitle: 'Pages'
@@ -118,6 +121,7 @@ const navigation = () => {
       title: '관리자 페이지',
       path: '/admin'
     }
+
     // {
     //   icon: ShieldAccountOutline,
     //   title: '수업페이지',

@@ -60,6 +60,7 @@ const UserDropdown = () => {
   const handleLogout = () => {
     // 로컬 스토리지에서 토큰 제거
     localStorage.removeItem('accessToken')
+
     // 로그아웃 후 로그인 페이지로 리디렉트
     handleDropdownClose('/pages/login')
   }

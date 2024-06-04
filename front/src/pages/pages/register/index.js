@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { auth } from '../../../../lib/firebase'
-import { 
-  createUserWithEmailAndPassword, 
-  sendEmailVerification, 
-  GithubAuthProvider, 
-  signInWithPopup 
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  GithubAuthProvider,
+  signInWithPopup
 } from 'firebase/auth'
 import axios from 'axios'
 
@@ -24,6 +24,7 @@ import { styled, useTheme } from '@mui/material/styles'
 import MuiCard from '@mui/material/Card'
 import MuiFormControlLabel from '@mui/material/FormControlLabel'
 import InputLabel from '@mui/material/InputLabel'
+
 // Icons Imports
 import Github from 'mdi-material-ui/Github'
 import EyeOutline from 'mdi-material-ui/EyeOffOutline'
@@ -70,14 +71,17 @@ const RegisterPage = () => {
   const validateProfessorId = async () => {
     try {
       console.log(`Validating professor ID: ${professorId}`)
+
       const response = await axios.post('http://localhost:8000/validate-professor-id/', {
         professor_id: professorId
       })
       console.log('Validation response:', response.data)
-      return response.data.message === "Professor ID is valid."
+
+return response.data.message === "Professor ID is valid."
     } catch (error) {
       console.error('Error validating professor ID:', error)
-      return false
+
+return false
     }
   }
 
@@ -98,18 +102,22 @@ const RegisterPage = () => {
     const isValid = await validateProfessorId()
     if (!isValid) {
       alert('Invalid Professor ID.')
-      return
+
+return
     }
-    
+
     try {
       console.log(`Creating user with email: ${email}`)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       console.log('User created:', userCredential.user)
+
       // 이메일 인증 메일 발송
       await sendEmailVerification(userCredential.user)
       console.log('Verification email sent.')
+
       // Save user ID to DB
       saveUserToDB(userCredential.user.uid)
+
       // Redirect to login page
       router.push('/pages/login')
     } catch (error) {
@@ -125,7 +133,8 @@ const RegisterPage = () => {
         const isValid = await validateProfessorId()
         if (!isValid) {
           alert('Invalid Professor ID.')
-          return
+
+return
         }
         saveUserToDB(result.user.uid)
         router.push('/pages/register/addInfo')
