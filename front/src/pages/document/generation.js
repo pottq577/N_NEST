@@ -322,7 +322,7 @@ function SummaryAndImage({
     setProgress(0)
 
     const sections = {
-      background: generateDoc.background,
+      background: generateDoc.background, //
       development_content: generateDoc.development_content,
       expected_effects: generateDoc.expected_effects
     }

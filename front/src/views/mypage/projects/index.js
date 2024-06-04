@@ -15,7 +15,10 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Avatar
+  Avatar,
+  CircularProgress,
+  CardMedia,
+  CardActions
 } from '@mui/material'
 import { Add, Star, ForkRight, Visibility } from '@mui/icons-material'
 import { useRouter } from 'next/router'
@@ -33,7 +36,7 @@ const languageColors = {
 const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
-  const [userProjects, setUserProjects] = useState([]) // 기본값을 빈 배열로 설정
+  const [userProjects, setUserProjects] = useState([])
   const [openModal, setOpenModal] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState(null)
   const [currentUsername, setCurrentUsername] = useState('')
@@ -42,11 +45,16 @@ const UserProjectsPage = () => {
   const [currentUser, setCurrentUser] = useState(null)
   const [userCourses, setUserCourses] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
+  const [allProjects, setAllProjects] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [userProfilePic, setUserProfilePic] = useState(null)
   const router = useRouter()
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async user => {
       if (user) {
+        setUserProfilePic(user.photoURL)
         const githubUsername = user.reloadUserInfo.screenName
         if (githubUsername) {
           try {
@@ -65,7 +73,7 @@ const UserProjectsPage = () => {
               setUserLogins(prev => ({ ...prev, [githubId]: { name, studentId } }))
               fetchUserRepos(user.reloadUserInfo.screenName)
               fetchUserCourses(studentId)
-              fetchUserProjects(studentId) // 추가된 부분
+              fetchUserProjects(studentId)
             } else {
               throw new Error('Failed to fetch user name')
             }
@@ -90,6 +98,10 @@ const UserProjectsPage = () => {
     return () => unsubscribe()
   }, [auth])
 
+  useEffect(() => {
+    fetchAllProjects()
+  }, [])
+
   const fetchUserRepos = username => {
     fetch(`https://api.github.com/users/${username}/repos`)
       .then(response => response.json())
@@ -101,7 +113,7 @@ const UserProjectsPage = () => {
               .then(contributors => ({ ...repo, contributors }))
               .catch(error => {
                 console.error('Error fetching contributors:', error)
-                return { ...repo, contributors: [] } // Handle errors by setting contributors to an empty array
+                return { ...repo, contributors: [] }
               })
           )
         )
@@ -112,7 +124,6 @@ const UserProjectsPage = () => {
   }
 
   const fetchUserProjects = studentId => {
-    console.log(studentId)
     fetch(`http://localhost:8000/api/user-projects/${studentId}`)
       .then(response => {
         if (!response.ok) {
@@ -120,9 +131,7 @@ const UserProjectsPage = () => {
         }
         return response.json()
       })
-      .then(data => {
-        setUserProjects(data)
-      })
+      .then(data => setUserProjects(data))
       .catch(error => console.error('Error fetching user projects:', error))
   }
 
@@ -131,6 +140,19 @@ const UserProjectsPage = () => {
       .then(response => response.json())
       .then(data => setUserCourses(data.courses))
       .catch(error => console.error('Error fetching user courses:', error))
+  }
+
+  const fetchAllProjects = () => {
+    fetch('http://localhost:8000/api/projects')
+      .then(response => response.json())
+      .then(data => {
+        setAllProjects(data)
+        setIsLoading(false)
+      })
+      .catch(error => {
+        setError(error.message)
+        setIsLoading(false)
+      })
   }
 
   const handleClickUsername = username => {
@@ -168,7 +190,7 @@ const UserProjectsPage = () => {
         userId: currentUserId,
         username: currentUsername,
         studentId: currentStudentId,
-        course: selectedCourse === 'none' ? 'None' : selectedCourse // 선택된 수업
+        course: selectedCourse === 'none' ? 'None' : selectedCourse
       }
     })
   }
@@ -195,7 +217,7 @@ const UserProjectsPage = () => {
         userId: currentUserId,
         username: currentUsername,
         studentId: currentStudentId,
-        course: selectedCourse === 'none' ? 'None' : selectedCourse // 선택된 수업
+        course: selectedCourse === 'none' ? 'None' : selectedCourse
       }
     })
   }
@@ -424,6 +446,56 @@ const UserProjectsPage = () => {
           handleNavigateToDocumentGeneration={handleNavigateToDocumentGeneration}
         />
       </Modal>
+
+      <h2>모든 프로젝트 목록</h2>
+      {error && <Typography color='error'>Failed to load projects: {error}</Typography>}
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Grid container spacing={4}>
+          {allProjects.map(project => (
+            <Grid item key={project._id} xs={12} sm={6} md={4}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
+                <CardMedia
+                  component='img'
+                  height='200'
+                  image={project.generated_image_url}
+                  alt='Project Image'
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant='h5' component='div'>
+                    {project.project_name}
+                  </Typography>
+                  <Typography variant='body2' color='text.secondary' paragraph>
+                    {project.summary}
+                  </Typography>
+                </CardContent>
+                <Box sx={{ px: 2, pb: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Avatar alt={project.username} src={userProfilePic} sx={{ mr: 2 }} />
+                      <Typography variant='body2' color='text.secondary'>
+                        By: {project.username}
+                      </Typography>
+                    </Box>
+                    <Typography variant='body2' color='text.secondary' sx={{ mr: 2 }}>
+                      Views: {project.views ?? 0}
+                    </Typography>
+                  </Box>
+                </Box>
+                <CardActions sx={{ justifyContent: 'flex-start', pl: 2 }}>
+                  <Button size='small' color='primary' onClick={() => router.push(`/project/${project._id}`)}>
+                    Learn More
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Box>
   )
 }
