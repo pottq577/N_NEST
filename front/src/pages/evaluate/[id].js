@@ -31,7 +31,6 @@ const parseText = text => {
   const sections = text.split(', ').map(section => {
     const [title, content] = section.split(': ** ')
 
-    // ** 로 끝나는 부분 제거하고, 줄바꿈 문자를 기준으로 분리한 후 불필요한 * 제거
     const cleanedContent = content
       ?.trim()
       .replace(/\*\*$/, '')
@@ -52,7 +51,7 @@ const TextExtractedCard = ({ project }) => {
     <CustomCard variant='outlined' sx={{ mt: 4 }}>
       <CardContent>
         <CustomTypography variant='h6' gutterBottom>
-          텍스트 추출
+          본문 내용
         </CustomTypography>
         {sections.map((section, index) => (
           <div key={index}>
@@ -147,7 +146,7 @@ function ProjectDetails() {
 
   const handleCommentSubmit = () => {
     const newComment = {
-      username: 'current_user', // 현재 사용자의 이름을 여기에 설정
+      username: 'current_user',
       content: comment
     }
 
@@ -235,7 +234,7 @@ function ProjectDetails() {
     setSummaryError('')
     try {
       const response = await fetch(
-        `http://localhost:8000/summarize/${finalCategory}?text=${encodeURIComponent(inputs[category])}`,
+        `http://localhost:8001/summarize/${finalCategory}?text=${encodeURIComponent(inputs[category])}`,
         {
           method: 'GET',
           headers: {
@@ -259,7 +258,7 @@ function ProjectDetails() {
   const handleSaveEvaluation = async () => {
     const evaluationData = {
       project_id: project._id,
-      username: 'current_user', // 현재 사용자의 이름을 여기에 설정
+      username: 'current_user',
       student_id: project.student_id,
       course_code: project.course_code,
       evaluations: selectedCategories.map(category => ({
@@ -322,7 +321,6 @@ function ProjectDetails() {
         component='p'
         sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', mb: 2 }}
       >
-        {/* 언어 아이콘 Box */}
         <Box
           sx={{
             width: 12,
@@ -381,7 +379,6 @@ function ProjectDetails() {
       {project && (
         <Grid container spacing={4}>
           <Grid item xs={12} md={8}>
-            {/* 프로젝트 정보 */}
             <CustomCard variant='outlined'>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
@@ -394,13 +391,12 @@ function ProjectDetails() {
                   <strong>과목:</strong> {project.course} - {project.course_code}
                 </Typography>
                 <Typography variant='body1' gutterBottom>
-                  <strong>조회수:</strong> {project.views ?? 0} {/* 기본값 설정 */}
+                  <strong>조회수:</strong> {project.views ?? 0}
                 </Typography>
                 <RenderRepoDetail repo={project} />
               </CardContent>
             </CustomCard>
 
-            {/* 요약 정보 */}
             <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
@@ -412,10 +408,8 @@ function ProjectDetails() {
               </CardContent>
             </CustomCard>
 
-            {/* 텍스트 추출 */}
             <TextExtractedCard project={project} />
 
-            {/* 프로젝트 이미지 */}
             <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardMedia
                 component='img'
@@ -425,7 +419,6 @@ function ProjectDetails() {
               />
             </CustomCard>
 
-            {/* 댓글 */}
             <CustomCard variant='outlined' sx={{ mt: 4 }}>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
@@ -456,12 +449,11 @@ function ProjectDetails() {
             </CustomCard>
           </Grid>
 
-          {/* 다이나믹 프롬프팅 */}
           <Grid item xs={12} md={4}>
             <Paper elevation={3} sx={{ position: 'sticky', top: 16, p: 2 }}>
-              <Typography variant='h5' gutterBottom>
+              <CustomTypography variant='h5' gutterBottom>
                 Dynamic Prompting
-              </Typography>
+              </CustomTypography>
               <Box display='flex' flexDirection='row' flexWrap='wrap' mb={2}>
                 {categories.map(category => (
                   <CustomButton
@@ -474,43 +466,29 @@ function ProjectDetails() {
                   </CustomButton>
                 ))}
               </Box>
-              {selectedCategories.includes('기타') && (
-                <TextField
-                  fullWidth
-                  label='Specify the "Other" category name'
-                  value={otherCategoryName}
-                  onChange={e => handleOtherCategoryNameChange(e.target.value)}
-                  variant='outlined'
-                  sx={{ mb: 2 }}
-                />
-              )}
               {selectedCategories.map(category => (
                 <Box key={category} mb={2}>
                   <Divider sx={{ my: 2 }} />
                   {category === '기타' && (
                     <TextField
                       fullWidth
-                      label={`Enter text for ${otherCategoryName}`}
-                      value={inputs[category]}
-                      onChange={e => handleChange(category, e.target.value)}
+                      label='Specify the "Other" category name'
+                      value={otherCategoryName}
+                      onChange={e => handleOtherCategoryNameChange(e.target.value)}
                       variant='outlined'
-                      multiline
-                      rows={4}
                       sx={{ mb: 2 }}
                     />
                   )}
-                  {category !== '기타' && (
-                    <TextField
-                      fullWidth
-                      label={`Enter text for ${category}`}
-                      value={inputs[category]}
-                      onChange={e => handleChange(category, e.target.value)}
-                      variant='outlined'
-                      multiline
-                      rows={4}
-                      sx={{ mb: 2 }}
-                    />
-                  )}
+                  <TextField
+                    fullWidth
+                    label={`Enter text for ${category === '기타' ? otherCategoryName : category}`}
+                    value={inputs[category]}
+                    onChange={e => handleChange(category, e.target.value)}
+                    variant='outlined'
+                    multiline
+                    rows={4}
+                    sx={{ mb: 2 }}
+                  />
                   <CustomButton
                     onClick={() => handleSubmit(category)}
                     variant='contained'
@@ -525,11 +503,13 @@ function ProjectDetails() {
                       {summaryError}
                     </Typography>
                   )}
-                  <Typography variant='body1'>{summaries[category]}</Typography>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant='h6' gutterBottom>
-                    {category === '기타' ? otherCategoryName : category}에 대한 평가 및 설명
+                  <Typography variant='body1' sx={{ mb: 2 }}>
+                    {summaries[category]}
                   </Typography>
+
+                  <CustomTypography variant='h6' gutterBottom>
+                    {category === '기타' ? otherCategoryName : category}에 대한 평가 및 설명
+                  </CustomTypography>
                   <TextField
                     fullWidth
                     label='Score Description'

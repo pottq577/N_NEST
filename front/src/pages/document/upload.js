@@ -417,14 +417,14 @@ export default function UploadDocument() {
         {isLoading && <LinearProgress />}
 
         <SectionPaper>
-          <Typography variant='h5' gutterBottom sx={{ fontWeight: '600', color: '#0072E5' }}>
+          <Typography variant='h6' gutterBottom sx={{ fontWeight: '600', color: '#0072E5' }}>
             요약
           </Typography>
           <Typography>{summary || 'No summary available'}</Typography>
         </SectionPaper>
 
         <SectionPaper>
-          <Typography variant='h5' gutterBottom sx={{ fontWeight: '600', color: '#0072E5' }}>
+          <Typography variant='h6' gutterBottom sx={{ fontWeight: '600', color: '#0072E5' }}>
             생성된 이미지
           </Typography>
           {generatedImage && <img src={generatedImage} alt='Generated' style={{ width: '100%', height: 'auto' }} />}

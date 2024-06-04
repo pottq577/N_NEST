@@ -429,6 +429,14 @@ async def read_projects():
 
 
 
+@app.get("/api/user-projects/{student_id}", response_model=List[ProjectInfo])
+async def read_user_projects(student_id: str):
+    projects = await project_collection.find({"student_id": student_id}).to_list(100)
+    if not projects:
+        raise HTTPException(status_code=404, detail="Projects not found")
+    return [transform_id(project) for project in projects]
+
+
 
 @app.post("/api/projects/{project_id}/comments")
 async def add_comment(project_id: str, comment: Comment):

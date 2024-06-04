@@ -77,7 +77,7 @@ export default function AskQuestionPage() {
     <Container maxWidth='sm' sx={{ mt: 4 }}>
       <Paper elevation={3} sx={{ padding: 4 }}>
         <Typography variant='h4' component='h1' align='center' gutterBottom>
-          Ask a Question
+          질문 등록하기
         </Typography>
         <Box component='form' onSubmit={handleSubmit} sx={{ mt: 2 }}>
           <TextField
@@ -112,13 +112,13 @@ export default function AskQuestionPage() {
           <Grid container spacing={2} sx={{ mt: 2 }}>
             <Grid item xs={6}>
               <Button type='submit' variant='contained' color='primary' fullWidth>
-                Submit Question
+                질문하기
               </Button>
             </Grid>
             <Grid item xs={6}>
               <Link href='/question-answer' passHref>
                 <Button variant='contained' color='secondary' fullWidth>
-                  Cancel
+                  취소
                 </Button>
               </Link>
             </Grid>

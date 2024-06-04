@@ -21,7 +21,6 @@ import { Add, Star, ForkRight, Visibility } from '@mui/icons-material'
 import { useRouter } from 'next/router'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../../../lib/firebase'
-import GITHUB_TOKEN_IGNORE from '../../../../ignore'
 
 const languageColors = {
   JavaScript: '#f1e05a',
@@ -34,6 +33,7 @@ const languageColors = {
 const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
+  const [userProjects, setUserProjects] = useState([]) // 기본값을 빈 배열로 설정
   const [openModal, setOpenModal] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState(null)
   const [currentUsername, setCurrentUsername] = useState('')
@@ -65,6 +65,7 @@ const UserProjectsPage = () => {
               setUserLogins(prev => ({ ...prev, [githubId]: { name, studentId } }))
               fetchUserRepos(user.reloadUserInfo.screenName)
               fetchUserCourses(studentId)
+              fetchUserProjects(studentId) // 추가된 부분
             } else {
               throw new Error('Failed to fetch user name')
             }
@@ -90,47 +91,39 @@ const UserProjectsPage = () => {
   }, [auth])
 
   const fetchUserRepos = username => {
-    const GITHUB_TOKEN = GITHUB_TOKEN_IGNORE
-
-    fetch(`https://api.github.com/users/${username}/repos`, {
-      headers: {
-        Authorization: `application/json`
-      }
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to fetch user repos')
-        }
-
-        return response.json()
-      })
+    fetch(`https://api.github.com/users/${username}/repos`)
+      .then(response => response.json())
       .then(repos => {
-        if (!Array.isArray(repos)) {
-          throw new Error('Repos is not an array')
-        }
-
-        return Promise.all(
+        Promise.all(
           repos.map(repo =>
-            fetch(repo.contributors_url, {
-              headers: {
-                Authorization: `token ${GITHUB_TOKEN}`
-              }
-            })
+            fetch(repo.contributors_url)
               .then(resp => (resp.ok ? resp.json() : Promise.reject('Failed to load contributors')))
               .then(contributors => ({ ...repo, contributors }))
               .catch(error => {
                 console.error('Error fetching contributors:', error)
-
-                return { ...repo, contributors: [] }
+                return { ...repo, contributors: [] } // Handle errors by setting contributors to an empty array
               })
           )
         )
+          .then(reposWithContributors => setUserRepos(reposWithContributors))
+          .catch(error => console.error('Error processing repos:', error))
       })
-      .then(reposWithContributors => {
-        const sortedRepos = reposWithContributors.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-        setUserRepos(sortedRepos)
+      .catch(error => console.error('Error fetching user repos:', error))
+  }
+
+  const fetchUserProjects = studentId => {
+    console.log(studentId)
+    fetch(`http://localhost:8000/api/user-projects/${studentId}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to fetch user projects')
+        }
+        return response.json()
       })
-      .catch(error => console.error('Error processing repos:', error))
+      .then(data => {
+        setUserProjects(data)
+      })
+      .catch(error => console.error('Error fetching user projects:', error))
   }
 
   const fetchUserCourses = studentId => {
@@ -397,6 +390,30 @@ const UserProjectsPage = () => {
           </IconButton>
         </Card>
       ))}
+
+      <h2>내가 등록한 프로젝트</h2>
+      {Array.isArray(userProjects) && userProjects.length > 0 ? (
+        userProjects.map(project => (
+          <Card key={project.id} sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
+            <CardContent sx={{ flex: 1 }}>
+              <Typography variant='h6'>{project.project_name}</Typography>
+              <Typography variant='body2' color='textSecondary'>
+                {project.description}
+              </Typography>
+              <Typography variant='body2' color='textSecondary'>
+                By: {project.username}
+              </Typography>
+              <Typography variant='body2' color='textSecondary'>
+                Views: {project.views ?? 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        ))
+      ) : (
+        <Typography variant='body2' color='textSecondary'>
+          No projects found.
+        </Typography>
+      )}
 
       <Modal open={openModal} onClose={handleCloseModal}>
         <ModalContents
