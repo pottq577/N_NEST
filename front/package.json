@@ -53,6 +53,7 @@
     "@mui/lab": "^5.0.0-alpha.70",
     "@mui/material": "^5.15.17",
     "@mui/x-date-pickers": "^7.2.0",
+    "@nextui-org/react": "^2.4.1",
     "@popperjs/core": "^2.11.2",
     "apexcharts-clevision": "3.28.5",
     "axios": "^1.6.8",
@@ -80,6 +81,7 @@
     "react-popper": "^2.2.5",
     "react-rating-stars-component": "^2.2.0",
     "react-swipeable-views": "^0.14.0",
+    "react-textarea-autosize": "^8.5.3",
     "swr": "^2.2.5",
     "xlsx": "^0.18.5"
   },

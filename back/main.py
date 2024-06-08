@@ -31,8 +31,6 @@ load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-
 client2 = OpenAI(api_key=OPENAI_API_KEY)
 
 # 로깅 설정
@@ -470,6 +468,22 @@ async def save_project(project_data: ProjectInfo):
         return {"status": "success", "document_id": str(result.inserted_id)}
     else:
         raise HTTPException(status_code=500, detail="Failed to save the document")
+
+@app.put("/update-project/{project_id}")
+async def update_project(project_id: str, project_data: ProjectInfo):
+    json_compatible_item_data = jsonable_encoder(project_data)
+    result = await project_collection.update_one(
+        {"_id": ObjectId(project_id)},
+        {"$set": json_compatible_item_data}
+    )
+    if result.modified_count == 1:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=404, detail="Project not found or no changes made")
+
+
+
+
 
 @app.get("/api/projects")
 async def read_projects():

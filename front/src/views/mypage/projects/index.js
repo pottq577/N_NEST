@@ -15,8 +15,13 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Avatar
+  Avatar,
+  CardActions,
+  CardMedia,
+  Container,
+  Paper
 } from '@mui/material'
+import EditIcon from '@mui/icons-material/Edit'
 import { Add, Star, ForkRight, Visibility } from '@mui/icons-material'
 import { useRouter } from 'next/router'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
@@ -34,6 +39,7 @@ const UserProjectsPage = () => {
   const [userLogins, setUserLogins] = useState({})
   const [userRepos, setUserRepos] = useState([])
   const [userProjects, setUserProjects] = useState([]) // 기본값을 빈 배열로 설정
+  const [filteredProjects, setFilteredProjects] = useState([]) // 필터링된 프로젝트
   const [openModal, setOpenModal] = useState(false)
   const [selectedRepo, setSelectedRepo] = useState(null)
   const [currentUsername, setCurrentUsername] = useState('')
@@ -117,7 +123,7 @@ const UserProjectsPage = () => {
 
   const fetchUserProjects = studentId => {
     console.log(studentId)
-    fetch(`http://localhost:8000/api/user-projects/${studentId}`)
+    fetch(`http://localhost:8000/api/projects`)
       .then(response => {
         if (!response.ok) {
           throw new Error('Failed to fetch user projects')
@@ -127,6 +133,8 @@ const UserProjectsPage = () => {
       })
       .then(data => {
         setUserProjects(data)
+        // 사용자의 학번으로 필터링
+        setFilteredProjects(data.filter(project => project.student_id === studentId))
       })
       .catch(error => console.error('Error fetching user projects:', error))
   }
@@ -205,6 +213,14 @@ const UserProjectsPage = () => {
     })
   }
 
+  const handleCardClick = project => {
+    router.push(`/project/${project._id}`)
+  }
+
+  const handleEditProject = projectId => {
+    router.push(`/edit-projectinfo/${projectId}`)
+  }
+
   const RenderUserInfo = () => (
     <List>
       {Object.entries(userLogins).map(([githubId, userInfo]) => (
@@ -223,9 +239,7 @@ const UserProjectsPage = () => {
               }
             }}
           >
-            <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>
-              {userInfo.name.charAt(0).toUpperCase()}
-            </Avatar>
+            <Avatar sx={{ bgcolor: 'primary.main', marginRight: 2 }}>{userInfo.name.charAt(0).toUpperCase()}</Avatar>
             <CardContent>
               <Typography variant='h6'>{userInfo.name}</Typography>
               <Typography variant='body2' color='textSecondary'>
@@ -377,7 +391,7 @@ const UserProjectsPage = () => {
   )
 
   return (
-    <Box>
+    <Container maxWidth='lg' sx={{ mt: 4 }}>
       <RenderUserInfo />
 
       <h2>원격 저장소 목록</h2>
@@ -399,28 +413,71 @@ const UserProjectsPage = () => {
       ))}
 
       <h2>내가 등록한 프로젝트</h2>
-      {Array.isArray(userProjects) && userProjects.length > 0 ? (
-        userProjects.map(project => (
-          <Card key={project.id} sx={{ display: 'flex', mb: 2, alignItems: 'center' }}>
-            <CardContent sx={{ flex: 1 }}>
-              <Typography variant='h6'>{project.project_name}</Typography>
-              <Typography variant='body2' color='textSecondary'>
-                {project.description}
-              </Typography>
-              <Typography variant='body2' color='textSecondary'>
-                By: {project.username}
-              </Typography>
-              <Typography variant='body2' color='textSecondary'>
-                Views: {project.views ?? 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        ))
-      ) : (
-        <Typography variant='body2' color='textSecondary'>
-          No projects found.
-        </Typography>
-      )}
+      <Grid container spacing={4}>
+        {Array.isArray(filteredProjects) && filteredProjects.length > 0 ? (
+          filteredProjects.map(project => (
+            <Grid item key={project._id} xs={12} sm={6} md={4}>
+              <Card
+                sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3, position: 'relative' }}
+              >
+                <CardMedia
+                  component='img'
+                  height='200'
+                  image={project.generated_image_url}
+                  alt='Project Image'
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant='h5' component='div'>
+                    {project.project_name}
+                  </Typography>
+                  <Typography variant='body2' color='text.secondary' paragraph>
+                    {project.summary}
+                  </Typography>
+                  <Paper
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      bgcolor: 'rgba(255, 255, 255, 0.7)',
+                      padding: '4px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <IconButton sx={{ color: '#0072E5' }} onClick={() => handleEditProject(project._id)}>
+                      <EditIcon />
+                    </IconButton>
+                  </Paper>
+                </CardContent>
+                <Box sx={{ px: 2, pb: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Avatar alt={project.username} src={project.user_profile_pic} sx={{ mr: 2 }} />
+                      <Typography variant='body2' color='text.secondary'>
+                        By: {project.username}
+                      </Typography>
+                    </Box>
+                    <Typography variant='body2' color='text.secondary' sx={{ mr: 2 }}>
+                      Views: {project.views ?? 0}
+                    </Typography>
+                  </Box>
+                </Box>
+                <CardActions sx={{ justifyContent: 'flex-start', pl: 2 }}>
+                  <Button size='small' color='primary' onClick={() => handleCardClick(project)}>
+                    Learn More
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          ))
+        ) : (
+          <Typography variant='body2' color='textSecondary'>
+            No projects found.
+          </Typography>
+        )}
+      </Grid>
 
       <Modal open={openModal} onClose={handleCloseModal}>
         <ModalContents
@@ -431,7 +488,7 @@ const UserProjectsPage = () => {
           handleNavigateToDocumentGeneration={handleNavigateToDocumentGeneration}
         />
       </Modal>
-    </Box>
+    </Container>
   )
 }
 
