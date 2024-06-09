@@ -69,17 +69,19 @@ export default function TabsContainer() {
 
   const tabs = [
     { label: '개요', component: <Overview /> },
-    { label: '프로젝트', component: <Project /> },
-    { label: '프로필 관리', component: <ProfileManage /> },
-    { label: '포트폴리오', component: <Portfolio /> },
   ];
 
   if (userRole === 'professor') {
-    tabs.push({ label: '일정 생성', component: <ReservationPage />  });
+    tabs.push({ label: '일정 생성', component: <ReservationPage /> });
   }
 
   if (userRole === 'student') {
-    tabs.push({ label: '예약', component: <AvailabilitySettings />});
+    tabs.push(
+      { label: '프로젝트', component: <Project /> },
+      { label: '프로필 관리', component: <ProfileManage /> },
+      { label: '포트폴리오', component: <Portfolio /> },
+      { label: '예약', component: <AvailabilitySettings /> }
+    );
   }
 
   return (

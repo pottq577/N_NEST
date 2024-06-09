@@ -115,11 +115,12 @@ class AvailabilityData(BaseModel):
 
 class ReservationData(BaseModel):
     studentName: str
-    userId: str
+    professor_id: str  # 교수의 ID
+    professor_name: str  # 교수의 이름
     day: str
     date: str
     time: str
-    studentUserId: str  # 현재 사용자의 UID를 추가
+    userId: str  # 학생의 ID
 
 class ClassificationRequest(BaseModel):
     text: str

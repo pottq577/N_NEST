@@ -1,20 +1,18 @@
 from fastapi import APIRouter, HTTPException, Query
 from models import AvailabilityData, ReservationData, ProfessorIDValidation, Professor
-from database import availability_collection, reservations_collection, course_collection,professor_collection
+from database import availability_collection, reservations_collection, course_collection, professor_collection
 from fastapi.responses import JSONResponse
-from typing import Dict, Optional, List,Tuple, Union
+from typing import Optional, List
 from pydantic import EmailStr
 import logging
 from database import db
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
+
 router = APIRouter()
 
 # ObjectId를 문자열로 변환하는 함수
 def object_id_to_str(document):
-    """
-    BSON ObjectId를 문자열로 변환합니다.
-    """
     if document:
         document['_id'] = str(document['_id'])
     return document
@@ -22,7 +20,6 @@ def object_id_to_str(document):
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 async def get_professor_id_by_email(email: str) -> Optional[str]:
     professor = await professor_collection.find_one({"email": email})
@@ -79,22 +76,21 @@ async def get_availability(email: str = Query(...)):
             raise HTTPException(status_code=404, detail="No availability settings found.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    # 기존 코드 재사용
 
 @router.get("/reservations/user")
 async def get_user_reservations(user_id: str):
     try:
-        reservations = await db.reservations.find({"studentUserId": user_id}).to_list(None)
+        reservations = await db.reservations.find({"userId": user_id}).to_list(None)
         for reservation in reservations:
             reservation["_id"] = str(reservation["_id"])
             logging.info(f"Reservation found: {reservation}")
 
-            # 교수 정보를 course 컬렉션에서 조회
-            professor_course = await db.Course.find_one({"professor_id": reservation["userId"]})
-            logging.info(f"Professor course data: {professor_course}")
+            # 교수 정보를 professor_collection에서 조회
+            professor = await professor_collection.find_one({"professor_id": reservation["professor_id"]})
+            logging.info(f"Professor data: {professor}")
 
-            if professor_course:
-                reservation["professor_name"] = professor_course.get("professor", "No Name Available")
+            if professor:
+                reservation["professor_name"] = reservation.get("professor_name", "No Name Available")
             else:
                 reservation["professor_name"] = "No Name Available"
         return reservations
@@ -115,7 +111,7 @@ async def get_reservations():
 @router.post("/reservation/")
 async def make_reservation(data: ReservationData):
     try:
-        availability = await availability_collection.find_one({"userId": data.userId})
+        availability = await availability_collection.find_one({"userId": data.professor_id})
         if not availability:
             raise HTTPException(status_code=404, detail="No availability settings found.")
 
@@ -128,12 +124,34 @@ async def make_reservation(data: ReservationData):
         if any(slot['day'] == data.day and slot['time'] == data.time for slot in unavailable_times):
             raise HTTPException(status_code=400, detail="The selected time is unavailable.")
 
-        existing_reservations = await reservations_collection.count_documents({"day": data.day, "time": data.time})
+        existing_reservations = await reservations_collection.count_documents({"day": data.day, "time": data.time, "professor_id": data.professor_id})
         if existing_reservations >= weekly_schedule[data.day]['maxCapacity']:
             raise HTTPException(status_code=400, detail="The selected time is fully booked.")
 
-        result = await reservations_collection.insert_one(data.dict())
+        # 교수 이름 추가
+        professor_course = await course_collection.find_one({"professor_id": data.professor_id})
+        if professor_course:
+            professor_name = professor_course.get("professor", "No Name Available")
+        else:
+            professor_name = "No Name Available"
+
+        reservation_data = data.dict()
+        reservation_data["professor_name"] = professor_name
+
+        result = await reservations_collection.insert_one(reservation_data)
         return {"message": "Reservation saved successfully!", "id": str(result.inserted_id)}
+    except HTTPException as http_exc:
+        raise http_exc  # HTTPException을 그대로 재발생시킴
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/reservations/professor/{professor_id}")
+async def get_professor_reservations(professor_id: str):
+    try:
+        reservations = await reservations_collection.find({"professor_id": professor_id}).to_list(None)
+        for reservation in reservations:
+            reservation["_id"] = str(reservation["_id"])
+        return reservations
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -156,10 +174,8 @@ async def get_available_professors():
             "name": professor_name
         }
         professors.append(professor_data)
-    print(professors)  # 로깅 추가
+    print(professors)
     return professors
-
-
 
 def course_helper(course) -> dict:
     return {
@@ -172,7 +188,6 @@ def course_helper(course) -> dict:
         "code": course["code"]
     }
 
-# 교수 ID 검증을 위한 엔드포인트
 @router.post("/validate-professor-id/")
 async def validate_professor_id(professor: ProfessorIDValidation):
     logger.info(f"Received request to validate professor ID: {professor}")
@@ -183,19 +198,16 @@ async def validate_professor_id(professor: ProfessorIDValidation):
     logger.info(f"Professor with ID {professor.professor_id} is valid.")
     return {"message": "Professor ID is valid."}
 
-# 교수 정보를 저장하는 엔드포인트
 @router.post("/professors/", response_model=dict)
 async def register_professor(professor: Professor):
     logger.info(f"Received request to register professor: {professor}")
     professor_data = jsonable_encoder(professor)
 
-    # Check if the professor exists in the Course collection
     existing_course = await course_collection.find_one({"professor_id": professor.professor_id})
     if not existing_course:
         logger.warning(f"Professor with ID {professor.professor_id} does not exist in any course.")
         raise HTTPException(status_code=400, detail="Professor with this ID does not exist in any course.")
 
-    # Check if the professor already exists in the Professor collection
     existing_professor = await professor_collection.find_one({"email": professor.email})
     if existing_professor:
         logger.warning(f"Professor with email {professor.email} already exists.")
@@ -223,19 +235,35 @@ async def get_professor_by_email(email: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching professor: {str(e)}")
 
-
 @router.get("/courses/by-professor/{professor_id}")
 async def get_courses_by_professor(professor_id: str):
     try:
-        print(f"Searching for courses with professor_id: {professor_id}")  # 로그 추가
+        print(f"Searching for courses with professor_id: {professor_id}")
         courses = []
         async for course in course_collection.find({"professor_id": professor_id}):
-            print(f"Found course: {course}")  # 쿼리 결과를 로그에 출력
+            print(f"Found course: {course}")
             courses.append(course_helper(course))
         if not courses:
-            print("No courses found for the given professor_id")  # 로그 추가
+            print("No courses found for the given professor_id")
             raise HTTPException(status_code=404, detail="No courses found for the professor")
         return courses
     except Exception as e:
         print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/reservations/professor")
+async def get_professor_reservations_by_email(email: str):
+    try:
+        professor = await professor_collection.find_one({"email": email})
+        if not professor:
+            raise HTTPException(status_code=404, detail="Professor not found")
+
+        professor_id = professor.get("professor_id")
+        reservations = await reservations_collection.find({"professor_id": professor_id}).to_list(None)
+        
+        for reservation in reservations:
+            reservation["_id"] = str(reservation["_id"])
+        
+        return reservations
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

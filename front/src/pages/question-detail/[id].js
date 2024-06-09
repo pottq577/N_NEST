@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { auth } from '../../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -31,12 +31,7 @@ export default function QuestionDetailPage() {
     return () => unsubscribe();
   }, [id]);
 
-  useEffect(() => {
-    fetchQuestionDetails();
-  }, [fetchQuestionDetails, id]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  async function fetchQuestionDetails() {
+  const fetchQuestionDetails = useCallback(async () => {
     if (id) {
       try {
         const response = await fetch(`http://127.0.0.1:8000/questions/${id}`);
@@ -49,7 +44,11 @@ export default function QuestionDetailPage() {
         console.error('Error fetching question details:', error);
       }
     }
-  }
+  }, [id, userId]);
+
+  useEffect(() => {
+    fetchQuestionDetails();
+  }, [fetchQuestionDetails]);
 
   async function fetchUserTitle(userId) {
     try {
@@ -194,7 +193,6 @@ export default function QuestionDetailPage() {
       alert(`해결 상태 변경에 실패하였습니다: ${error.message}`);
     }
   };
-
 
   if (!questionDetails) {
     return <p>Loading...</p>;

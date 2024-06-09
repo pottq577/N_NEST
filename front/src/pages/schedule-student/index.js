@@ -6,6 +6,7 @@ import { onAuthStateChanged } from 'firebase/auth'; // Import onAuthStateChanged
 import { setHours, setMinutes, format, isBefore, getDay } from 'date-fns';
 
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const daysOfWeekKor = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
 const ReservationPage = () => {
   const [professors, setProfessors] = useState([]);
@@ -16,7 +17,7 @@ const ReservationPage = () => {
   const [studentName, setStudentName] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
-  const [userId, setUserId] = useState(null); // State to store the current user's UID
+  const [studentUserId, setStudentUserId] = useState(null); // State to store the current user's UID
   const [userReservations, setUserReservations] = useState([]); // State to store user reservations
   const [tabIndex, setTabIndex] = useState(0); // State to manage tab selection
 
@@ -27,8 +28,8 @@ const ReservationPage = () => {
         console.log(response.data);  // 로깅 추가
         setProfessors(response.data);
       } catch (error) {
-        console.error('Error fetching professors:', error);
-        alert('Error fetching professors: ' + (error.response?.data?.detail || 'Unknown error'));
+        console.error('교수 데이터를 가져오는 중 오류 발생:', error);
+        alert('교수 데이터를 가져오는 중 오류 발생: ' + (error.response?.data?.detail || 'Unknown error'));
       }
     };
 
@@ -38,9 +39,9 @@ const ReservationPage = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setUserId(user.uid);
+        setStudentUserId(user.uid);
       } else {
-        console.error('No user is signed in');
+        console.error('로그인된 사용자가 없습니다.');
       }
     });
 
@@ -58,8 +59,8 @@ const ReservationPage = () => {
           const reservationsResponse = await axios.get('http://localhost:8000/reservations/');
           setReservations(reservationsResponse.data);
         } catch (error) {
-          console.error('Error fetching data:', error);
-          alert('Error fetching data: ' + (error.response?.data?.detail || 'Unknown error'));
+          console.error('데이터를 가져오는 중 오류 발생:', error);
+          alert('데이터를 가져오는 중 오류 발생: ' + (error.response?.data?.detail || 'Unknown error'));
         }
       };
 
@@ -68,44 +69,45 @@ const ReservationPage = () => {
   }, [selectedProfessor]);
 
   useEffect(() => {
-    if (userId) {
+    if (studentUserId) {
       const fetchUserReservations = async () => {
         try {
-          const response = await axios.get(`http://localhost:8000/reservations/user?user_id=${userId}`);
+          const response = await axios.get(`http://localhost:8000/reservations/user?user_id=${studentUserId}`);
           setUserReservations(response.data);
+          console.log('Fetched user reservations:', response.data); // 로깅 추가
         } catch (error) {
-          console.error('Error fetching user reservations:', error);
-          alert('Error fetching user reservations: ' + (error.response?.data?.detail || 'Unknown error'));
+          console.error('사용자 예약 데이터를 가져오는 중 오류 발생:', error);
+          alert('사용자 예약 데이터를 가져오는 중 오류 발생: ' + (error.response?.data?.detail || 'Unknown error'));
         }
       };
 
       fetchUserReservations();
     }
-  }, [userId]);
+  }, [studentUserId]);
 
   const handleReservation = async () => {
     if (!studentName || !selectedDate || !selectedTime || !selectedProfessor) {
-      alert('Please fill in all fields');
-
-return;
+      alert('모든 필드를 입력해 주세요.');
+      return;
     }
 
     const selectedDay = daysOfWeek[getDay(new Date(selectedDate))];
 
     const reservationData = {
       studentName,
-      userId: selectedProfessor.professor_id,
+      professor_id: selectedProfessor.professor_id,
+      professor_name: selectedProfessor.name,
       day: selectedDay,
       date: selectedDate,
       time: selectedTime,
-      studentUserId: userId // Include the current user's UID
+      userId: studentUserId // Include the current user's UID
     };
 
-    console.log("Sending reservation to server:", reservationData);
+    console.log("서버로 예약 데이터 전송:", reservationData);
 
     try {
       await axios.post('http://localhost:8000/reservation/', reservationData);
-      alert('Reservation made successfully!');
+      alert('예약이 성공적으로 완료되었습니다!');
       setStudentName('');
       setSelectedDate('');
       setSelectedTime('');
@@ -115,11 +117,12 @@ return;
       setReservations(reservationsResponse.data);
 
       // Fetch the updated user reservations
-      const userReservationsResponse = await axios.get(`http://localhost:8000/reservations/user?user_id=${userId}`);
+      const userReservationsResponse = await axios.get(`http://localhost:8000/reservations/user?user_id=${studentUserId}`);
       setUserReservations(userReservationsResponse.data);
+      console.log('Updated user reservations:', userReservationsResponse.data); // 로깅 추가
     } catch (error) {
-      console.error('Error making reservation:', error);
-      alert('Error making reservation: ' + (error.response?.data?.detail || 'Unknown error'));
+      console.error('예약 중 오류 발생:', error);
+      alert('예약 중 오류 발생: ' + (error.response?.data?.detail || 'Unknown error'));
     }
   };
 
@@ -151,7 +154,7 @@ return;
 
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>Make a Reservation</Typography>
+      <Typography variant="h4" gutterBottom>예약하기</Typography>
       <Paper>
         <Tabs
           value={tabIndex}
@@ -160,15 +163,15 @@ return;
           textColor="primary"
           centered
         >
-          <Tab label="New Reservation" />
-          <Tab label="My Reservations" />
+          <Tab label="새 예약" />
+          <Tab label="내 예약" />
         </Tabs>
       </Paper>
       {tabIndex === 0 && (
         <Box>
           <TextField
             select
-            label="Select Professor"
+            label="교수 선택"
             value={selectedProfessor ? selectedProfessor.professor_id : ''}
             onChange={e => setSelectedProfessor(professors.find(prof => prof.professor_id === e.target.value))}
             fullWidth
@@ -180,7 +183,7 @@ return;
             ))}
           </TextField>
           <TextField
-            label="Student Name"
+            label="학생 이름"
             value={studentName}
             onChange={e => setStudentName(e.target.value)}
             fullWidth
@@ -188,7 +191,7 @@ return;
             margin="normal"
           />
           <TextField
-            label="Date"
+            label="날짜"
             type="date"
             value={selectedDate}
             onChange={e => setSelectedDate(e.target.value)}
@@ -200,7 +203,7 @@ return;
           {selectedDate && (
             <TextField
               select
-              label="Time"
+              label="시간"
               value={selectedTime}
               onChange={e => setSelectedTime(e.target.value)}
               fullWidth
@@ -213,23 +216,23 @@ return;
             </TextField>
           )}
           <Button variant="contained" color="primary" onClick={handleReservation} fullWidth>
-            Make Reservation
+            예약하기
           </Button>
         </Box>
       )}
       {tabIndex === 1 && (
         <Box>
-          <Typography variant="h6" gutterBottom>My Reservations</Typography>
+          <Typography variant="h6" gutterBottom>내 예약</Typography>
           {userReservations.length > 0 ? (
             userReservations.map(reservation => (
               <Box key={reservation._id} mb={2} p={2} border={1} borderColor="grey.300" borderRadius={4}>
-                <Typography><strong>Professor Name:</strong> {reservation.professor_name}</Typography>
-                <Typography><strong>Date:</strong> {reservation.date}</Typography>
-                <Typography><strong>Time:</strong> {reservation.time}</Typography>
+                <Typography><strong>교수 이름:</strong> {reservation.professor_name}</Typography>
+                <Typography><strong>날짜:</strong> {reservation.date}</Typography>
+                <Typography><strong>시간:</strong> {reservation.time}</Typography>
               </Box>
             ))
           ) : (
-            <Typography>No reservations found.</Typography>
+            <Typography>예약 정보가 없습니다.</Typography>
           )}
         </Box>
       )}

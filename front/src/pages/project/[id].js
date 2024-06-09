@@ -274,7 +274,7 @@ function ProjectDetails() {
             <CustomCard variant='outlined' ref={textExtractedCardRef}>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
-                  텍스트 추출
+                  본문 내용
                 </CustomTypography>
                 <Typography variant='body1' gutterBottom>
                   {project.text_extracted}
@@ -287,7 +287,7 @@ function ProjectDetails() {
             <CustomCard variant='outlined'>
               <CardContent>
                 <CustomTypography variant='h6' gutterBottom>
-                  Image Previews
+                  이미지
                 </CustomTypography>
                 {renderPreviewImages()}
               </CardContent>

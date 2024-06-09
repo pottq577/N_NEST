@@ -7,7 +7,7 @@ import useMediaQuery from '@mui/material/useMediaQuery'
 import VerticalLayout from 'src/@core/layouts/VerticalLayout'
 
 // ** Navigation Imports
-import VerticalNavItems from 'src/navigation/vertical'
+import useNavigation from 'src/navigation/vertical'
 
 // ** Component Import
 import UpgradeToProButton from './components/UpgradeToProButton'
@@ -44,12 +44,14 @@ const UserLayout = ({ children }) => {
     )
   }
 
+  const navItems = useNavigation();
+
   return (
     <VerticalLayout
       hidden={hidden}
       settings={settings}
       saveSettings={saveSettings}
-      verticalNavItems={VerticalNavItems()} // Navigation Items
+      verticalNavItems={navItems} // Navigation Items
       // afterVerticalNavMenuContent={UpgradeToProImg}
       verticalAppBarContent={(
         props // AppBar Content

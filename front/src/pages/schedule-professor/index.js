@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Container, TextField, MenuItem, Button, Typography, Grid, Box, Checkbox, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Tabs, Tab } from '@mui/material';
 import { auth } from '../../../lib/firebase';
-import { setHours, setMinutes, format, isBefore, isAfter, parseISO } from 'date-fns';
+import { setHours, setMinutes, format, isBefore } from 'date-fns';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const timeIntervals = [15, 30, 45, 60];
+
 
 const defaultWeeklySchedule = daysOfWeek.reduce((schedule, day) => {
   schedule[day] = {
@@ -14,8 +15,7 @@ const defaultWeeklySchedule = daysOfWeek.reduce((schedule, day) => {
     interval: 30,
     maxCapacity: 1
   };
-
-return schedule;
+  return schedule;
 }, {});
 
 const AvailabilitySettings = () => {
@@ -33,7 +33,7 @@ const AvailabilitySettings = () => {
         fetchReservations(user.email);
       } else {
         setUserEmail('');
-        console.error('No user is signed in');
+        console.error('로그인된 사용자가 없습니다.');
       }
     });
 
@@ -50,18 +50,18 @@ const AvailabilitySettings = () => {
       }
       setUnavailableTimes(response.data.unavailableTimes || []);
     } catch (error) {
-      console.error('Error fetching availability:', error);
-      alert('Error fetching availability: ' + (error.response?.data?.detail || 'Unknown error'));
+      console.error('예약 가능 정보를 가져오는 중 오류 발생:', error);
+      alert('예약 가능 정보를 가져오는 중 오류 발생: ' + (error.response?.data?.detail || '알 수 없는 오류'));
     }
   };
 
   const fetchReservations = async (email) => {
     try {
-      const response = await axios.get('http://localhost:8000/reservations/', { params: { email } });
+      const response = await axios.get('http://localhost:8000/reservations/professor', { params: { email } });
       setReservations(response.data);
     } catch (error) {
-      console.error('Error fetching reservations:', error);
-      alert('Error fetching reservations: ' + (error.response?.data?.detail || 'Unknown error'));
+      console.error('예약 정보를 가져오는 중 오류 발생:', error);
+      alert('예약 정보를 가져오는 중 오류 발생: ' + (error.response?.data?.detail || '알 수 없는 오류'));
     }
   };
 
@@ -107,21 +107,20 @@ const AvailabilitySettings = () => {
       unavailableTimes
     };
 
-    console.log("Sending to server:", availabilityData);
+    console.log("서버로 전송 중:", availabilityData);
 
     try {
       await saveAvailability(availabilityData);
-      alert('Availability settings saved successfully!');
+      alert('예약 가능 설정이 성공적으로 저장되었습니다!');
     } catch (error) {
-      console.error('Error processing availability:', error);
-      alert('Error processing availability: ' + (error.response?.data?.detail || 'Unknown error'));
+      console.error('예약 가능 정보를 처리하는 중 오류 발생:', error);
+      alert('예약 가능 정보를 처리하는 중 오류 발생: ' + (error.response?.data?.detail || '알 수 없는 오류'));
     }
   };
 
   const saveAvailability = async (availabilityData) => {
     const response = await axios.post('http://localhost:8000/availability/', availabilityData);
-
-return response.data;
+    return response.data;
   };
 
   const generateTimeSlots = (startTime, endTime, interval) => {
@@ -132,8 +131,7 @@ return response.data;
       slots.push(format(current, 'HH:mm'));
       current = setMinutes(current, current.getMinutes() + interval);
     }
-
-return slots;
+    return slots;
   };
 
   const handleTabChange = (event, newValue) => {
@@ -142,10 +140,10 @@ return slots;
 
   return (
     <Container>
-      <Typography variant="h4" gutterBottom>Availability Settings</Typography>
+      <Typography variant="h4" gutterBottom>예약 가능 설정</Typography>
       <Tabs value={tabValue} onChange={handleTabChange}>
-        <Tab label="Set Availability" />
-        <Tab label="View Reservations" />
+        <Tab label="예약 가능 설정" />
+        <Tab label="예약 정보 보기" />
       </Tabs>
       {tabValue === 0 && (
         <form onSubmit={handleSubmit}>
@@ -154,7 +152,7 @@ return slots;
               <Grid item xs={12} sm={6} md={4} key={day}>
                 <Typography variant="h6">{day}</Typography>
                 <TextField
-                  label="Start Time"
+                  label="시작 시간"
                   type="time"
                   value={weeklySchedule[day]?.start || ''}
                   onChange={e => handleTimeChange(day, 'start', e.target.value)}
@@ -166,7 +164,7 @@ return slots;
                   margin="normal"
                 />
                 <TextField
-                  label="End Time"
+                  label="종료 시간"
                   type="time"
                   value={weeklySchedule[day]?.end || ''}
                   onChange={e => handleTimeChange(day, 'end', e.target.value)}
@@ -179,7 +177,7 @@ return slots;
                 />
                 <TextField
                   select
-                  label="Time Interval (minutes)"
+                  label="시간 간격 (분)"
                   value={weeklySchedule[day]?.interval || 30}
                   onChange={e => handleTimeChange(day, 'interval', parseInt(e.target.value))}
                   fullWidth
@@ -192,7 +190,7 @@ return slots;
                   ))}
                 </TextField>
                 <TextField
-                  label="Max Capacity per Slot"
+                  label="슬롯당 최대 인원"
                   type="number"
                   value={weeklySchedule[day]?.maxCapacity || 1}
                   onChange={e => handleTimeChange(day, 'maxCapacity', parseInt(e.target.value))}
@@ -203,13 +201,13 @@ return slots;
                   disabled={weeklySchedule[day]?.start === null}
                 />
                 <Button variant="contained" color="secondary" onClick={() => handleDayToggle(day)} fullWidth>
-                  {weeklySchedule[day]?.start === null ? 'Enable' : 'Disable'}
+                  {weeklySchedule[day]?.start === null ? '활성화' : '비활성화'}
                 </Button>
               </Grid>
             ))}
             <Grid item xs={12}>
               <Button type="submit" variant="contained" color="primary" fullWidth>
-                Save Settings
+                설정 저장
               </Button>
             </Grid>
           </Grid>
@@ -218,15 +216,15 @@ return slots;
 
       {tabValue === 1 && (
         <Box mt={5}>
-          <Typography variant="h5">Upcoming Reservations</Typography>
+          <Typography variant="h5">다가오는 예약 정보</Typography>
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Student Name</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Day</TableCell>
-                  <TableCell>Time</TableCell>
+                  <TableCell>학생 이름</TableCell>
+                  <TableCell>날짜</TableCell>
+                  <TableCell>요일</TableCell>
+                  <TableCell>시간</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -246,12 +244,12 @@ return slots;
 
       {tabValue === 0 && (
         <Box mt={5}>
-          <Typography variant="h5">Weekly Schedule</Typography>
+          <Typography variant="h5">주간 일정</Typography>
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Time</TableCell>
+                  <TableCell>시간</TableCell>
                   {daysOfWeek.map(day => (
                     <TableCell key={day}>{day}</TableCell>
                   ))}

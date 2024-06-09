@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, Depends, Query
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
 from datetime import datetime, timedelta, timezone
 import jwt
-from database import user_collection, professor_collection, course_collection
+from database import user_collection, professor_collection, course_collection,  admin_collection 
 from config import CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, SECRET_KEY, ALGORITHM
 import httpx
 from typing import Dict
@@ -151,3 +151,12 @@ async def get_user_status(request: Request):
             print(f"Token verification failed: {str(e)}")
             return {"logged_in": True, "token_valid": False, "error": str(e)}
     return {"logged_in": False}
+
+
+@router.get("/api/check-admin")
+async def check_admin(email: str = Query(...)):
+    admin = await admin_collection.find_one({"email": email})
+    if admin:
+        return {"isAdmin": True}
+    else:
+        return {"isAdmin": False}

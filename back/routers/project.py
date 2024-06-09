@@ -64,3 +64,26 @@ async def add_comment(project_id: str, comment: Comment):
             raise HTTPException(status_code=500, detail="Failed to add comment")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to add comment: {str(e)}")
+
+@router.put("/update-project/{project_id}")
+async def update_project(project_id: str, project_data: ProjectInfo):
+    json_compatible_item_data = jsonable_encoder(project_data)
+    result = await project_collection.update_one(
+        {"_id": ObjectId(project_id)},
+        {"$set": json_compatible_item_data}
+    )
+    if result.modified_count == 1:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=404, detail="Project not found or no changes made")
+    
+@router.delete("/delete-project/{project_id}")
+async def delete_project(project_id: str):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+
+    result = await project_collection.delete_one({"_id": ObjectId(project_id)})
+    if result.deleted_count == 1:
+        return {"status": "success", "message": "Project deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="Project not found") 
