@@ -62,6 +62,7 @@ const Home = () => {
     const fetchCourses = async () => {
       try {
         const response = await axios.get('http://localhost:8000/courses/')
+        console.log('Courses fetched:', response.data)
         setCourses(response.data)
       } catch (error) {
         console.error('Error fetching courses:', error)
@@ -71,6 +72,7 @@ const Home = () => {
     const fetchStudents = async () => {
       try {
         const response = await axios.get('http://localhost:8000/students/')
+        console.log('Students fetched:', response.data)
         setStudents(response.data)
       } catch (error) {
         console.error('Error fetching students:', error)
@@ -88,6 +90,10 @@ const Home = () => {
     setSelectedCourse('')
   }, [fileType])
 
+  useEffect(() => {
+    console.log('Courses state:', courses)
+  }, [courses])
+
   const handleInputChange = (e, rowIndex, colIndex) => {
     const newData = [...data]
     newData[rowIndex][colIndex] = e.target.value
@@ -97,8 +103,7 @@ const Home = () => {
   const handleSave = async () => {
     if (fileType === '학생' && !selectedCourse) {
       alert('학생 파일 유형을 선택한 경우 수업을 선택해야 합니다.')
-
-return
+      return
     }
 
     let formattedData = []
@@ -106,10 +111,10 @@ return
       formattedData = data.slice(1).map(row => ({
         name: row[0],
         professor: row[1],
-        day: row[2], // 수정: 교수 ID가 아니라 요일
-        time: row[3], // 수정: 요일이 아니라 시간
-        code: row[4], // 수정: 시간이 아니라 코드
-        professor_id: String(row[5]) // 수정: 코드가 아니라 교수 ID
+        day: row[2],
+        time: row[3],
+        code: row[4],
+        professor_id: String(row[5])
       }))
     } else if (fileType === '학생') {
       formattedData = data.slice(1).map(row => ({
@@ -120,7 +125,7 @@ return
       }))
     }
 
-    console.log('Formatted data:', formattedData) // 추가
+    console.log('Formatted data:', formattedData)
 
     try {
       let response
@@ -144,8 +149,6 @@ return
       alert('저장 중 오류가 발생했습니다.')
     }
   }
-
-
 
   const handleDelete = async id => {
     try {
@@ -185,11 +188,13 @@ return
 
   const handleCourseChange = async event => {
     setSelectedCourse(event.target.value)
+    console.log('Selected course:', event.target.value)
 
     // 선택한 수업에 대한 학생 목록을 가져오기 (삭제 탭에서만)
     if (fileType === '학생') {
       try {
         const response = await axios.get(`http://localhost:8000/students/?course_code=${event.target.value}`)
+        console.log('Students for selected course:', response.data)
         setStudents(response.data)
       } catch (error) {
         console.error('Error fetching students:', error)
@@ -207,38 +212,48 @@ return
           <Tab label='추가' />
           <Tab label='삭제' />
         </Tabs>
-        <Divider sx={{ my: 2 }} /> {/* Tabs와 파일 유형 선택 드롭다운 사이에 간격 추가 */}
+        <Divider sx={{ my: 2 }} />
         {errorMessage && (
           <Alert severity='error' sx={{ mb: 2 }}>
             {errorMessage}
           </Alert>
         )}
         <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel id='file-type-label'>파일 유형</InputLabel>
+          <InputLabel id='file-type-label' sx={{ color: 'black' }}>
+            파일 유형
+          </InputLabel>
           <Select
             labelId='file-type-label'
             value={fileType}
             label='파일 유형'
             onChange={e => setFileType(e.target.value)}
+            sx={{ color: 'black' }}
           >
-            <MenuItem value='수업'>수업</MenuItem>
-            <MenuItem value='학생'>학생</MenuItem>
+            <MenuItem value='수업' sx={{ color: 'black' }}>
+              수업
+            </MenuItem>
+            <MenuItem value='학생' sx={{ color: 'black' }}>
+              학생
+            </MenuItem>
           </Select>
         </FormControl>
         {tabValue === 0 && (
           <>
             {fileType === '학생' && (
               <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel id='course-label'>수업</InputLabel>
+                <InputLabel id='course-label' sx={{ color: 'black' }}>
+                  수업
+                </InputLabel>
                 <Select
                   labelId='course-label'
                   value={selectedCourse}
                   label='수업'
-                  onChange={e => setSelectedCourse(e.target.value)}
+                  onChange={handleCourseChange}
+                  sx={{ color: 'black' }}
                 >
                   {courses.map(course => (
-                    <MenuItem key={course.id} value={course.code}>
-                      {course.display_name}
+                    <MenuItem key={course.id} value={course.code} sx={{ color: 'black' }}>
+                      {course.name} - {course.professor} ({course.code})
                     </MenuItem>
                   ))}
                 </Select>
@@ -306,12 +321,22 @@ return
             </Typography>
             {fileType === '학생' && (
               <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel id='course-label'>수업</InputLabel>
-                <Select labelId='course-label' value={selectedCourse} label='수업' onChange={handleCourseChange}>
-                  <MenuItem value=''>모든 수업</MenuItem> {/* '모든 수업' 옵션 추가 */}
+                <InputLabel id='course-label' sx={{ color: 'black' }}>
+                  수업
+                </InputLabel>
+                <Select
+                  labelId='course-label'
+                  value={selectedCourse}
+                  label='수업'
+                  onChange={handleCourseChange}
+                  sx={{ color: 'black' }}
+                >
+                  <MenuItem value='' sx={{ color: 'black' }}>
+                    모든 수업
+                  </MenuItem>
                   {courses.map(course => (
-                    <MenuItem key={course.id} value={course.code}>
-                      {course.display_name}
+                    <MenuItem key={course.id} value={course.code} sx={{ color: 'black' }}>
+                      {course.name} - {course.professor} ({course.code})
                     </MenuItem>
                   ))}
                 </Select>
@@ -324,7 +349,7 @@ return
                     <TableRow>
                       <TableCell>수업 이름</TableCell>
                       <TableCell>교수명</TableCell>
-                      <TableCell>교수 ID</TableCell> {/* 추가 */}
+                      <TableCell>교수 ID</TableCell>
                       <TableCell>요일</TableCell>
                       <TableCell>시간</TableCell>
                       <TableCell>코드</TableCell>
@@ -336,7 +361,7 @@ return
                       <TableRow key={course.id}>
                         <TableCell>{course.name}</TableCell>
                         <TableCell>{course.professor}</TableCell>
-                        <TableCell>{course.professor_id}</TableCell> {/* 추가 */}
+                        <TableCell>{course.professor_id}</TableCell>
                         <TableCell>{course.day}</TableCell>
                         <TableCell>{course.time}</TableCell>
                         <TableCell>{course.code}</TableCell>

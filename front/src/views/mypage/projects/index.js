@@ -19,10 +19,15 @@ import {
   CardActions,
   CardMedia,
   Container,
-  Paper
+  Paper,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
-import { Add, Star, ForkRight, Visibility } from '@mui/icons-material'
+import { Add, Star, ForkRight, Visibility, Delete as DeleteIcon } from '@mui/icons-material'
 import { useRouter } from 'next/router'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../../../lib/firebase'
@@ -48,6 +53,8 @@ const UserProjectsPage = () => {
   const [currentUser, setCurrentUser] = useState(null)
   const [userCourses, setUserCourses] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
+  const [projectToDelete, setProjectToDelete] = useState(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -219,6 +226,29 @@ const UserProjectsPage = () => {
 
   const handleEditProject = projectId => {
     router.push(`/edit-projectinfo/${projectId}`)
+  }
+
+  const handleDeleteProject = projectId => {
+    setOpenDeleteDialog(true)
+    setProjectToDelete(projectId)
+  }
+
+  const confirmDeleteProject = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/delete-project/${projectToDelete}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) {
+        throw new Error('Failed to delete project')
+      }
+      setFilteredProjects(prev => prev.filter(project => project._id !== projectToDelete))
+      setOpenDeleteDialog(false)
+      setProjectToDelete(null)
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      setOpenDeleteDialog(false)
+      setProjectToDelete(null)
+    }
   }
 
   const RenderUserInfo = () => (
@@ -449,6 +479,9 @@ const UserProjectsPage = () => {
                     <IconButton sx={{ color: '#0072E5' }} onClick={() => handleEditProject(project._id)}>
                       <EditIcon />
                     </IconButton>
+                    <IconButton sx={{ color: '#d32f2f' }} onClick={() => handleDeleteProject(project._id)}>
+                      <DeleteIcon />
+                    </IconButton>
                   </Paper>
                 </CardContent>
                 <Box sx={{ px: 2, pb: 1 }}>
@@ -488,6 +521,21 @@ const UserProjectsPage = () => {
           handleNavigateToDocumentGeneration={handleNavigateToDocumentGeneration}
         />
       </Modal>
+
+      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
+        <DialogTitle>프로젝트 삭제</DialogTitle>
+        <DialogContent>
+          <DialogContentText>정말 이 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteDialog(false)} color='primary'>
+            취소
+          </Button>
+          <Button onClick={confirmDeleteProject} color='primary'>
+            삭제
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   )
 }

@@ -29,9 +29,10 @@ import re
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 load_dotenv()
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client2 = OpenAI(api_key=OPENAI_API_KEY)
+# GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# client2 = OpenAI(api_key=OPENAI_API_KEY)
+
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -481,15 +482,21 @@ async def update_project(project_id: str, project_data: ProjectInfo):
     else:
         raise HTTPException(status_code=404, detail="Project not found or no changes made")
 
-
-
-
-
 @app.get("/api/projects")
 async def read_projects():
     projects = await db["Project"].find().to_list(100)
     return [transform_id(project) for project in projects]
 
+@app.delete("/delete-project/{project_id}")
+async def delete_project(project_id: str):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+
+    result = await project_collection.delete_one({"_id": ObjectId(project_id)})
+    if result.deleted_count == 1:
+        return {"status": "success", "message": "Project deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="Project not found")
 
 
 
